@@ -1,0 +1,2 @@
+cognitive-complexity-threshold = 30
+disallowed-names = ["foo", "bar", "baz", "quux"]

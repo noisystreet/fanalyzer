@@ -1,0 +1,10 @@
+/target
+.env
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.iml
+.DS_Store
+coverage/

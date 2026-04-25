@@ -1,0 +1,6 @@
+[api]
+base_url = "https://api.example.com"
+timeout_secs = 30
+
+[log]
+level = "info"

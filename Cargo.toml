@@ -1,0 +1,28 @@
+[package]
+name = "analysis_fund"
+version = "0.1.0"
+edition = "2021"
+description = "A Rust-based fund analysis tool for retrieving, analyzing and visualizing fund data"
+license = "MIT"
+repository = "https://github.com/user/analysis_fund"
+readme = "README.md"
+keywords = ["fund", "finance", "analysis"]
+categories = ["finance"]
+
+[dependencies]
+anyhow = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", features = ["json"] }
+clap = { version = "4", features = ["derive"] }
+toml = "0.8"
+chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+tempfile = "3"
