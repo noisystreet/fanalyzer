@@ -30,7 +30,6 @@ pub enum FundType {
     Other,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FundNav {
     pub code: String,
@@ -40,7 +39,6 @@ pub struct FundNav {
     pub daily_return: Option<f64>,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FundAnalysis {
     pub code: String,

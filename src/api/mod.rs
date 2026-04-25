@@ -1,3 +1,5 @@
+pub mod eastmoney;
+
 use crate::models::{Fund, FundNav, ModelError};
 use thiserror::Error;
 
@@ -9,6 +11,8 @@ pub enum ApiError {
     Model(#[from] ModelError),
     #[error("API rate limit exceeded")]
     RateLimited,
+    #[error("EastMoney error: {0}")]
+    EastMoney(#[from] eastmoney::EastMoneyError),
 }
 
 #[allow(dead_code)]
@@ -17,6 +21,7 @@ pub struct FundClient {
     base_url: String,
 }
 
+#[allow(dead_code)]
 impl FundClient {
     pub fn new(base_url: &str) -> Self {
         Self {
