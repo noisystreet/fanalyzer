@@ -46,6 +46,7 @@ impl FundAnalyzer {
 
         let volatility = Self::calc_volatility(&sorted);
         let max_drawdown = Self::calc_max_drawdown(&nav_values);
+        let sharpe_ratio = Self::calc_sharpe_ratio(annualized_return, volatility);
 
         Some(FundAnalysis {
             code,
@@ -57,6 +58,7 @@ impl FundAnalyzer {
             annualized_return,
             volatility,
             max_drawdown,
+            sharpe_ratio,
         })
     }
 
@@ -93,6 +95,16 @@ impl FundAnalyzer {
         }
 
         max_dd
+    }
+
+    fn calc_sharpe_ratio(annualized_return: f64, volatility: f64) -> f64 {
+        const RISK_FREE_RATE: f64 = 0.03;
+
+        if volatility == 0.0 || !volatility.is_finite() {
+            return 0.0;
+        }
+
+        (annualized_return - RISK_FREE_RATE) / volatility
     }
 }
 
@@ -210,5 +222,23 @@ mod tests {
         assert!((result.avg_nav - 1.0).abs() < 1e-6);
         assert!((result.max_nav - 1.5).abs() < 1e-6);
         assert!((result.min_nav - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_sharpe_ratio() {
+        let sharpe = FundAnalyzer::calc_sharpe_ratio(0.15, 0.2);
+        assert!((sharpe - 0.6).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_sharpe_ratio_zero_volatility() {
+        let sharpe = FundAnalyzer::calc_sharpe_ratio(0.15, 0.0);
+        assert!((sharpe - 0.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_sharpe_ratio_negative_return() {
+        let sharpe = FundAnalyzer::calc_sharpe_ratio(-0.05, 0.1);
+        assert!((sharpe - (-0.8)).abs() < 1e-6);
     }
 }

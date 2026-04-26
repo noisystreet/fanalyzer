@@ -50,4 +50,5 @@ pub struct FundAnalysis {
     pub annualized_return: f64,
     pub volatility: f64,
     pub max_drawdown: f64,
+    pub sharpe_ratio: f64,
 }
