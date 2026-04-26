@@ -52,4 +52,6 @@ pub struct FundAnalysis {
     pub volatility: f64,
     pub max_drawdown: f64,
     pub sharpe_ratio: f64,
+    pub alpha: f64,
+    pub beta: f64,
 }

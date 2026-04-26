@@ -2,7 +2,7 @@ use analysis_fund::api::eastmoney::EastMoneyClient;
 use analysis_fund::cache::FundCache;
 use analysis_fund::config::AppConfig;
 use analysis_fund::models::{FundAnalysis, FundNav};
-use analysis_fund::services::FundAnalyzer;
+use analysis_fund::services::{BenchmarkData, FundAnalyzer};
 use clap::Parser;
 use std::fs::File;
 use std::io::Write;
@@ -74,27 +74,39 @@ fn print_analysis(analysis: &FundAnalysis) {
     println!("波动率: {:.2}%", analysis.volatility * 100.0);
     println!("最大回撤: {:.2}%", analysis.max_drawdown * 100.0);
     println!("夏普比率: {:.2}", analysis.sharpe_ratio);
+    println!("阿尔法 (Alpha): {:.2}%", analysis.alpha * 100.0);
+    println!("贝塔 (Beta): {:.2}", analysis.beta);
 }
 
 fn print_comparison(analyses: &[FundAnalysis]) {
     println!("基金对比分析");
     println!();
     println!(
-        "{:<10} {:<16} {:>10} {:>12} {:>10} {:>10} {:>10}",
-        "基金代码", "基金名称", "总收益率", "年化收益率", "波动率", "最大回撤", "夏普比率"
+        "{:<10} {:<16} {:>10} {:>12} {:>10} {:>10} {:>10} {:>10} {:>8}",
+        "基金代码",
+        "基金名称",
+        "总收益率",
+        "年化收益率",
+        "波动率",
+        "最大回撤",
+        "夏普比率",
+        "Alpha",
+        "Beta"
     );
-    println!("{}", "-".repeat(90));
+    println!("{}", "-".repeat(110));
     for a in analyses {
         let name = truncate_string(&a.name, 14);
         println!(
-            "{:<10} {:<16} {:>9.2}% {:>11.2}% {:>9.2}% {:>9.2}% {:>10.2}",
+            "{:<10} {:<16} {:>9.2}% {:>11.2}% {:>9.2}% {:>9.2}% {:>10.2} {:>9.2}% {:>8.2}",
             a.code,
             name,
             a.total_return * 100.0,
             a.annualized_return * 100.0,
             a.volatility * 100.0,
             a.max_drawdown * 100.0,
-            a.sharpe_ratio
+            a.sharpe_ratio,
+            a.alpha * 100.0,
+            a.beta
         );
     }
 }
@@ -164,6 +176,35 @@ async fn resolve_fund_identifier(
     }
 
     (identifier.to_string(), identifier.to_string())
+}
+
+async fn get_benchmark_data(client: &EastMoneyClient, days: u32) -> Option<BenchmarkData> {
+    const HS300_CODE: &str = "1.000300";
+
+    match client.fetch_index_history(HS300_CODE, 1, days * 2).await {
+        Ok((data, _)) => {
+            let mut dates = Vec::new();
+            let mut returns = Vec::new();
+
+            for i in 1..data.len() {
+                let prev = &data[i - 1];
+                let curr = &data[i];
+                let daily_return = if prev.close != 0.0 {
+                    (curr.close - prev.close) / prev.close
+                } else {
+                    0.0
+                };
+                dates.push(curr.date.date_naive());
+                returns.push(daily_return);
+            }
+
+            Some(BenchmarkData { dates, returns })
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, "Failed to fetch benchmark data");
+            None
+        }
+    }
 }
 
 async fn get_fund_name(
@@ -238,6 +279,7 @@ async fn main() -> anyhow::Result<()> {
             let (resolved_code, name) = resolve_fund_identifier(&client, &cache, &code).await;
             tracing::info!(code = %resolved_code, name = %name, days = days, "Analyzing fund");
             let result = client.fetch_nav_history_by_days(&resolved_code, days).await;
+            let benchmark = get_benchmark_data(&client, days).await;
             match result {
                 Ok(navs) => {
                     tracing::info!(records = navs.len(), "Fetched nav data for analysis");
@@ -245,7 +287,7 @@ async fn main() -> anyhow::Result<()> {
                         tracing::warn!("No nav data available for fund {}", code);
                         return Ok(());
                     }
-                    match FundAnalyzer::analyze(&navs, days, &name) {
+                    match FundAnalyzer::analyze(&navs, days, &name, benchmark.as_ref()) {
                         Some(analysis) => print_analysis(&analysis),
                         None => tracing::warn!("Insufficient data for analysis"),
                     }
@@ -261,13 +303,16 @@ async fn main() -> anyhow::Result<()> {
                 return Ok(());
             }
             tracing::info!(codes = ?codes, days = days, "Comparing funds");
+            let benchmark = get_benchmark_data(&client, days).await;
             let mut analyses = Vec::new();
             for identifier in &codes {
                 let (resolved_code, name) =
                     resolve_fund_identifier(&client, &cache, identifier).await;
                 match client.fetch_nav_history_by_days(&resolved_code, days).await {
                     Ok(navs) => {
-                        if let Some(analysis) = FundAnalyzer::analyze(&navs, days, &name) {
+                        if let Some(analysis) =
+                            FundAnalyzer::analyze(&navs, days, &name, benchmark.as_ref())
+                        {
                             analyses.push(analysis);
                         } else {
                             tracing::warn!("Insufficient data for fund {}", resolved_code);

@@ -1,4 +1,5 @@
 use crate::models::FundNav;
+use chrono::FixedOffset;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -226,4 +227,73 @@ impl EastMoneyClient {
 
         Ok(results)
     }
+
+    pub async fn fetch_index_history(
+        &self,
+        index_code: &str,
+        page_index: u32,
+        page_size: u32,
+    ) -> Result<(Vec<IndexData>, u32), EastMoneyError> {
+        let url = format!(
+            "https://push2his.eastmoney.com/api/qt/stock/kline/get?secid={}&fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=0&beg=0&end=20500101&smplmt=460&lmt=1000000&_=1704067200000",
+            index_code
+        );
+
+        let resp = self
+            .client
+            .get(&url)
+            .header("Referer", "https://quote.eastmoney.com/")
+            .send()
+            .await?
+            .json::<serde_json::Value>()
+            .await?;
+
+        let data = resp
+            .get("data")
+            .ok_or_else(|| EastMoneyError::ParseFailed("Missing data field".to_string()))?;
+
+        let klines = data
+            .get("klines")
+            .and_then(|v| v.as_array())
+            .ok_or_else(|| EastMoneyError::ParseFailed("Missing klines field".to_string()))?;
+
+        let total = data
+            .get("total")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(klines.len() as u64) as u32;
+
+        let start_idx = ((page_index - 1) * page_size) as usize;
+        let end_idx = (start_idx + page_size as usize).min(klines.len());
+
+        let mut index_data = Vec::new();
+        for i in start_idx..end_idx {
+            if let Some(line) = klines.get(i).and_then(|v| v.as_str()) {
+                let parts: Vec<&str> = line.split(',').collect();
+                if parts.len() >= 5 {
+                    if let (Ok(date_str), Ok(close)) =
+                        (parts[0].parse::<String>(), parts[2].parse::<f64>())
+                    {
+                        if let Ok(date) = chrono::NaiveDate::parse_from_str(&date_str, "%Y-%m-%d") {
+                            index_data.push(IndexData {
+                                date: chrono::DateTime::from_naive_utc_and_offset(
+                                    date.and_hms_opt(0, 0, 0).unwrap(),
+                                    FixedOffset::east_opt(0).unwrap(),
+                                ),
+                                close,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        index_data.reverse();
+        Ok((index_data, total))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct IndexData {
+    pub date: chrono::DateTime<FixedOffset>,
+    pub close: f64,
 }
