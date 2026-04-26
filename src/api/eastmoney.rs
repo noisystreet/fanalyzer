@@ -48,7 +48,7 @@ impl EastMoneyClient {
 
         let resp = self
             .client
-            .get(&url)
+            .get(url)
             .header("Referer", &referer)
             .header("Accept", "application/json, text/javascript, */*; q=0.01")
             .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
@@ -149,5 +149,81 @@ impl EastMoneyClient {
         let (mut navs, _) = self.fetch_nav_history(fund_code, 1, page_size).await?;
         navs.truncate(need_records as usize);
         Ok(navs)
+    }
+
+    pub async fn fetch_fund_name(&self, fund_code: &str) -> Result<String, EastMoneyError> {
+        let url = format!(
+            "https://fundgz.1234567.com.cn/js/{}.js?rt={}",
+            fund_code,
+            chrono::Local::now().timestamp_millis()
+        );
+
+        let resp = self
+            .client
+            .get(&url)
+            .header("Referer", "https://fund.eastmoney.com/")
+            .send()
+            .await?
+            .text()
+            .await?;
+
+        let json_str = resp
+            .trim_start_matches("jsonpgz(")
+            .trim_end_matches(");")
+            .trim();
+
+        let parsed: serde_json::Value = serde_json::from_str(json_str)
+            .map_err(|e| EastMoneyError::ParseFailed(e.to_string()))?;
+
+        let name = parsed
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or(fund_code)
+            .to_string();
+
+        Ok(name)
+    }
+
+    pub async fn search_fund(
+        &self,
+        keyword: &str,
+    ) -> Result<Vec<(String, String)>, EastMoneyError> {
+        let url = "https://fund.eastmoney.com/js/fundcode_search.js";
+
+        let resp = self
+            .client
+            .get(url)
+            .header("Referer", "https://fund.eastmoney.com/")
+            .send()
+            .await?
+            .text()
+            .await?;
+
+        let json_str = resp
+            .trim_start_matches("var r = ")
+            .trim_end_matches(";")
+            .trim();
+
+        let parsed: Vec<Vec<String>> = serde_json::from_str(json_str)
+            .map_err(|e| EastMoneyError::ParseFailed(e.to_string()))?;
+
+        let keyword_lower = keyword.to_lowercase();
+        let results: Vec<(String, String)> = parsed
+            .into_iter()
+            .filter(|item| {
+                if item.len() >= 2 {
+                    let code = &item[0];
+                    let name = &item[2];
+                    code.to_lowercase().contains(&keyword_lower)
+                        || name.to_lowercase().contains(&keyword_lower)
+                } else {
+                    false
+                }
+            })
+            .map(|item| (item[0].clone(), item[2].clone()))
+            .take(10)
+            .collect();
+
+        Ok(results)
     }
 }

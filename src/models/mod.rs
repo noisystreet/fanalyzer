@@ -42,6 +42,7 @@ pub struct FundNav {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FundAnalysis {
     pub code: String,
+    pub name: String,
     pub period_days: u32,
     pub avg_nav: f64,
     pub max_nav: f64,
