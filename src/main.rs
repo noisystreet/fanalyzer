@@ -308,6 +308,172 @@ async fn get_fund_meta(client: &EastMoneyClient, code: &str) -> Option<FundMetaI
     })
 }
 
+async fn cmd_fetch(
+    client: &EastMoneyClient,
+    cache: &Arc<Mutex<FundCache>>,
+    code: String,
+    limit: u32,
+) -> anyhow::Result<()> {
+    let (resolved_code, name) = resolve_fund_identifier(client, cache, &code).await;
+    tracing::info!(code = %resolved_code, name = %name, limit = limit, "Fetching fund nav history");
+    let navs = client.fetch_nav_history(&resolved_code, 1, limit).await;
+    match navs {
+        Ok((nav_list, total)) => {
+            tracing::info!(total = total, fetched = nav_list.len(), "Fetched nav data");
+            println!(
+                "Fetched {} records (total: {}) for fund {} ({})",
+                nav_list.len(),
+                total,
+                resolved_code,
+                name
+            );
+            for nav in &nav_list {
+                println!(
+                    "  {}  NAV: {:.4}  AccNAV: {:.4}  DailyReturn: {}",
+                    nav.date,
+                    nav.nav,
+                    nav.acc_nav,
+                    nav.daily_return
+                        .map(|r| format!("{:.2}%", r * 100.0))
+                        .unwrap_or_else(|| "N/A".to_string())
+                );
+            }
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to fetch nav history");
+        }
+    }
+    Ok(())
+}
+
+async fn cmd_analyze(
+    client: &EastMoneyClient,
+    cache: &Arc<Mutex<FundCache>>,
+    code: String,
+    days: u32,
+) -> anyhow::Result<()> {
+    let (resolved_code, name) = resolve_fund_identifier(client, cache, &code).await;
+    tracing::info!(code = %resolved_code, name = %name, days = days, "Analyzing fund");
+    let result = client.fetch_nav_history_by_days(&resolved_code, days).await;
+    let benchmark = get_benchmark_data(client, days).await;
+    let meta = get_fund_meta(client, &resolved_code).await;
+    match result {
+        Ok(navs) => {
+            tracing::info!(records = navs.len(), "Fetched nav data for analysis");
+            if navs.is_empty() {
+                tracing::warn!("No nav data available for fund {}", code);
+                return Ok(());
+            }
+            match FundAnalyzer::analyze(&navs, days, &name, benchmark.as_ref(), meta.as_ref()) {
+                Some(analysis) => print_analysis(&analysis),
+                None => tracing::warn!("Insufficient data for analysis"),
+            }
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to fetch nav data for analysis");
+        }
+    }
+    Ok(())
+}
+
+async fn cmd_compare(
+    client: &EastMoneyClient,
+    cache: &Arc<Mutex<FundCache>>,
+    codes: Vec<String>,
+    days: u32,
+) -> anyhow::Result<()> {
+    if codes.is_empty() {
+        tracing::error!("No fund codes provided for comparison");
+        return Ok(());
+    }
+    tracing::info!(codes = ?codes, days = days, "Comparing funds");
+    let benchmark = get_benchmark_data(client, days).await;
+    let mut analyses = Vec::new();
+    for identifier in &codes {
+        let (resolved_code, name) = resolve_fund_identifier(client, cache, identifier).await;
+        let meta = get_fund_meta(client, &resolved_code).await;
+        match client.fetch_nav_history_by_days(&resolved_code, days).await {
+            Ok(navs) => {
+                if let Some(analysis) =
+                    FundAnalyzer::analyze(&navs, days, &name, benchmark.as_ref(), meta.as_ref())
+                {
+                    analyses.push(analysis);
+                } else {
+                    tracing::warn!("Insufficient data for fund {}", resolved_code);
+                }
+            }
+            Err(e) => {
+                tracing::error!(code = %resolved_code, error = %e, "Failed to fetch data");
+            }
+        }
+    }
+    if analyses.len() >= 2 {
+        print_comparison(&analyses);
+    } else {
+        tracing::warn!("Need at least 2 funds for comparison");
+    }
+    Ok(())
+}
+
+async fn cmd_export(
+    client: &EastMoneyClient,
+    cache: &Arc<Mutex<FundCache>>,
+    code: String,
+    days: u32,
+    output: String,
+    format: String,
+) -> anyhow::Result<()> {
+    let (resolved_code, name) = resolve_fund_identifier(client, cache, &code).await;
+    tracing::info!(code = %resolved_code, name = %name, days = days, output = %output, format = %format, "Exporting fund data");
+    match client.fetch_nav_history_by_days(&resolved_code, days).await {
+        Ok(navs) => {
+            if navs.is_empty() {
+                tracing::warn!("No nav data available for fund {}", resolved_code);
+                return Ok(());
+            }
+            match format.as_str() {
+                "csv" => {
+                    if let Err(e) = export_csv(&navs, &output) {
+                        tracing::error!(error = %e, "Failed to export CSV");
+                    } else {
+                        tracing::info!(path = %output, "Exported to CSV");
+                    }
+                }
+                "json" => {
+                    if let Err(e) = export_json(&navs, &output) {
+                        tracing::error!(error = %e, "Failed to export JSON");
+                    } else {
+                        tracing::info!(path = %output, "Exported to JSON");
+                    }
+                }
+                _ => {
+                    tracing::error!("Unsupported format: {}", format);
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to fetch data for export");
+        }
+    }
+    Ok(())
+}
+
+async fn cmd_info(
+    client: &EastMoneyClient,
+    cache: &Arc<Mutex<FundCache>>,
+    code: String,
+) -> anyhow::Result<()> {
+    let (resolved_code, _name) = resolve_fund_identifier(client, cache, &code).await;
+    tracing::info!(code = %resolved_code, "Fetching fund info");
+    match client.fetch_fund_profile(&resolved_code).await {
+        Ok(profile) => print_fund_profile(&profile),
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to fetch fund info");
+        }
+    }
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     init_tracing();
@@ -320,158 +486,21 @@ async fn main() -> anyhow::Result<()> {
     let cache = Arc::new(Mutex::new(FundCache::new()));
 
     match cli.command {
-        Some(Commands::Fetch { code, limit }) => {
-            let (resolved_code, name) = resolve_fund_identifier(&client, &cache, &code).await;
-            tracing::info!(code = %resolved_code, name = %name, limit = limit, "Fetching fund nav history");
-            let navs = client.fetch_nav_history(&resolved_code, 1, limit).await;
-            match navs {
-                Ok((nav_list, total)) => {
-                    tracing::info!(total = total, fetched = nav_list.len(), "Fetched nav data");
-                    println!(
-                        "Fetched {} records (total: {}) for fund {} ({})",
-                        nav_list.len(),
-                        total,
-                        resolved_code,
-                        name
-                    );
-                    for nav in &nav_list {
-                        println!(
-                            "  {}  NAV: {:.4}  AccNAV: {:.4}  DailyReturn: {}",
-                            nav.date,
-                            nav.nav,
-                            nav.acc_nav,
-                            nav.daily_return
-                                .map(|r| format!("{:.2}%", r * 100.0))
-                                .unwrap_or_else(|| "N/A".to_string())
-                        );
-                    }
-                }
-                Err(e) => {
-                    tracing::error!(error = %e, "Failed to fetch nav history");
-                }
-            }
-        }
-        Some(Commands::Analyze { code, days }) => {
-            let (resolved_code, name) = resolve_fund_identifier(&client, &cache, &code).await;
-            tracing::info!(code = %resolved_code, name = %name, days = days, "Analyzing fund");
-            let result = client.fetch_nav_history_by_days(&resolved_code, days).await;
-            let benchmark = get_benchmark_data(&client, days).await;
-            let meta = get_fund_meta(&client, &resolved_code).await;
-            match result {
-                Ok(navs) => {
-                    tracing::info!(records = navs.len(), "Fetched nav data for analysis");
-                    if navs.is_empty() {
-                        tracing::warn!("No nav data available for fund {}", code);
-                        return Ok(());
-                    }
-                    match FundAnalyzer::analyze(
-                        &navs,
-                        days,
-                        &name,
-                        benchmark.as_ref(),
-                        meta.as_ref(),
-                    ) {
-                        Some(analysis) => print_analysis(&analysis),
-                        None => tracing::warn!("Insufficient data for analysis"),
-                    }
-                }
-                Err(e) => {
-                    tracing::error!(error = %e, "Failed to fetch nav data for analysis");
-                }
-            }
-        }
-        Some(Commands::Compare { codes, days }) => {
-            if codes.is_empty() {
-                tracing::error!("No fund codes provided for comparison");
-                return Ok(());
-            }
-            tracing::info!(codes = ?codes, days = days, "Comparing funds");
-            let benchmark = get_benchmark_data(&client, days).await;
-            let mut analyses = Vec::new();
-            for identifier in &codes {
-                let (resolved_code, name) =
-                    resolve_fund_identifier(&client, &cache, identifier).await;
-                let meta = get_fund_meta(&client, &resolved_code).await;
-                match client.fetch_nav_history_by_days(&resolved_code, days).await {
-                    Ok(navs) => {
-                        if let Some(analysis) = FundAnalyzer::analyze(
-                            &navs,
-                            days,
-                            &name,
-                            benchmark.as_ref(),
-                            meta.as_ref(),
-                        ) {
-                            analyses.push(analysis);
-                        } else {
-                            tracing::warn!("Insufficient data for fund {}", resolved_code);
-                        }
-                    }
-                    Err(e) => {
-                        tracing::error!(code = %resolved_code, error = %e, "Failed to fetch data");
-                    }
-                }
-            }
-            if analyses.len() >= 2 {
-                print_comparison(&analyses);
-            } else {
-                tracing::warn!("Need at least 2 funds for comparison");
-            }
-        }
+        Some(Commands::Fetch { code, limit }) => cmd_fetch(&client, &cache, code, limit).await,
+        Some(Commands::Analyze { code, days }) => cmd_analyze(&client, &cache, code, days).await,
+        Some(Commands::Compare { codes, days }) => cmd_compare(&client, &cache, codes, days).await,
         Some(Commands::Export {
             code,
             days,
             output,
             format,
-        }) => {
-            let (resolved_code, name) = resolve_fund_identifier(&client, &cache, &code).await;
-            tracing::info!(code = %resolved_code, name = %name, days = days, output = %output, format = %format, "Exporting fund data");
-            match client.fetch_nav_history_by_days(&resolved_code, days).await {
-                Ok(navs) => {
-                    if navs.is_empty() {
-                        tracing::warn!("No nav data available for fund {}", resolved_code);
-                        return Ok(());
-                    }
-                    match format.as_str() {
-                        "csv" => {
-                            if let Err(e) = export_csv(&navs, &output) {
-                                tracing::error!(error = %e, "Failed to export CSV");
-                            } else {
-                                tracing::info!(path = %output, "Exported to CSV");
-                            }
-                        }
-                        "json" => {
-                            if let Err(e) = export_json(&navs, &output) {
-                                tracing::error!(error = %e, "Failed to export JSON");
-                            } else {
-                                tracing::info!(path = %output, "Exported to JSON");
-                            }
-                        }
-                        _ => {
-                            tracing::error!("Unsupported format: {}", format);
-                        }
-                    }
-                }
-                Err(e) => {
-                    tracing::error!(error = %e, "Failed to fetch data for export");
-                }
-            }
-        }
-        Some(Commands::Info { code }) => {
-            let (resolved_code, _name) = resolve_fund_identifier(&client, &cache, &code).await;
-            tracing::info!(code = %resolved_code, "Fetching fund info");
-            match client.fetch_fund_profile(&resolved_code).await {
-                Ok(profile) => print_fund_profile(&profile),
-                Err(e) => {
-                    tracing::error!(error = %e, "Failed to fetch fund info");
-                }
-            }
-        }
+        }) => cmd_export(&client, &cache, code, days, output, format).await,
+        Some(Commands::Info { code }) => cmd_info(&client, &cache, code).await,
         None => {
             Cli::parse_from(["analysis_fund", "--help"]);
+            Ok(())
         }
     }
-
-    Ok(())
 }
 
 fn print_fund_profile(profile: &FundProfile) {

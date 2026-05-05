@@ -27,8 +27,11 @@ jobs:
       - name: Check formatting
         run: cargo fmt -- --check
 
+      - name: Code metrics (src/tests file line budget)
+        run: python3 scripts/check_code_metrics.py
+
       - name: Clippy
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --all-targets -- -D warnings -W clippy::cognitive_complexity -W clippy::too_many_lines
 
       - name: Build
         run: cargo build

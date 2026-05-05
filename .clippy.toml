@@ -1,2 +1,6 @@
-cognitive-complexity-threshold = 30
+# cognitive_complexity 近似控制流复杂度；与 pre-commit / CI 中 -W clippy::cognitive_complexity 对应
+cognitive-complexity-threshold = 15
+# 单函数行数；与 -W clippy::too_many_lines 对应
+too-many-lines-threshold = 100
+
 disallowed-names = ["foo", "bar", "baz", "quux"]

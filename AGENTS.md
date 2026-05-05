@@ -43,9 +43,12 @@ Agent 完成修改后**必须**运行以下命令：
 
 ```bash
 cargo fmt -- --check
-cargo clippy -- -D warnings
+python3 scripts/check_code_metrics.py
+cargo clippy --all-targets -- -D warnings -W clippy::cognitive_complexity -W clippy::too_many_lines
 cargo test
 ```
+
+阈值见仓库根目录 **`.clippy.toml`**：**认知复杂度**（`cognitive-complexity-threshold`，对应 `-W clippy::cognitive_complexity`）与 **单函数行数**（`too-many-lines-threshold`，对应 `-W clippy::too_many_lines`）。单文件物理行数上限由 **`scripts/check_code_metrics.py`** 扫描 **`src/`**、**`tests/`**。
 
 ## Coding Conventions
 

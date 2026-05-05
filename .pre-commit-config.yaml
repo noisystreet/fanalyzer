@@ -1,26 +1,52 @@
+# pre-commit：https://pre-commit.com
+# 与 hawthorn_os 对齐：文件行数脚本 + Clippy 认知复杂度 / 单函数行数（阈值见根目录 .clippy.toml）
+default_install_hook_types:
+  - pre-commit
+  - commit-msg
+
 repos:
   - repo: local
     hooks:
       - id: cargo-fmt
-        name: cargo fmt
-        entry: cargo fmt -- --check
+        name: cargo fmt (--check)
+        entry: cargo
+        args: [fmt, --all, --, --check]
         language: system
-        types: [rust]
         pass_filenames: false
+        stages: [pre-commit]
+
+      - id: check-code-metrics
+        name: code metrics（src/tests 下单文件物理行数 ≤800）
+        entry: python3
+        args: [scripts/check_code_metrics.py]
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
 
       - id: cargo-clippy
-        name: cargo clippy
-        entry: cargo clippy -- -D warnings
+        name: cargo clippy (-D warnings，认知复杂度 ≤15，单函数 ≤100 行）
+        entry: cargo
+        args:
+          - clippy
+          - --all-targets
+          - --
+          - -D
+          - warnings
+          - -W
+          - clippy::cognitive_complexity
+          - -W
+          - clippy::too_many_lines
         language: system
-        types: [rust]
         pass_filenames: false
+        stages: [pre-commit]
 
       - id: cargo-test
         name: cargo test
-        entry: cargo test
+        entry: cargo
+        args: [test]
         language: system
-        types: [rust]
         pass_filenames: false
+        stages: [pre-commit]
 
       - id: commit-msg-check
         name: commit message check

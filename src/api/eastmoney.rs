@@ -521,110 +521,43 @@ impl EastMoneyClient {
         })
     }
 
+    /// 关键字后紧随的首个 `<td>...</td>` 纯文本。
+    fn extract_td_after_keyword(html: &str, anchor: &str) -> Option<String> {
+        let idx = html.find(anchor)?;
+        let tail = &html[idx..];
+        let open = tail.find("<td>")?;
+        let inner = &tail[open + 4..];
+        let close = inner.find("</td>")?;
+        Some(Self::clean_html(&inner[..close]))
+    }
+
+    /// 关键字后紧随的首个 `<td class="tditem">...</td>` 纯文本。
+    fn extract_tditem_after_keyword(html: &str, anchor: &str) -> Option<String> {
+        const TDITEM: &str = "<td class=\"tditem\">";
+        let idx = html.find(anchor)?;
+        let tail = &html[idx..];
+        let open = tail.find(TDITEM)?;
+        let inner = &tail[open + TDITEM.len()..];
+        let close = inner.find("</td>")?;
+        Some(Self::clean_html(&inner[..close]))
+    }
+
     fn parse_fund_detail(html: &str) -> FundDetailInfo {
-        let mut info = FundDetailInfo::default();
-
-        // 提取基金全称
-        if let Some(start) = html.find("基金全称") {
-            let remaining = &html[start..];
-            if let Some(td_start) = remaining.find("<td>") {
-                let td_content = &remaining[td_start + 4..];
-                if let Some(td_end) = td_content.find("</td>") {
-                    let full_name = &td_content[..td_end];
-                    info.full_name = Some(Self::clean_html(full_name));
-                }
-            }
+        FundDetailInfo {
+            full_name: Self::extract_td_after_keyword(html, "基金全称"),
+            fund_type: Self::extract_td_after_keyword(html, "基金类型").unwrap_or_default(),
+            establishment_date: Self::extract_td_after_keyword(html, "成立日期")
+                .unwrap_or_default(),
+            asset_size: Self::extract_td_after_keyword(html, "资产规模").unwrap_or_default(),
+            company: Self::extract_td_after_keyword(html, "基金管理人").unwrap_or_default(),
+            investment_target: Self::extract_tditem_after_keyword(html, "投资目标")
+                .unwrap_or_default(),
+            investment_scope: Self::extract_tditem_after_keyword(html, "投资范围")
+                .unwrap_or_default(),
+            investment_strategy: Self::extract_tditem_after_keyword(html, "投资策略")
+                .unwrap_or_default(),
+            benchmark: Self::extract_td_after_keyword(html, "业绩比较基准").unwrap_or_default(),
         }
-
-        // 提取基金类型
-        if let Some(start) = html.find("基金类型") {
-            let remaining = &html[start..];
-            if let Some(td_start) = remaining.find("<td>") {
-                let td_content = &remaining[td_start + 4..];
-                if let Some(td_end) = td_content.find("</td>") {
-                    info.fund_type = Self::clean_html(&td_content[..td_end]);
-                }
-            }
-        }
-
-        // 提取成立日期
-        if let Some(start) = html.find("成立日期") {
-            let remaining = &html[start..];
-            if let Some(td_start) = remaining.find("<td>") {
-                let td_content = &remaining[td_start + 4..];
-                if let Some(td_end) = td_content.find("</td>") {
-                    info.establishment_date = Self::clean_html(&td_content[..td_end]);
-                }
-            }
-        }
-
-        // 提取资产规模
-        if let Some(start) = html.find("资产规模") {
-            let remaining = &html[start..];
-            if let Some(td_start) = remaining.find("<td>") {
-                let td_content = &remaining[td_start + 4..];
-                if let Some(td_end) = td_content.find("</td>") {
-                    info.asset_size = Self::clean_html(&td_content[..td_end]);
-                }
-            }
-        }
-
-        // 提取基金管理人
-        if let Some(start) = html.find("基金管理人") {
-            let remaining = &html[start..];
-            if let Some(td_start) = remaining.find("<td>") {
-                let td_content = &remaining[td_start + 4..];
-                if let Some(td_end) = td_content.find("</td>") {
-                    info.company = Self::clean_html(&td_content[..td_end]);
-                }
-            }
-        }
-
-        // 提取投资目标
-        if let Some(start) = html.find("投资目标") {
-            let remaining = &html[start..];
-            if let Some(td_start) = remaining.find("<td class=\"tditem\">") {
-                let td_content = &remaining[td_start + 19..];
-                if let Some(td_end) = td_content.find("</td>") {
-                    info.investment_target = Self::clean_html(&td_content[..td_end]);
-                }
-            }
-        }
-
-        // 提取投资范围
-        if let Some(start) = html.find("投资范围") {
-            let remaining = &html[start..];
-            if let Some(td_start) = remaining.find("<td class=\"tditem\">") {
-                let td_content = &remaining[td_start + 19..];
-                if let Some(td_end) = td_content.find("</td>") {
-                    info.investment_scope = Self::clean_html(&td_content[..td_end]);
-                }
-            }
-        }
-
-        // 提取投资策略
-        if let Some(start) = html.find("投资策略") {
-            let remaining = &html[start..];
-            if let Some(td_start) = remaining.find("<td class=\"tditem\">") {
-                let td_content = &remaining[td_start + 19..];
-                if let Some(td_end) = td_content.find("</td>") {
-                    info.investment_strategy = Self::clean_html(&td_content[..td_end]);
-                }
-            }
-        }
-
-        // 提取业绩比较基准
-        if let Some(start) = html.find("业绩比较基准") {
-            let remaining = &html[start..];
-            if let Some(td_start) = remaining.find("<td>") {
-                let td_content = &remaining[td_start + 4..];
-                if let Some(td_end) = td_content.find("</td>") {
-                    info.benchmark = Self::clean_html(&td_content[..td_end]);
-                }
-            }
-        }
-
-        info
     }
 
     fn clean_html(html: &str) -> String {
