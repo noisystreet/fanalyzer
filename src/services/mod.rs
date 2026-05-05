@@ -8,12 +8,21 @@ pub struct BenchmarkData {
     pub returns: Vec<f64>,
 }
 
+pub struct FundMetaInfo {
+    pub manager_name: String,
+    pub manager_tenure_days: i32,
+    pub manager_total_return: f64,
+    pub management_fee: f64,
+    pub custody_fee: f64,
+}
+
 impl FundAnalyzer {
     pub fn analyze(
         navs: &[FundNav],
         period_days: u32,
         name: &str,
         benchmark: Option<&BenchmarkData>,
+        meta: Option<&FundMetaInfo>,
     ) -> Option<FundAnalysis> {
         if navs.is_empty() {
             return None;
@@ -71,6 +80,19 @@ impl FundAnalyzer {
             (0.0, 0.0)
         };
 
+        let (manager_name, manager_tenure_days, manager_total_return, management_fee, custody_fee) =
+            if let Some(m) = meta {
+                (
+                    m.manager_name.clone(),
+                    m.manager_tenure_days,
+                    m.manager_total_return,
+                    m.management_fee,
+                    m.custody_fee,
+                )
+            } else {
+                (String::new(), 0, 0.0, 0.0, 0.0)
+            };
+
         Some(FundAnalysis {
             code,
             name: name.to_string(),
@@ -85,6 +107,11 @@ impl FundAnalyzer {
             sharpe_ratio,
             alpha,
             beta,
+            manager_name,
+            manager_tenure_days,
+            manager_total_return,
+            management_fee,
+            custody_fee,
         })
     }
 
@@ -217,14 +244,14 @@ mod tests {
 
     #[test]
     fn test_analyze_empty() {
-        let result = FundAnalyzer::analyze(&[], 30, "测试基金", None);
+        let result = FundAnalyzer::analyze(&[], 30, "测试基金", None, None);
         assert!(result.is_none());
     }
 
     #[test]
     fn test_analyze_single_nav() {
         let navs = vec![make_nav("000001", "2026-01-01", 1.0, 1.0, None)];
-        let result = FundAnalyzer::analyze(&navs, 1, "测试基金", None).unwrap();
+        let result = FundAnalyzer::analyze(&navs, 1, "测试基金", None, None).unwrap();
         assert_eq!(result.code, "000001");
         assert_eq!(result.name, "测试基金");
         assert!((result.avg_nav - 1.0).abs() < 1e-6);
@@ -240,7 +267,7 @@ mod tests {
             make_nav("000001", "2026-01-05", 1.1, 1.1, Some(0.1)),
             make_nav("000001", "2026-01-01", 1.0, 1.0, None),
         ];
-        let result = FundAnalyzer::analyze(&navs, 10, "测试基金", None).unwrap();
+        let result = FundAnalyzer::analyze(&navs, 10, "测试基金", None, None).unwrap();
         assert!((result.total_return - 0.2).abs() < 1e-6);
     }
 
@@ -251,7 +278,7 @@ mod tests {
             make_nav("000001", "2026-01-05", 0.9, 0.9, Some(-0.1)),
             make_nav("000001", "2026-01-01", 1.0, 1.0, None),
         ];
-        let result = FundAnalyzer::analyze(&navs, 10, "测试基金", None).unwrap();
+        let result = FundAnalyzer::analyze(&navs, 10, "测试基金", None, None).unwrap();
         assert!((result.total_return - (-0.2)).abs() < 1e-6);
     }
 
@@ -262,7 +289,7 @@ mod tests {
             make_nav("000001", "2026-01-05", 0.7, 0.7, None),
             make_nav("000001", "2026-01-10", 0.9, 0.9, None),
         ];
-        let result = FundAnalyzer::analyze(&navs, 10, "测试基金", None).unwrap();
+        let result = FundAnalyzer::analyze(&navs, 10, "测试基金", None, None).unwrap();
         assert!((result.max_drawdown - 0.3).abs() < 1e-6);
     }
 
@@ -273,7 +300,7 @@ mod tests {
             make_nav("000001", "2026-01-05", 1.2, 1.2, None),
             make_nav("000001", "2026-01-10", 1.3, 1.3, None),
         ];
-        let result = FundAnalyzer::analyze(&navs, 10, "测试基金", None).unwrap();
+        let result = FundAnalyzer::analyze(&navs, 10, "测试基金", None, None).unwrap();
         assert!((result.max_drawdown - 0.0).abs() < 1e-6);
     }
 
@@ -284,7 +311,7 @@ mod tests {
             make_nav("000001", "2026-01-05", 0.7, 0.7, None),
             make_nav("000001", "2026-01-01", 1.0, 1.0, None),
         ];
-        let result = FundAnalyzer::analyze(&navs, 10, "测试基金", None).unwrap();
+        let result = FundAnalyzer::analyze(&navs, 10, "测试基金", None, None).unwrap();
         assert!((result.max_drawdown - 0.3).abs() < 1e-6);
     }
 
@@ -294,7 +321,7 @@ mod tests {
             make_nav("000001", "2026-01-05", 1.0, 1.0, Some(0.0)),
             make_nav("000001", "2026-01-01", 1.0, 1.0, None),
         ];
-        let result = FundAnalyzer::analyze(&navs, 5, "测试基金", None).unwrap();
+        let result = FundAnalyzer::analyze(&navs, 5, "测试基金", None, None).unwrap();
         assert!((result.volatility - 0.0).abs() < 1e-6);
     }
 
@@ -305,7 +332,7 @@ mod tests {
             make_nav("000001", "2026-01-05", 0.5, 0.5, None),
             make_nav("000001", "2026-01-01", 1.0, 1.0, None),
         ];
-        let result = FundAnalyzer::analyze(&navs, 10, "测试基金", None).unwrap();
+        let result = FundAnalyzer::analyze(&navs, 10, "测试基金", None, None).unwrap();
         assert!((result.avg_nav - 1.0).abs() < 1e-6);
         assert!((result.max_nav - 1.5).abs() < 1e-6);
         assert!((result.min_nav - 0.5).abs() < 1e-6);

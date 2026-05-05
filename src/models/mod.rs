@@ -54,4 +54,9 @@ pub struct FundAnalysis {
     pub sharpe_ratio: f64,
     pub alpha: f64,
     pub beta: f64,
+    pub manager_name: String,
+    pub manager_tenure_days: i32,
+    pub manager_total_return: f64,
+    pub management_fee: f64,
+    pub custody_fee: f64,
 }

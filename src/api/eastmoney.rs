@@ -290,10 +290,430 @@ impl EastMoneyClient {
         index_data.reverse();
         Ok((index_data, total))
     }
+
+    pub async fn fetch_fund_manager(
+        &self,
+        fund_code: &str,
+    ) -> Result<FundManagerInfo, EastMoneyError> {
+        let url = format!("https://fund.eastmoney.com/pingzhongdata/{}.js", fund_code);
+
+        let resp = self
+            .client
+            .get(&url)
+            .header("Referer", "https://fund.eastmoney.com/")
+            .send()
+            .await?
+            .text()
+            .await?;
+
+        // 从 JS 中提取 Data_currentFundManager 数组
+        let manager_json = Self::extract_js_variable(&resp, "Data_currentFundManager")
+            .ok_or_else(|| EastMoneyError::ParseFailed("Manager data not found".to_string()))?;
+
+        let managers: Vec<serde_json::Value> =
+            serde_json::from_str(&manager_json).map_err(|e| {
+                EastMoneyError::ParseFailed(format!("Failed to parse manager data: {}", e))
+            })?;
+
+        let manager = managers
+            .first()
+            .ok_or_else(|| EastMoneyError::ParseFailed("No manager data".to_string()))?;
+
+        let name = manager
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("未知")
+            .to_string();
+
+        // 解析 workTime 字段，格式如 "14年又138天"
+        let work_time = manager
+            .get("workTime")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let tenure_days = Self::parse_work_time(work_time);
+
+        // 从 profit 中提取任期收益
+        let total_return = manager
+            .get("profit")
+            .and_then(|p| p.get("series"))
+            .and_then(|s| s.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|item| item.get("data"))
+            .and_then(|d| d.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|item| item.get("y"))
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0)
+            / 100.0; // 转换为小数
+
+        Ok(FundManagerInfo {
+            name,
+            start_date: String::new(),
+            tenure_days,
+            total_return,
+        })
+    }
+
+    fn extract_js_variable(js_content: &str, var_name: &str) -> Option<String> {
+        let pattern = format!("var {} =", var_name);
+        let start = js_content.find(&pattern)?;
+        let start = start + pattern.len();
+        let remaining = &js_content[start..];
+
+        // 找到变量值的结束位置（分号或换行）
+        let end = remaining.find(";").unwrap_or(remaining.len());
+        let value = &remaining[..end].trim();
+
+        Some(value.to_string())
+    }
+
+    fn parse_work_time(work_time: &str) -> i32 {
+        // 解析 "14年又138天" 格式的字符串
+        let mut days = 0i32;
+
+        // 提取年数
+        if let Some(year_idx) = work_time.find("年") {
+            if let Ok(years) = work_time[..year_idx].trim().parse::<i32>() {
+                days += years * 365;
+            }
+        }
+
+        // 提取天数
+        if let Some(day_start) = work_time.find("又") {
+            if let Some(day_end) = work_time.find("天") {
+                let day_str = &work_time[day_start + 3..day_end]; // "又" 是3字节UTF-8
+                if let Ok(d) = day_str.trim().parse::<i32>() {
+                    days += d;
+                }
+            }
+        }
+
+        days
+    }
+
+    pub async fn fetch_fund_fee(&self, fund_code: &str) -> Result<FundFeeInfo, EastMoneyError> {
+        // 复用同一个 JS 数据源
+        let url = format!("https://fund.eastmoney.com/pingzhongdata/{}.js", fund_code);
+
+        let resp = self
+            .client
+            .get(&url)
+            .header("Referer", "https://fund.eastmoney.com/")
+            .send()
+            .await?
+            .text()
+            .await?;
+
+        // 从 JS 变量中提取费率信息
+        // fund_sourceRate 是原费率，fund_Rate 是现费率
+        let source_rate = Self::extract_js_string_value(&resp, "fund_sourceRate")
+            .unwrap_or_else(|| "0".to_string());
+        let current_rate =
+            Self::extract_js_string_value(&resp, "fund_Rate").unwrap_or_else(|| "0".to_string());
+
+        let management_fee = source_rate.parse::<f64>().unwrap_or(0.0);
+        let purchase_fee = current_rate.parse::<f64>().unwrap_or(0.0);
+
+        // 托管费率通常在 0.1%-0.25% 之间，JS 中没有直接提供，使用默认值
+        // 可以通过其他 API 获取，这里先设为 0
+        let custody_fee = 0.0;
+
+        Ok(FundFeeInfo {
+            management_fee,
+            custody_fee,
+            purchase_fee,
+            redemption_fee: 0.0, // 赎回费通常是阶梯式的，这里简化处理
+        })
+    }
+
+    pub async fn fetch_fund_profile(&self, fund_code: &str) -> Result<FundProfile, EastMoneyError> {
+        // 从 pingzhongdata JS 数据源获取基本信息
+        let js_url = format!("https://fund.eastmoney.com/pingzhongdata/{}.js", fund_code);
+
+        let js_resp = self
+            .client
+            .get(&js_url)
+            .header("Referer", "https://fund.eastmoney.com/")
+            .send()
+            .await?
+            .text()
+            .await?;
+
+        // 提取基金名称和代码
+        let name = Self::extract_js_string_value(&js_resp, "fS_name")
+            .unwrap_or_else(|| "未知".to_string());
+
+        // 提取基金经理信息
+        let manager_json = Self::extract_js_variable(&js_resp, "Data_currentFundManager")
+            .ok_or_else(|| EastMoneyError::ParseFailed("Manager data not found".to_string()))?;
+
+        let managers: Vec<serde_json::Value> =
+            serde_json::from_str(&manager_json).map_err(|e| {
+                EastMoneyError::ParseFailed(format!("Failed to parse manager data: {}", e))
+            })?;
+
+        let manager = managers
+            .first()
+            .ok_or_else(|| EastMoneyError::ParseFailed("No manager data".to_string()))?;
+
+        let manager_name = manager
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("未知")
+            .to_string();
+
+        let work_time = manager
+            .get("workTime")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let manager_tenure_days = Self::parse_work_time(work_time);
+
+        let manager_total_return = manager
+            .get("profit")
+            .and_then(|p| p.get("series"))
+            .and_then(|s| s.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|item| item.get("data"))
+            .and_then(|d| d.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|item| item.get("y"))
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0)
+            / 100.0;
+
+        // 提取费率信息
+        let source_rate = Self::extract_js_string_value(&js_resp, "fund_sourceRate")
+            .unwrap_or_else(|| "0".to_string());
+        let management_fee = source_rate.parse::<f64>().unwrap_or(0.0);
+
+        // 从 fundf10.eastmoney.com 获取详细基金概况
+        let detail_url = format!("https://fundf10.eastmoney.com/jbgk_{}.html", fund_code);
+
+        let detail_resp = self
+            .client
+            .get(&detail_url)
+            .header("Referer", "https://fund.eastmoney.com/")
+            .send()
+            .await?
+            .text()
+            .await?;
+
+        // 解析详细基金信息
+        let detail_info = Self::parse_fund_detail(&detail_resp);
+
+        Ok(FundProfile {
+            code: fund_code.to_string(),
+            name: name.clone(),
+            full_name: detail_info.full_name.unwrap_or(name),
+            fund_type: detail_info.fund_type,
+            establishment_date: detail_info.establishment_date,
+            asset_size: detail_info.asset_size,
+            company: detail_info.company,
+            manager_name,
+            manager_tenure_days,
+            manager_total_return,
+            management_fee,
+            custody_fee: 0.0,
+            investment_target: detail_info.investment_target,
+            investment_scope: detail_info.investment_scope,
+            investment_strategy: detail_info.investment_strategy,
+            benchmark: detail_info.benchmark,
+        })
+    }
+
+    fn parse_fund_detail(html: &str) -> FundDetailInfo {
+        let mut info = FundDetailInfo::default();
+
+        // 提取基金全称
+        if let Some(start) = html.find("基金全称") {
+            let remaining = &html[start..];
+            if let Some(td_start) = remaining.find("<td>") {
+                let td_content = &remaining[td_start + 4..];
+                if let Some(td_end) = td_content.find("</td>") {
+                    let full_name = &td_content[..td_end];
+                    info.full_name = Some(Self::clean_html(full_name));
+                }
+            }
+        }
+
+        // 提取基金类型
+        if let Some(start) = html.find("基金类型") {
+            let remaining = &html[start..];
+            if let Some(td_start) = remaining.find("<td>") {
+                let td_content = &remaining[td_start + 4..];
+                if let Some(td_end) = td_content.find("</td>") {
+                    info.fund_type = Self::clean_html(&td_content[..td_end]);
+                }
+            }
+        }
+
+        // 提取成立日期
+        if let Some(start) = html.find("成立日期") {
+            let remaining = &html[start..];
+            if let Some(td_start) = remaining.find("<td>") {
+                let td_content = &remaining[td_start + 4..];
+                if let Some(td_end) = td_content.find("</td>") {
+                    info.establishment_date = Self::clean_html(&td_content[..td_end]);
+                }
+            }
+        }
+
+        // 提取资产规模
+        if let Some(start) = html.find("资产规模") {
+            let remaining = &html[start..];
+            if let Some(td_start) = remaining.find("<td>") {
+                let td_content = &remaining[td_start + 4..];
+                if let Some(td_end) = td_content.find("</td>") {
+                    info.asset_size = Self::clean_html(&td_content[..td_end]);
+                }
+            }
+        }
+
+        // 提取基金管理人
+        if let Some(start) = html.find("基金管理人") {
+            let remaining = &html[start..];
+            if let Some(td_start) = remaining.find("<td>") {
+                let td_content = &remaining[td_start + 4..];
+                if let Some(td_end) = td_content.find("</td>") {
+                    info.company = Self::clean_html(&td_content[..td_end]);
+                }
+            }
+        }
+
+        // 提取投资目标
+        if let Some(start) = html.find("投资目标") {
+            let remaining = &html[start..];
+            if let Some(td_start) = remaining.find("<td class=\"tditem\">") {
+                let td_content = &remaining[td_start + 19..];
+                if let Some(td_end) = td_content.find("</td>") {
+                    info.investment_target = Self::clean_html(&td_content[..td_end]);
+                }
+            }
+        }
+
+        // 提取投资范围
+        if let Some(start) = html.find("投资范围") {
+            let remaining = &html[start..];
+            if let Some(td_start) = remaining.find("<td class=\"tditem\">") {
+                let td_content = &remaining[td_start + 19..];
+                if let Some(td_end) = td_content.find("</td>") {
+                    info.investment_scope = Self::clean_html(&td_content[..td_end]);
+                }
+            }
+        }
+
+        // 提取投资策略
+        if let Some(start) = html.find("投资策略") {
+            let remaining = &html[start..];
+            if let Some(td_start) = remaining.find("<td class=\"tditem\">") {
+                let td_content = &remaining[td_start + 19..];
+                if let Some(td_end) = td_content.find("</td>") {
+                    info.investment_strategy = Self::clean_html(&td_content[..td_end]);
+                }
+            }
+        }
+
+        // 提取业绩比较基准
+        if let Some(start) = html.find("业绩比较基准") {
+            let remaining = &html[start..];
+            if let Some(td_start) = remaining.find("<td>") {
+                let td_content = &remaining[td_start + 4..];
+                if let Some(td_end) = td_content.find("</td>") {
+                    info.benchmark = Self::clean_html(&td_content[..td_end]);
+                }
+            }
+        }
+
+        info
+    }
+
+    fn clean_html(html: &str) -> String {
+        let mut result = html.to_string();
+        // 移除HTML标签
+        while let Some(start) = result.find('<') {
+            if let Some(end) = result[start..].find('>') {
+                result.replace_range(start..start + end + 1, "");
+            } else {
+                break;
+            }
+        }
+        // 解码HTML实体
+        result = result
+            .replace("&nbsp;", " ")
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"");
+        // 移除多余空白
+        result.split_whitespace().collect::<Vec<_>>().join(" ")
+    }
+
+    fn extract_js_string_value(js_content: &str, var_name: &str) -> Option<String> {
+        // 去除可能的 UTF-8 BOM
+        let content = js_content.strip_prefix('\u{feff}').unwrap_or(js_content);
+
+        let pattern = format!("var {}=\"", var_name);
+        let start = content.find(&pattern)?;
+        let start = start + pattern.len();
+        let remaining = &content[start..];
+
+        // 找到引号结束位置
+        let end = remaining.find("\"")?;
+        Some(remaining[..end].to_string())
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct IndexData {
     pub date: chrono::DateTime<FixedOffset>,
     pub close: f64,
+}
+
+#[derive(Debug, Clone)]
+pub struct FundManagerInfo {
+    pub name: String,
+    pub start_date: String,
+    pub tenure_days: i32,
+    pub total_return: f64,
+}
+
+#[derive(Debug, Clone)]
+pub struct FundFeeInfo {
+    pub management_fee: f64,
+    pub custody_fee: f64,
+    pub purchase_fee: f64,
+    pub redemption_fee: f64,
+}
+
+#[derive(Debug, Clone, Default)]
+struct FundDetailInfo {
+    pub full_name: Option<String>,
+    pub fund_type: String,
+    pub establishment_date: String,
+    pub asset_size: String,
+    pub company: String,
+    pub investment_target: String,
+    pub investment_scope: String,
+    pub investment_strategy: String,
+    pub benchmark: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct FundProfile {
+    pub code: String,
+    pub name: String,
+    pub full_name: String,
+    pub fund_type: String,
+    pub establishment_date: String,
+    pub asset_size: String,
+    pub company: String,
+    pub manager_name: String,
+    pub manager_tenure_days: i32,
+    pub manager_total_return: f64,
+    pub management_fee: f64,
+    pub custody_fee: f64,
+    pub investment_target: String,
+    pub investment_scope: String,
+    pub investment_strategy: String,
+    pub benchmark: String,
 }

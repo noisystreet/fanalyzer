@@ -1,8 +1,8 @@
-use analysis_fund::api::eastmoney::EastMoneyClient;
+use analysis_fund::api::eastmoney::{EastMoneyClient, FundProfile};
 use analysis_fund::cache::FundCache;
 use analysis_fund::config::AppConfig;
 use analysis_fund::models::{FundAnalysis, FundNav};
-use analysis_fund::services::{BenchmarkData, FundAnalyzer};
+use analysis_fund::services::{BenchmarkData, FundAnalyzer, FundMetaInfo};
 use clap::Parser;
 use std::fs::File;
 use std::io::Write;
@@ -52,6 +52,10 @@ enum Commands {
         )]
         format: String,
     },
+    Info {
+        #[arg(short, long, help = "Fund code to get info")]
+        code: String,
+    },
 }
 
 fn init_tracing() {
@@ -76,13 +80,28 @@ fn print_analysis(analysis: &FundAnalysis) {
     println!("夏普比率: {:.2}", analysis.sharpe_ratio);
     println!("阿尔法 (Alpha): {:.2}%", analysis.alpha * 100.0);
     println!("贝塔 (Beta): {:.2}", analysis.beta);
+
+    if !analysis.manager_name.is_empty() {
+        println!("基金经理: {}", analysis.manager_name);
+        let tenure_years = analysis.manager_tenure_days as f64 / 365.0;
+        println!("经理任期: {:.1} 年", tenure_years);
+        println!(
+            "经理任职回报: {:.2}%",
+            analysis.manager_total_return * 100.0
+        );
+    }
+
+    if analysis.management_fee > 0.0 {
+        println!("管理费率: {:.2}%", analysis.management_fee);
+        println!("托管费率: {:.2}%", analysis.custody_fee);
+    }
 }
 
 fn print_comparison(analyses: &[FundAnalysis]) {
     println!("基金对比分析");
     println!();
     println!(
-        "{:<10} {:<16} {:>10} {:>12} {:>10} {:>10} {:>10} {:>10} {:>8}",
+        "{:<10} {:<16} {:>10} {:>12} {:>10} {:>10} {:>10} {:>10} {:>8} {:>8} {:>8}",
         "基金代码",
         "基金名称",
         "总收益率",
@@ -91,13 +110,25 @@ fn print_comparison(analyses: &[FundAnalysis]) {
         "最大回撤",
         "夏普比率",
         "Alpha",
-        "Beta"
+        "Beta",
+        "管理费",
+        "托管费"
     );
-    println!("{}", "-".repeat(110));
+    println!("{}", "-".repeat(130));
     for a in analyses {
         let name = truncate_string(&a.name, 14);
+        let mgmt_fee = if a.management_fee > 0.0 {
+            format!("{:.2}%", a.management_fee)
+        } else {
+            "-".to_string()
+        };
+        let custody_fee = if a.custody_fee > 0.0 {
+            format!("{:.2}%", a.custody_fee)
+        } else {
+            "-".to_string()
+        };
         println!(
-            "{:<10} {:<16} {:>9.2}% {:>11.2}% {:>9.2}% {:>9.2}% {:>10.2} {:>9.2}% {:>8.2}",
+            "{:<10} {:<16} {:>9.2}% {:>11.2}% {:>9.2}% {:>9.2}% {:>10.2} {:>9.2}% {:>8.2} {:>8} {:>8}",
             a.code,
             name,
             a.total_return * 100.0,
@@ -106,8 +137,27 @@ fn print_comparison(analyses: &[FundAnalysis]) {
             a.max_drawdown * 100.0,
             a.sharpe_ratio,
             a.alpha * 100.0,
-            a.beta
+            a.beta,
+            mgmt_fee,
+            custody_fee
         );
+    }
+
+    println!();
+    println!("基金经理信息");
+    println!("{}", "-".repeat(80));
+    for a in analyses {
+        if !a.manager_name.is_empty() {
+            let tenure_years = a.manager_tenure_days as f64 / 365.0;
+            println!(
+                "{} {:<16} 经理: {:<10} 任期: {:>5.1}年 任职回报: {:>6.2}%",
+                a.code,
+                truncate_string(&a.name, 14),
+                a.manager_name,
+                tenure_years,
+                a.manager_total_return * 100.0
+            );
+        }
     }
 }
 
@@ -232,6 +282,32 @@ async fn get_fund_name(
     }
 }
 
+async fn get_fund_meta(client: &EastMoneyClient, code: &str) -> Option<FundMetaInfo> {
+    let manager = match client.fetch_fund_manager(code).await {
+        Ok(m) => m,
+        Err(e) => {
+            tracing::warn!(code = %code, error = %e, "Failed to fetch fund manager");
+            return None;
+        }
+    };
+
+    let fee = match client.fetch_fund_fee(code).await {
+        Ok(f) => f,
+        Err(e) => {
+            tracing::warn!(code = %code, error = %e, "Failed to fetch fund fee");
+            return None;
+        }
+    };
+
+    Some(FundMetaInfo {
+        manager_name: manager.name,
+        manager_tenure_days: manager.tenure_days,
+        manager_total_return: manager.total_return,
+        management_fee: fee.management_fee,
+        custody_fee: fee.custody_fee,
+    })
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     init_tracing();
@@ -280,6 +356,7 @@ async fn main() -> anyhow::Result<()> {
             tracing::info!(code = %resolved_code, name = %name, days = days, "Analyzing fund");
             let result = client.fetch_nav_history_by_days(&resolved_code, days).await;
             let benchmark = get_benchmark_data(&client, days).await;
+            let meta = get_fund_meta(&client, &resolved_code).await;
             match result {
                 Ok(navs) => {
                     tracing::info!(records = navs.len(), "Fetched nav data for analysis");
@@ -287,7 +364,13 @@ async fn main() -> anyhow::Result<()> {
                         tracing::warn!("No nav data available for fund {}", code);
                         return Ok(());
                     }
-                    match FundAnalyzer::analyze(&navs, days, &name, benchmark.as_ref()) {
+                    match FundAnalyzer::analyze(
+                        &navs,
+                        days,
+                        &name,
+                        benchmark.as_ref(),
+                        meta.as_ref(),
+                    ) {
                         Some(analysis) => print_analysis(&analysis),
                         None => tracing::warn!("Insufficient data for analysis"),
                     }
@@ -308,11 +391,16 @@ async fn main() -> anyhow::Result<()> {
             for identifier in &codes {
                 let (resolved_code, name) =
                     resolve_fund_identifier(&client, &cache, identifier).await;
+                let meta = get_fund_meta(&client, &resolved_code).await;
                 match client.fetch_nav_history_by_days(&resolved_code, days).await {
                     Ok(navs) => {
-                        if let Some(analysis) =
-                            FundAnalyzer::analyze(&navs, days, &name, benchmark.as_ref())
-                        {
+                        if let Some(analysis) = FundAnalyzer::analyze(
+                            &navs,
+                            days,
+                            &name,
+                            benchmark.as_ref(),
+                            meta.as_ref(),
+                        ) {
                             analyses.push(analysis);
                         } else {
                             tracing::warn!("Insufficient data for fund {}", resolved_code);
@@ -368,10 +456,93 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
         }
+        Some(Commands::Info { code }) => {
+            let (resolved_code, _name) = resolve_fund_identifier(&client, &cache, &code).await;
+            tracing::info!(code = %resolved_code, "Fetching fund info");
+            match client.fetch_fund_profile(&resolved_code).await {
+                Ok(profile) => print_fund_profile(&profile),
+                Err(e) => {
+                    tracing::error!(error = %e, "Failed to fetch fund info");
+                }
+            }
+        }
         None => {
             Cli::parse_from(["analysis_fund", "--help"]);
         }
     }
 
     Ok(())
+}
+
+fn print_fund_profile(profile: &FundProfile) {
+    println!("基金概况");
+    println!("{}", "=".repeat(60));
+
+    // 基本信息
+    if !profile.full_name.is_empty() {
+        println!("基金全称: {}", profile.full_name);
+    }
+    println!("基金简称: {}", profile.name);
+    println!("基金代码: {}", profile.code);
+    if !profile.fund_type.is_empty() {
+        println!("基金类型: {}", profile.fund_type);
+    }
+    if !profile.establishment_date.is_empty() {
+        println!("成立日期: {}", profile.establishment_date);
+    }
+    if !profile.asset_size.is_empty() {
+        println!("资产规模: {}", profile.asset_size);
+    }
+    if !profile.company.is_empty() {
+        println!("管理公司: {}", profile.company);
+    }
+
+    // 业绩比较基准
+    if !profile.benchmark.is_empty() {
+        println!();
+        println!("业绩比较基准");
+        println!("{}", "-".repeat(60));
+        println!("{}", profile.benchmark);
+    }
+
+    println!();
+    println!("基金经理");
+    println!("{}", "-".repeat(60));
+    println!("姓名: {}", profile.manager_name);
+    let tenure_years = profile.manager_tenure_days as f64 / 365.0;
+    println!("任期: {:.1} 年", tenure_years);
+    println!("任职回报: {:.2}%", profile.manager_total_return * 100.0);
+
+    println!();
+    println!("费率信息");
+    println!("{}", "-".repeat(60));
+    println!("管理费率: {:.2}%", profile.management_fee);
+    if profile.custody_fee > 0.0 {
+        println!("托管费率: {:.2}%", profile.custody_fee);
+    }
+
+    // 投资目标
+    if !profile.investment_target.is_empty() {
+        println!();
+        println!("投资目标");
+        println!("{}", "-".repeat(60));
+        println!("{}", profile.investment_target);
+    }
+
+    // 投资范围
+    if !profile.investment_scope.is_empty() {
+        println!();
+        println!("投资范围");
+        println!("{}", "-".repeat(60));
+        // 投资范围通常较长，需要换行显示
+        let scope = &profile.investment_scope;
+        if scope.len() > 80 {
+            // 按句子分割显示
+            for sentence in scope.split('。').filter(|s| !s.is_empty()) {
+                println!("{}", sentence.trim());
+            }
+        } else {
+            println!("{}", scope);
+        }
+    }
 }
