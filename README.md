@@ -112,10 +112,10 @@ cargo run -- export --code 000001 --days 90 --output fund_data.json --format jso
 
 ```bash
 cargo run -- rank --kind gp --top 100
-cargo run -- rank --kind 混合 --sort 1n
+cargo run -- rank --kind 混合 --top 20 --sort 1nzf
 ```
 
-`--kind` 支持 `gp|hh|zq|zs|qdii|fof` 及中文别名（如股票、混合）；`--top` 默认 100、上限 500；`--sort` 对应官网 `sc` 参数，默认 `1n`。详见 [docs/MANUAL.md](docs/MANUAL.md)。
+`--kind` 支持 `gp|hh|zq|zs|qdii|fof` 及中文别名；`--top` 默认 100、上限 500；**`--sort` 即官网 `sc`**（默认 `1n`，与网页完全一致时可试 `1nzf`）。**`rzdf` / `zzf` / `1yzf` / `3nzf` / `jnzf` 等对照表**见 [docs/MANUAL.md](docs/MANUAL.md)。
 
 ### 6. 查看基金详细信息
 

@@ -3,6 +3,8 @@ use crate::api::fund_ranking::FundRankEntry;
 use crate::models::{FundAnalysis, FundNav};
 use std::fs::File;
 use std::io::Write;
+use tabled::settings::{object::Columns, Alignment, Style};
+use tabled::{Table, Tabled};
 
 pub fn print_analysis(analysis: &FundAnalysis) {
     println!("基金分析报告");
@@ -36,67 +38,113 @@ pub fn print_analysis(analysis: &FundAnalysis) {
     }
 }
 
+#[derive(Tabled)]
+struct ComparisonTableRow {
+    #[tabled(rename = "基金代码")]
+    code: String,
+    #[tabled(rename = "基金名称")]
+    name: String,
+    #[tabled(rename = "总收益率")]
+    total_return: String,
+    #[tabled(rename = "年化收益率")]
+    annualized_return: String,
+    #[tabled(rename = "波动率")]
+    volatility: String,
+    #[tabled(rename = "最大回撤")]
+    max_drawdown: String,
+    #[tabled(rename = "夏普比率")]
+    sharpe_ratio: String,
+    #[tabled(rename = "Alpha")]
+    alpha: String,
+    #[tabled(rename = "Beta")]
+    beta: String,
+    #[tabled(rename = "管理费")]
+    management_fee: String,
+    #[tabled(rename = "托管费")]
+    custody_fee: String,
+}
+
+#[derive(Tabled)]
+struct ManagerCompareRow {
+    #[tabled(rename = "代码")]
+    code: String,
+    #[tabled(rename = "简称")]
+    name: String,
+    #[tabled(rename = "经理")]
+    manager_name: String,
+    #[tabled(rename = "任期(年)")]
+    tenure_years: String,
+    #[tabled(rename = "任职回报")]
+    tenure_return: String,
+}
+
+fn comparison_rows(analyses: &[FundAnalysis]) -> Vec<ComparisonTableRow> {
+    analyses
+        .iter()
+        .map(|a| {
+            let mgmt_fee = if a.management_fee > 0.0 {
+                format!("{:.2}%", a.management_fee)
+            } else {
+                "-".to_string()
+            };
+            let custody_fee_str = if a.custody_fee > 0.0 {
+                format!("{:.2}%", a.custody_fee)
+            } else {
+                "-".to_string()
+            };
+            ComparisonTableRow {
+                code: a.code.clone(),
+                name: truncate_string(&a.name, 14),
+                total_return: format!("{:.2}%", a.total_return * 100.0),
+                annualized_return: format!("{:.2}%", a.annualized_return * 100.0),
+                volatility: format!("{:.2}%", a.volatility * 100.0),
+                max_drawdown: format!("{:.2}%", a.max_drawdown * 100.0),
+                sharpe_ratio: format!("{:.2}", a.sharpe_ratio),
+                alpha: format!("{:.2}%", a.alpha * 100.0),
+                beta: format!("{:.2}", a.beta),
+                management_fee: mgmt_fee,
+                custody_fee: custody_fee_str,
+            }
+        })
+        .collect()
+}
+
+fn manager_compare_rows(analyses: &[FundAnalysis]) -> Vec<ManagerCompareRow> {
+    analyses
+        .iter()
+        .filter(|a| !a.manager_name.is_empty())
+        .map(|a| {
+            let tenure_years = a.manager_tenure_days as f64 / 365.0;
+            ManagerCompareRow {
+                code: a.code.clone(),
+                name: truncate_string(&a.name, 14),
+                manager_name: a.manager_name.clone(),
+                tenure_years: format!("{tenure_years:.1}"),
+                tenure_return: format!("{:.2}%", a.manager_total_return * 100.0),
+            }
+        })
+        .collect()
+}
+
+/// 圆角边框表格；从第 `right_align_from_col` 列起右对齐（0-based，含该列）。
+fn print_rounded_table<T: Tabled>(rows: &[T], right_align_from_col: usize) {
+    let mut table = Table::new(rows);
+    table.with(Style::rounded());
+    table.modify(Columns::new(right_align_from_col..), Alignment::right());
+    println!("{table}");
+}
+
 pub fn print_comparison(analyses: &[FundAnalysis]) {
     println!("基金对比分析");
     println!();
-    println!(
-        "{:<10} {:<16} {:>10} {:>12} {:>10} {:>10} {:>10} {:>10} {:>8} {:>8} {:>8}",
-        "基金代码",
-        "基金名称",
-        "总收益率",
-        "年化收益率",
-        "波动率",
-        "最大回撤",
-        "夏普比率",
-        "Alpha",
-        "Beta",
-        "管理费",
-        "托管费"
-    );
-    println!("{}", "-".repeat(130));
-    for a in analyses {
-        let name = truncate_string(&a.name, 14);
-        let mgmt_fee = if a.management_fee > 0.0 {
-            format!("{:.2}%", a.management_fee)
-        } else {
-            "-".to_string()
-        };
-        let custody_fee = if a.custody_fee > 0.0 {
-            format!("{:.2}%", a.custody_fee)
-        } else {
-            "-".to_string()
-        };
-        println!(
-            "{:<10} {:<16} {:>9.2}% {:>11.2}% {:>9.2}% {:>9.2}% {:>10.2} {:>9.2}% {:>8.2} {:>8} {:>8}",
-            a.code,
-            name,
-            a.total_return * 100.0,
-            a.annualized_return * 100.0,
-            a.volatility * 100.0,
-            a.max_drawdown * 100.0,
-            a.sharpe_ratio,
-            a.alpha * 100.0,
-            a.beta,
-            mgmt_fee,
-            custody_fee
-        );
-    }
-
+    print_rounded_table(&comparison_rows(analyses), 2);
     println!();
     println!("基金经理信息");
-    println!("{}", "-".repeat(80));
-    for a in analyses {
-        if !a.manager_name.is_empty() {
-            let tenure_years = a.manager_tenure_days as f64 / 365.0;
-            println!(
-                "{} {:<16} 经理: {:<10} 任期: {:>5.1}年 任职回报: {:>6.2}%",
-                a.code,
-                truncate_string(&a.name, 14),
-                a.manager_name,
-                tenure_years,
-                a.manager_total_return * 100.0
-            );
-        }
+    let mgr_rows = manager_compare_rows(analyses);
+    if mgr_rows.is_empty() {
+        println!("（无经理信息）");
+    } else {
+        print_rounded_table(&mgr_rows, 3);
     }
 }
 
@@ -137,6 +185,41 @@ fn fmt_pct_opt(v: Option<f64>) -> String {
         .unwrap_or_else(|| "-".to_string())
 }
 
+#[derive(Tabled)]
+struct RankingTableRow {
+    #[tabled(rename = "代码")]
+    code: String,
+    #[tabled(rename = "简称")]
+    name: String,
+    #[tabled(rename = "近1周")]
+    week: String,
+    #[tabled(rename = "近1月")]
+    month: String,
+    #[tabled(rename = "近3月")]
+    three_m: String,
+    #[tabled(rename = "近6月")]
+    six_m: String,
+    #[tabled(rename = "近1年")]
+    one_y: String,
+    #[tabled(rename = "今年来")]
+    ytd: String,
+}
+
+fn ranking_table_rows(rows: &[FundRankEntry]) -> Vec<RankingTableRow> {
+    rows.iter()
+        .map(|r| RankingTableRow {
+            code: r.code.clone(),
+            name: truncate_string(&r.name, 20),
+            week: fmt_pct_opt(r.pct_week),
+            month: fmt_pct_opt(r.pct_month),
+            three_m: fmt_pct_opt(r.pct_3m),
+            six_m: fmt_pct_opt(r.pct_6m),
+            one_y: fmt_pct_opt(r.pct_1y),
+            ytd: fmt_pct_opt(r.pct_this_year),
+        })
+        .collect()
+}
+
 /// 打印官网开放式基金排行简表（百分点列）。
 pub fn print_ranking_table(rows: &[FundRankEntry], kind: &str, sort: &str, universe_total: u32) {
     println!(
@@ -147,24 +230,7 @@ pub fn print_ranking_table(rows: &[FundRankEntry], kind: &str, sort: &str, unive
         rows.len()
     );
     println!();
-    println!(
-        "{:<8} {:<22} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8}",
-        "代码", "简称", "近1周", "近1月", "近3月", "近6月", "近1年", "今年来"
-    );
-    println!("{}", "-".repeat(92));
-    for r in rows {
-        println!(
-            "{:<8} {:<22} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8}",
-            r.code,
-            truncate_string(&r.name, 20),
-            fmt_pct_opt(r.pct_week),
-            fmt_pct_opt(r.pct_month),
-            fmt_pct_opt(r.pct_3m),
-            fmt_pct_opt(r.pct_6m),
-            fmt_pct_opt(r.pct_1y),
-            fmt_pct_opt(r.pct_this_year),
-        );
-    }
+    print_rounded_table(&ranking_table_rows(rows), 2);
 }
 
 pub fn print_fund_profile(profile: &FundProfile) {
@@ -231,5 +297,58 @@ pub fn print_fund_profile(profile: &FundProfile) {
         } else {
             println!("{}", scope);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::FundAnalysis;
+
+    fn sample_analysis() -> FundAnalysis {
+        FundAnalysis {
+            code: "000001".into(),
+            name: "测试基金".into(),
+            period_days: 30,
+            avg_nav: 1.0,
+            max_nav: 1.1,
+            min_nav: 0.9,
+            total_return: 0.01,
+            annualized_return: 0.02,
+            volatility: 0.03,
+            max_drawdown: -0.04,
+            sharpe_ratio: 1.5,
+            alpha: 0.001,
+            beta: 0.9,
+            manager_name: "张三".into(),
+            manager_tenure_days: 365,
+            manager_total_return: 0.05,
+            management_fee: 1.2,
+            custody_fee: 0.2,
+        }
+    }
+
+    #[test]
+    fn comparison_rows_formats_percent_columns() {
+        let rows = comparison_rows(&[sample_analysis()]);
+        assert_eq!(rows.len(), 1);
+        assert!(rows[0].total_return.ends_with('%'));
+        assert_eq!(manager_compare_rows(&[sample_analysis()]).len(), 1);
+    }
+
+    #[test]
+    fn rounded_style_emits_unicode_table() {
+        let mut table = Table::new(comparison_rows(&[sample_analysis()]));
+        table.with(Style::rounded());
+        let rendered = table.to_string();
+        assert!(
+            rendered.contains('╭') && rendered.contains('╰'),
+            "expected rounded corners in table output"
+        );
+    }
+
+    #[test]
+    fn ranking_table_rows_empty_ok() {
+        assert!(ranking_table_rows(&[]).is_empty());
     }
 }

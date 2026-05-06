@@ -7,7 +7,7 @@ use std::time::Duration as StdDuration;
 
 const FUND_RANKING_REFERER: &str = "https://fund.eastmoney.com/data/fundranking.html";
 
-/// 开放式基金排行单页（`ft`=`gp|hh|zq|zs|qdii|fof`，`sc` 如 `1n` 近一年、`zzf` 默认口径）。
+/// 开放式基金排行单页（`ft`=`gp|hh|zq|zs|qdii|fof`；`sc` 为排序列如 `1n`/`1nzf`、`zzf`，与官网表头一致）。
 pub async fn fetch_fund_ranking_page(
     http: &Client,
     fund_type: &str,

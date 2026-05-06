@@ -86,8 +86,9 @@ pub enum Commands {
         top: u32,
         #[arg(
             long,
+            value_name = "SC",
             default_value = "1n",
-            help = "官网排序参数 sc，如 1n 近一年、zzf 默认口径，详见天天基金排行页"
+            help = "rankhandler 的排序字段 sc（默认 1n）；st 固定 desc。rzdf/zzf/1yzf/3yzf/6yzf/1nzf/2nzf/3nzf/jnzf/lnzf 等见 docs/MANUAL.md"
         )]
         sort: String,
     },
