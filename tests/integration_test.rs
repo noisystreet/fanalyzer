@@ -35,3 +35,12 @@ fn test_cli_sectors_help() {
         .assert()
         .success();
 }
+
+#[test]
+fn test_cli_holdings_help() {
+    Command::cargo_bin("analysis_fund")
+        .unwrap()
+        .args(["holdings", "--help"])
+        .assert()
+        .success();
+}

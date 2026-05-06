@@ -1,4 +1,5 @@
 pub use crate::api::eastmoney_error::EastMoneyError;
+use crate::api::fund_holdings::{fetch_fund_stock_holdings_jjcc, FundStockHoldingsReport};
 use crate::api::fund_industry::{fetch_fund_industry_hypz, FundIndustryReport};
 use crate::api::fund_ranking::FundRankingPage;
 use crate::api::nav_merge::merge_navs_by_date;
@@ -257,6 +258,15 @@ impl EastMoneyClient {
         fund_code: &str,
     ) -> Result<FundIndustryReport, EastMoneyError> {
         fetch_fund_industry_hypz(&self.client, fund_code).await
+    }
+
+    /// 股票投资明细（重仓），`topline` 建议 ≤50。
+    pub async fn fetch_fund_stock_holdings(
+        &self,
+        fund_code: &str,
+        topline: u32,
+    ) -> Result<FundStockHoldingsReport, EastMoneyError> {
+        fetch_fund_stock_holdings_jjcc(&self.client, fund_code, topline).await
     }
 
     pub async fn fetch_fund_name(&self, fund_code: &str) -> Result<String, EastMoneyError> {

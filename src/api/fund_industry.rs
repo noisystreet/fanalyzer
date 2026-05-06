@@ -1,6 +1,7 @@
 //! 基金 F10「行业配置」页面（`type=hypz`）解析：数据源为内嵌 HTML。
 
 use crate::api::eastmoney_error::EastMoneyError;
+use crate::api::f10_apidata::extract_apidata_content;
 use regex::Regex;
 use reqwest::Client;
 use std::sync::LazyLock;
@@ -35,19 +36,6 @@ static ROW_RE: LazyLock<Regex> = LazyLock::new(|| {
 static AS_OF_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"截止至：<font[^>]*>([^<]+)</font>").expect("as_of regex"));
 
-fn extract_apidata_html(js: &str) -> Result<&str, String> {
-    let key = "content:\"";
-    let start = js
-        .find(key)
-        .ok_or_else(|| "F10 hypz: missing content:\"".to_string())?
-        + key.len();
-    let tail = &js[start..];
-    let end = tail
-        .find("\",arryear:")
-        .ok_or_else(|| "F10 hypz: missing \",arryear:\"".to_string())?;
-    Ok(&tail[..end])
-}
-
 fn parse_pct_cell(s: &str) -> Result<f64, String> {
     let t = s.trim().trim_end_matches('%').trim();
     t.parse::<f64>()
@@ -68,7 +56,7 @@ fn parse_wan_cell(s: &str) -> Option<f64> {
 
 /// 从 F10 返回的 `var apidata={ content:"..."};` 中解析行业表。
 pub fn parse_hypz_apidata(body: &str) -> Result<FundIndustryReport, String> {
-    let html = extract_apidata_html(body.trim())?;
+    let html = extract_apidata_content(body)?;
     let as_of = AS_OF_RE.captures(html).map(|c| c[1].trim().to_string());
 
     let mut rows = Vec::new();

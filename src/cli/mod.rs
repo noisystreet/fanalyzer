@@ -84,6 +84,20 @@ pub enum Commands {
         #[arg(long = "watchlist", help = "输出自选文件中所有基金的行业配置")]
         pick_watchlist: bool,
     },
+    /// 季报股票投资明细（重仓股，`FundArchivesDatas type=jjcc`）
+    Holdings {
+        #[arg(short, long, help = "基金代码或名称")]
+        code: Option<String>,
+        #[arg(long = "watchlist", help = "输出自选文件中所有基金的重仓股")]
+        pick_watchlist: bool,
+        #[arg(
+            short,
+            long,
+            default_value_t = 10,
+            help = "展示条数对应接口 topline，1～50"
+        )]
+        top: u32,
+    },
     /// 按天天基金官网排行拉取某类型全市场前 N 名（数据源需网络与 Referer）
     Rank {
         /// 类型：gp/hh/zq/zs/qdii/fof，或 股票/混合/债券/指数

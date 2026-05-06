@@ -1,4 +1,5 @@
 use crate::api::eastmoney::FundProfile;
+use crate::api::fund_holdings::FundStockHoldingsReport;
 use crate::api::fund_industry::FundIndustryReport;
 use crate::api::fund_ranking::FundRankEntry;
 use crate::models::{FundAnalysis, FundNav};
@@ -260,6 +261,58 @@ fn industry_display_rows(report: &FundIndustryReport) -> Vec<IndustryTableRow> {
                 .unwrap_or_else(|| "-".to_string()),
         })
         .collect()
+}
+
+#[derive(Tabled)]
+struct HoldingTableRow {
+    #[tabled(rename = "序号")]
+    rank: u32,
+    #[tabled(rename = "股票代码")]
+    stock_code: String,
+    #[tabled(rename = "股票名称")]
+    stock_name: String,
+    #[tabled(rename = "占净值比例")]
+    pct_nav: String,
+    #[tabled(rename = "持股数(万股)")]
+    shares_wan: String,
+    #[tabled(rename = "持仓市值(万元)")]
+    market_value_wan: String,
+}
+
+fn holdings_display_rows(report: &FundStockHoldingsReport) -> Vec<HoldingTableRow> {
+    report
+        .rows
+        .iter()
+        .map(|r| HoldingTableRow {
+            rank: r.rank,
+            stock_code: r.stock_code.clone(),
+            stock_name: truncate_string(&r.stock_name, 16),
+            pct_nav: format!("{:.2}%", r.pct_nav),
+            shares_wan: r
+                .shares_wan
+                .map(|v| format!("{v:.2}"))
+                .unwrap_or_else(|| "-".to_string()),
+            market_value_wan: r
+                .market_value_wan
+                .map(|v| format!("{v:.2}"))
+                .unwrap_or_else(|| "-".to_string()),
+        })
+        .collect()
+}
+
+/// 打印季报股票投资明细（重仓）。
+pub fn print_holdings_report(code: &str, name: &str, report: &FundStockHoldingsReport) {
+    println!("重仓股（股票投资明细，季报披露）");
+    println!("基金代码: {code}  简称: {name}");
+    if let Some(ref d) = report.as_of {
+        println!("报告截止: {d}");
+    }
+    println!();
+    if report.rows.is_empty() {
+        println!("暂无重仓股数据（常见于债券型、货币型或当季未持股）。");
+        return;
+    }
+    print_rounded_table(&holdings_display_rows(report), 3);
 }
 
 /// 打印 F10 披露的行业配置（证监会行业分类）。

@@ -1,6 +1,6 @@
 use super::output::{
     export_csv, export_json, print_analysis, print_comparison, print_fund_profile,
-    print_industry_report, print_ranking_table,
+    print_holdings_report, print_industry_report, print_ranking_table,
 };
 use super::{Cli, Commands};
 use crate::api::eastmoney::{EastMoneyClient, EastMoneyError};
@@ -131,6 +131,11 @@ pub async fn execute(
             code,
             pick_watchlist,
         } => run_sectors(&cli, client, cache, code, pick_watchlist).await,
+        Commands::Holdings {
+            code,
+            pick_watchlist,
+            top,
+        } => run_holdings(&cli, client, cache, code, pick_watchlist, top).await,
     }
 }
 
@@ -231,6 +236,44 @@ async fn run_export_all(
         sess.export_to_path(oc.trim(), PathBuf::from(out), &export.format)
             .await
     }
+}
+
+async fn run_holdings(
+    cli: &Cli,
+    client: &EastMoneyClient,
+    cache: &Arc<Mutex<FundCache>>,
+    code: Option<String>,
+    pick_watchlist: bool,
+    top: u32,
+) -> anyhow::Result<()> {
+    no_offline(cli.offline, "holdings")?;
+    let top = top.clamp(1, 50);
+    let ids = identifiers_one_or_watchlist(
+        code,
+        pick_watchlist,
+        &cli.watchlist_file,
+        "--code/--watchlist",
+    )?;
+    for id in ids {
+        cmd_holdings(client, cache, id, top).await?;
+    }
+    Ok(())
+}
+
+async fn cmd_holdings(
+    client: &EastMoneyClient,
+    cache: &Arc<Mutex<FundCache>>,
+    code: String,
+    top: u32,
+) -> anyhow::Result<()> {
+    let (resolved_code, name) = resolve_fund_identifier(client, cache, &code, false).await?;
+    tracing::info!(code = %resolved_code, top = top, "Fetching stock holdings");
+    let report = client
+        .fetch_fund_stock_holdings(&resolved_code, top)
+        .await
+        .map_err(|e| anyhow::anyhow!("重仓股接口失败：{e}"))?;
+    print_holdings_report(&resolved_code, &name, &report);
+    Ok(())
 }
 
 async fn run_sectors(
