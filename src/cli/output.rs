@@ -1,4 +1,5 @@
 use crate::api::eastmoney::FundProfile;
+use crate::api::fund_industry::FundIndustryReport;
 use crate::api::fund_ranking::FundRankEntry;
 use crate::models::{FundAnalysis, FundNav};
 use std::fs::File;
@@ -231,6 +232,49 @@ pub fn print_ranking_table(rows: &[FundRankEntry], kind: &str, sort: &str, unive
     );
     println!();
     print_rounded_table(&ranking_table_rows(rows), 2);
+}
+
+#[derive(Tabled)]
+struct IndustryTableRow {
+    #[tabled(rename = "序号")]
+    rank: u32,
+    #[tabled(rename = "行业类别")]
+    industry: String,
+    #[tabled(rename = "占净值比例")]
+    pct_nav: String,
+    #[tabled(rename = "市值(万元)")]
+    market_value_wan: String,
+}
+
+fn industry_display_rows(report: &FundIndustryReport) -> Vec<IndustryTableRow> {
+    report
+        .rows
+        .iter()
+        .map(|r| IndustryTableRow {
+            rank: r.rank,
+            industry: truncate_string(&r.industry, 36),
+            pct_nav: format!("{:.2}%", r.pct_nav),
+            market_value_wan: r
+                .market_value_wan
+                .map(|v| format!("{v:.2}"))
+                .unwrap_or_else(|| "-".to_string()),
+        })
+        .collect()
+}
+
+/// 打印 F10 披露的行业配置（证监会行业分类）。
+pub fn print_industry_report(code: &str, name: &str, report: &FundIndustryReport) {
+    println!("行业配置（板块 — 证监会行业分类）");
+    println!("基金代码: {code}  简称: {name}");
+    if let Some(ref d) = report.as_of {
+        println!("报告截止: {d}");
+    }
+    println!();
+    if report.rows.is_empty() {
+        println!("暂无行业配置数据（常见于债券型、货币型或极低股票仓位）。");
+        return;
+    }
+    print_rounded_table(&industry_display_rows(report), 2);
 }
 
 pub fn print_fund_profile(profile: &FundProfile) {

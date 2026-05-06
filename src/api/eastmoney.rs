@@ -1,4 +1,5 @@
 pub use crate::api::eastmoney_error::EastMoneyError;
+use crate::api::fund_industry::{fetch_fund_industry_hypz, FundIndustryReport};
 use crate::api::fund_ranking::FundRankingPage;
 use crate::api::nav_merge::merge_navs_by_date;
 use crate::models::FundNav;
@@ -248,6 +249,14 @@ impl EastMoneyClient {
             top,
         )
         .await
+    }
+
+    /// 证监会行业分类下的季报「行业配置」（`hypz`）；非股票为主资产配置可能无数据。
+    pub async fn fetch_fund_industry_allocation(
+        &self,
+        fund_code: &str,
+    ) -> Result<FundIndustryReport, EastMoneyError> {
+        fetch_fund_industry_hypz(&self.client, fund_code).await
     }
 
     pub async fn fetch_fund_name(&self, fund_code: &str) -> Result<String, EastMoneyError> {

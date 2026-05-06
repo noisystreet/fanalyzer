@@ -1,6 +1,7 @@
 pub mod eastmoney;
 pub mod eastmoney_error;
 pub mod eastmoney_ranking;
+pub mod fund_industry;
 pub mod fund_ranking;
 pub mod nav_merge;
 

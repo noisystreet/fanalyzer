@@ -77,6 +77,13 @@ pub enum Commands {
         #[arg(long = "watchlist", help = "输出自选文件中所有基金的概况")]
         pick_watchlist: bool,
     },
+    /// 季报披露的行业配置（证监会行业分类，板块维度；数据源 F10 hypz）
+    Sectors {
+        #[arg(short, long, help = "基金代码或名称")]
+        code: Option<String>,
+        #[arg(long = "watchlist", help = "输出自选文件中所有基金的行业配置")]
+        pick_watchlist: bool,
+    },
     /// 按天天基金官网排行拉取某类型全市场前 N 名（数据源需网络与 Referer）
     Rank {
         /// 类型：gp/hh/zq/zs/qdii/fof，或 股票/混合/债券/指数

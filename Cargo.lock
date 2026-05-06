@@ -22,6 +22,7 @@ dependencies = [
  "csv",
  "dirs",
  "predicates",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",

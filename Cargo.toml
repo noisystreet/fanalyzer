@@ -23,6 +23,8 @@ toml = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
 csv = "1"
 dirs = "5"
+# F10 行业配置 HTML 行解析
+regex = "1"
 # 终端表格对齐与边框（CLI 输出）
 tabled = { version = "0.20", default-features = false, features = ["std", "derive"] }
 

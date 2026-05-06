@@ -1,6 +1,6 @@
 use super::output::{
     export_csv, export_json, print_analysis, print_comparison, print_fund_profile,
-    print_ranking_table,
+    print_industry_report, print_ranking_table,
 };
 use super::{Cli, Commands};
 use crate::api::eastmoney::{EastMoneyClient, EastMoneyError};
@@ -127,6 +127,10 @@ pub async fn execute(
             pick_watchlist,
         } => run_info(&cli, client, cache, code, pick_watchlist).await,
         Commands::Rank { kind, top, sort } => run_rank(&cli, client, kind, top, sort).await,
+        Commands::Sectors {
+            code,
+            pick_watchlist,
+        } => run_sectors(&cli, client, cache, code, pick_watchlist).await,
     }
 }
 
@@ -227,6 +231,41 @@ async fn run_export_all(
         sess.export_to_path(oc.trim(), PathBuf::from(out), &export.format)
             .await
     }
+}
+
+async fn run_sectors(
+    cli: &Cli,
+    client: &EastMoneyClient,
+    cache: &Arc<Mutex<FundCache>>,
+    code: Option<String>,
+    pick_watchlist: bool,
+) -> anyhow::Result<()> {
+    no_offline(cli.offline, "sectors")?;
+    let ids = identifiers_one_or_watchlist(
+        code,
+        pick_watchlist,
+        &cli.watchlist_file,
+        "--code/--watchlist",
+    )?;
+    for id in ids {
+        cmd_sectors(client, cache, id).await?;
+    }
+    Ok(())
+}
+
+async fn cmd_sectors(
+    client: &EastMoneyClient,
+    cache: &Arc<Mutex<FundCache>>,
+    code: String,
+) -> anyhow::Result<()> {
+    let (resolved_code, name) = resolve_fund_identifier(client, cache, &code, false).await?;
+    tracing::info!(code = %resolved_code, "Fetching industry allocation");
+    let report = client
+        .fetch_fund_industry_allocation(&resolved_code)
+        .await
+        .map_err(|e| anyhow::anyhow!("行业配置获取失败：{e}"))?;
+    print_industry_report(&resolved_code, &name, &report);
+    Ok(())
 }
 
 async fn run_rank(
