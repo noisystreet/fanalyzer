@@ -1,5 +1,8 @@
 pub mod api;
 pub mod cache;
+pub mod cli;
 pub mod config;
 pub mod models;
+pub mod nav_cache;
 pub mod services;
+pub mod watchlist;

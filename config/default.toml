@@ -1,6 +1,8 @@
 [api]
 base_url = "https://api.example.com"
 timeout_secs = 30
+# user_agent = "Mozilla/5.0 (custom)"
+# proxy = "http://127.0.0.1:7890"
 
 [log]
 level = "info"

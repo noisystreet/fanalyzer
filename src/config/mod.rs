@@ -16,12 +16,22 @@ pub struct AppConfig {
     pub log: LogConfig,
 }
 
+fn default_timeout_secs() -> u64 {
+    30
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Clone)]
 pub struct ApiConfig {
     pub base_url: String,
-    #[serde(default)]
+    #[serde(default = "default_timeout_secs")]
     pub timeout_secs: u64,
+    /// 覆盖默认 UA；敏感环境可通过环境变量在部署层注入。
+    #[serde(default)]
+    pub user_agent: Option<String>,
+    /// HTTP/HTTPS 代理，如 `http://127.0.0.1:7890`
+    #[serde(default)]
+    pub proxy: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -40,7 +50,9 @@ impl Default for AppConfig {
         Self {
             api: ApiConfig {
                 base_url: "https://api.example.com".to_string(),
-                timeout_secs: 30,
+                timeout_secs: default_timeout_secs(),
+                user_agent: None,
+                proxy: None,
             },
             log: LogConfig {
                 level: default_log_level(),
@@ -88,5 +100,22 @@ mod tests {
     fn test_load_missing_file() {
         let config = AppConfig::load_from_file(Path::new("nonexistent.toml"));
         assert!(config.is_err());
+    }
+
+    #[test]
+    fn parse_optional_proxy_and_ua_from_toml() {
+        let s = r#"
+[api]
+base_url = "https://example.invalid"
+timeout_secs = 60
+user_agent = "CustomUA/1.0"
+proxy = "http://127.0.0.1:7890"
+
+[log]
+level = "info"
+"#;
+        let c: AppConfig = toml::from_str(s).unwrap();
+        assert_eq!(c.api.proxy.as_deref(), Some("http://127.0.0.1:7890"));
+        assert_eq!(c.api.user_agent.as_deref(), Some("CustomUA/1.0"));
     }
 }

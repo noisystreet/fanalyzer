@@ -1,5 +1,7 @@
 use crate::models::FundNav;
-use chrono::FixedOffset;
+use chrono::{Duration, FixedOffset};
+use reqwest::Client;
+use std::time::Duration as StdDuration;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -10,7 +12,30 @@ pub enum EastMoneyError {
     ApiError(i32),
     #[error("Failed to parse value: {0}")]
     ParseFailed(String),
+    #[error("HTTP client configuration failed: {0}")]
+    ClientBuildFailed(String),
 }
+
+/// 构建 `EastMoneyClient`（超时、UA、代理）；由 CLI 从 `AppConfig.api` 映射而来。
+#[derive(Debug, Clone)]
+pub struct EastMoneyClientOptions {
+    pub timeout_secs: u64,
+    pub user_agent: Option<String>,
+    pub proxy: Option<String>,
+}
+
+impl Default for EastMoneyClientOptions {
+    fn default() -> Self {
+        Self {
+            timeout_secs: 30,
+            user_agent: None,
+            proxy: None,
+        }
+    }
+}
+
+const DEFAULT_USER_AGENT: &str =
+    "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0";
 
 pub struct EastMoneyClient {
     client: reqwest::Client,
@@ -18,21 +43,40 @@ pub struct EastMoneyClient {
 
 impl Default for EastMoneyClient {
     fn default() -> Self {
-        Self::new()
+        Self::with_options(EastMoneyClientOptions::default())
+            .expect("default EastMoneyClientOptions builds a valid HTTP client")
     }
 }
 
 impl EastMoneyClient {
     pub fn new() -> Self {
-        Self {
-            client: reqwest::Client::builder()
-                .user_agent(
-                    "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0",
-                )
-                .http1_only()
-                .build()
-                .unwrap_or_default(),
+        Self::default()
+    }
+
+    pub fn with_options(opts: EastMoneyClientOptions) -> Result<Self, EastMoneyError> {
+        let timeout = StdDuration::from_secs(opts.timeout_secs.max(1));
+        let ua = opts
+            .user_agent
+            .as_deref()
+            .filter(|s| !s.is_empty())
+            .unwrap_or(DEFAULT_USER_AGENT);
+
+        let mut builder = Client::builder()
+            .user_agent(ua)
+            .http1_only()
+            .timeout(timeout);
+
+        if let Some(ref p) = opts.proxy {
+            if !p.is_empty() {
+                let proxy = reqwest::Proxy::all(p).map_err(|e| {
+                    EastMoneyError::ClientBuildFailed(format!("invalid proxy URL: {e}"))
+                })?;
+                builder = builder.proxy(proxy);
+            }
         }
+
+        let client = builder.build().map_err(EastMoneyError::HttpFailed)?;
+        Ok(Self { client })
     }
 
     pub async fn fetch_nav_history(
@@ -145,11 +189,41 @@ impl EastMoneyClient {
         fund_code: &str,
         days: u32,
     ) -> Result<Vec<FundNav>, EastMoneyError> {
-        let need_records = ((days as f64 * 5.0 / 7.0).ceil() as u32).max(1);
-        let page_size = need_records.min(100);
-        let (mut navs, _) = self.fetch_nav_history(fund_code, 1, page_size).await?;
-        navs.truncate(need_records as usize);
-        Ok(navs)
+        if days == 0 {
+            return Ok(Vec::new());
+        }
+
+        let today = chrono::Local::now().date_naive();
+        let cutoff = today
+            .checked_sub_signed(Duration::days(days as i64))
+            .unwrap_or(today);
+
+        const PAGE_SIZE: u32 = 100;
+        let mut page = 1u32;
+        let mut collected: Vec<FundNav> = Vec::new();
+
+        loop {
+            let (batch, total) = self.fetch_nav_history(fund_code, page, PAGE_SIZE).await?;
+            if batch.is_empty() {
+                break;
+            }
+
+            let batch_min = batch.iter().map(|n| n.date).min().expect("batch non-empty");
+            collected.extend(batch);
+
+            let fetched_all = total == 0 || page.saturating_mul(PAGE_SIZE) >= total;
+            if batch_min <= cutoff || fetched_all {
+                break;
+            }
+
+            page += 1;
+            tokio::time::sleep(StdDuration::from_millis(250)).await;
+        }
+
+        let mut merged = merge_navs_by_date(collected);
+        merged.retain(|n| n.date >= cutoff);
+        merged.sort_by_key(|n| n.date);
+        Ok(merged)
     }
 
     pub async fn fetch_fund_name(&self, fund_code: &str) -> Result<String, EastMoneyError> {
@@ -596,6 +670,15 @@ impl EastMoneyClient {
     }
 }
 
+fn merge_navs_by_date(navs: Vec<FundNav>) -> Vec<FundNav> {
+    use std::collections::BTreeMap;
+    navs.into_iter()
+        .map(|n| (n.date, n))
+        .collect::<BTreeMap<_, _>>()
+        .into_values()
+        .collect()
+}
+
 #[derive(Debug, Clone)]
 pub struct IndexData {
     pub date: chrono::DateTime<FixedOffset>,
@@ -649,4 +732,32 @@ pub struct FundProfile {
     pub investment_scope: String,
     pub investment_strategy: String,
     pub benchmark: String,
+}
+
+#[cfg(test)]
+mod merge_tests {
+    use super::merge_navs_by_date;
+    use crate::models::FundNav;
+    use chrono::NaiveDate;
+
+    #[test]
+    fn merge_navs_same_date_keeps_last() {
+        let a = FundNav {
+            code: "x".into(),
+            date: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+            nav: 1.0,
+            acc_nav: 1.0,
+            daily_return: None,
+        };
+        let b = FundNav {
+            code: "x".into(),
+            date: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+            nav: 2.0,
+            acc_nav: 2.0,
+            daily_return: None,
+        };
+        let v = merge_navs_by_date(vec![a, b]);
+        assert_eq!(v.len(), 1);
+        assert!((v[0].nav - 2.0).abs() < 1e-9);
+    }
 }
