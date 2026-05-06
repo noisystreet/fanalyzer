@@ -1,20 +1,10 @@
+pub use crate::api::eastmoney_error::EastMoneyError;
+use crate::api::fund_ranking::FundRankingPage;
+use crate::api::nav_merge::merge_navs_by_date;
 use crate::models::FundNav;
 use chrono::{Duration, FixedOffset};
 use reqwest::Client;
 use std::time::Duration as StdDuration;
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub enum EastMoneyError {
-    #[error("HTTP request failed: {0}")]
-    HttpFailed(#[from] reqwest::Error),
-    #[error("API returned error code: {0}")]
-    ApiError(i32),
-    #[error("Failed to parse value: {0}")]
-    ParseFailed(String),
-    #[error("HTTP client configuration failed: {0}")]
-    ClientBuildFailed(String),
-}
 
 /// 构建 `EastMoneyClient`（超时、UA、代理）；由 CLI 从 `AppConfig.api` 映射而来。
 #[derive(Debug, Clone)]
@@ -224,6 +214,40 @@ impl EastMoneyClient {
         merged.retain(|n| n.date >= cutoff);
         merged.sort_by_key(|n| n.date);
         Ok(merged)
+    }
+
+    /// 开放式基金排行单页（`ft`=`gp|hh|zq|zs|qdii|fof`，`sc` 如 `1n` 近一年、`zzf` 默认口径）。
+    pub async fn fetch_fund_ranking_page(
+        &self,
+        fund_type: &str,
+        sort_code: &str,
+        page_index: u32,
+        page_size: u32,
+    ) -> Result<FundRankingPage, EastMoneyError> {
+        crate::api::eastmoney_ranking::fetch_fund_ranking_page(
+            &self.client,
+            fund_type,
+            sort_code,
+            page_index,
+            page_size,
+        )
+        .await
+    }
+
+    /// 连续翻页直到凑满 `top` 条（单页最多请求 100 条）。
+    pub async fn fetch_fund_ranking_top(
+        &self,
+        fund_type: &str,
+        sort_code: &str,
+        top: u32,
+    ) -> Result<FundRankingPage, EastMoneyError> {
+        crate::api::eastmoney_ranking::fetch_fund_ranking_top(
+            &self.client,
+            fund_type,
+            sort_code,
+            top,
+        )
+        .await
     }
 
     pub async fn fetch_fund_name(&self, fund_code: &str) -> Result<String, EastMoneyError> {
@@ -670,15 +694,6 @@ impl EastMoneyClient {
     }
 }
 
-fn merge_navs_by_date(navs: Vec<FundNav>) -> Vec<FundNav> {
-    use std::collections::BTreeMap;
-    navs.into_iter()
-        .map(|n| (n.date, n))
-        .collect::<BTreeMap<_, _>>()
-        .into_values()
-        .collect()
-}
-
 #[derive(Debug, Clone)]
 pub struct IndexData {
     pub date: chrono::DateTime<FixedOffset>,
@@ -732,32 +747,4 @@ pub struct FundProfile {
     pub investment_scope: String,
     pub investment_strategy: String,
     pub benchmark: String,
-}
-
-#[cfg(test)]
-mod merge_tests {
-    use super::merge_navs_by_date;
-    use crate::models::FundNav;
-    use chrono::NaiveDate;
-
-    #[test]
-    fn merge_navs_same_date_keeps_last() {
-        let a = FundNav {
-            code: "x".into(),
-            date: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
-            nav: 1.0,
-            acc_nav: 1.0,
-            daily_return: None,
-        };
-        let b = FundNav {
-            code: "x".into(),
-            date: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
-            nav: 2.0,
-            acc_nav: 2.0,
-            daily_return: None,
-        };
-        let v = merge_navs_by_date(vec![a, b]);
-        assert_eq!(v.len(), 1);
-        assert!((v[0].nav - 2.0).abs() < 1e-9);
-    }
 }

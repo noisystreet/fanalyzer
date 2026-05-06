@@ -1,4 +1,5 @@
 use crate::api::eastmoney::FundProfile;
+use crate::api::fund_ranking::FundRankEntry;
 use crate::models::{FundAnalysis, FundNav};
 use std::fs::File;
 use std::io::Write;
@@ -129,6 +130,41 @@ pub fn export_json(navs: &[FundNav], path: &str) -> anyhow::Result<()> {
     let mut file = File::create(path)?;
     file.write_all(json.as_bytes())?;
     Ok(())
+}
+
+fn fmt_pct_opt(v: Option<f64>) -> String {
+    v.map(|x| format!("{x:.2}%"))
+        .unwrap_or_else(|| "-".to_string())
+}
+
+/// 打印官网开放式基金排行简表（百分点列）。
+pub fn print_ranking_table(rows: &[FundRankEntry], kind: &str, sort: &str, universe_total: u32) {
+    println!(
+        "开放式基金排行（ft={}，排序 sc={}，官网该类型约 {} 只，下列 {} 条）",
+        kind,
+        sort,
+        universe_total,
+        rows.len()
+    );
+    println!();
+    println!(
+        "{:<8} {:<22} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8}",
+        "代码", "简称", "近1周", "近1月", "近3月", "近6月", "近1年", "今年来"
+    );
+    println!("{}", "-".repeat(92));
+    for r in rows {
+        println!(
+            "{:<8} {:<22} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8}",
+            r.code,
+            truncate_string(&r.name, 20),
+            fmt_pct_opt(r.pct_week),
+            fmt_pct_opt(r.pct_month),
+            fmt_pct_opt(r.pct_3m),
+            fmt_pct_opt(r.pct_6m),
+            fmt_pct_opt(r.pct_1y),
+            fmt_pct_opt(r.pct_this_year),
+        );
+    }
 }
 
 pub fn print_fund_profile(profile: &FundProfile) {

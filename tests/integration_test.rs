@@ -17,3 +17,12 @@ fn test_cli_version() {
         .assert()
         .success();
 }
+
+#[test]
+fn test_cli_rank_help() {
+    Command::cargo_bin("analysis_fund")
+        .unwrap()
+        .args(["rank", "--help"])
+        .assert()
+        .success();
+}

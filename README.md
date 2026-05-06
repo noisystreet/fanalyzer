@@ -13,6 +13,7 @@
 
 | 文档 | 说明 |
 |------|------|
+| [docs/MANUAL.md](docs/MANUAL.md) | **CLI 使用手册**（子命令、自选、离线、排行等） |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 架构总览 |
 | [docs/DATA_MODEL.md](docs/DATA_MODEL.md) | 数据模型 |
 | [AGENTS.md](AGENTS.md) | AI Agent 入口文档 |
@@ -38,6 +39,14 @@ cargo fmt -- --check && cargo clippy -- -D warnings
 ```
 
 ## 使用指南
+
+更完整的参数说明、全局选项与注意事项见 **[docs/MANUAL.md](docs/MANUAL.md)**。
+
+### 全局与自选（摘要）
+
+- **`--offline`**：仅用本地净值缓存；不能与 `fetch`、`info`、`rank` 同时使用。
+- **`--watchlist-file`**：自选列表路径，默认 `config/watchlist.toml`；配合各子命令的 **`--watchlist`** 批量处理。
+- 自选文件格式：TOML 中 `funds = ["000001", "基金名称"]`。
 
 ### 1. 获取基金净值数据
 
@@ -97,7 +106,18 @@ cargo run -- export --code 000001 --days 90 --output fund_data.csv --format csv
 cargo run -- export --code 000001 --days 90 --output fund_data.json --format json
 ```
 
-### 5. 查看基金详细信息
+### 5. 类型排行（全市场 Top N）
+
+按天天基金官网开放式基金排行拉取某类型前 N 名（需联网）：
+
+```bash
+cargo run -- rank --kind gp --top 100
+cargo run -- rank --kind 混合 --sort 1n
+```
+
+`--kind` 支持 `gp|hh|zq|zs|qdii|fof` 及中文别名（如股票、混合）；`--top` 默认 100、上限 500；`--sort` 对应官网 `sc` 参数，默认 `1n`。详见 [docs/MANUAL.md](docs/MANUAL.md)。
+
+### 6. 查看基金详细信息
 
 获取基金的基本概况、投资目标、投资范围、基金经理等详细信息：
 
@@ -129,7 +149,7 @@ cargo run -- info --code "华夏成长混合"
 | 投资目标 | 基金的投资目标和策略方向 |
 | 投资范围 | 基金可投资的资产类别 |
 
-### 6. 使用中文基金名称
+### 7. 使用中文基金名称
 
 支持通过中文名称搜索基金：
 

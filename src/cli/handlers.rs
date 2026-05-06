@@ -1,5 +1,6 @@
 use super::output::{
     export_csv, export_json, print_analysis, print_comparison, print_fund_profile,
+    print_ranking_table,
 };
 use super::{Cli, Commands};
 use crate::api::eastmoney::{EastMoneyClient, EastMoneyError};
@@ -15,6 +16,19 @@ use tokio::sync::Mutex;
 
 pub fn map_client_err(e: EastMoneyError) -> anyhow::Error {
     anyhow::Error::msg(e.to_string()).context("构建 HTTP 客户端失败")
+}
+
+/// 将 `--kind` 映射为天天基金排行接口 `ft`。
+fn rank_ft_code(kind: &str) -> anyhow::Result<&'static str> {
+    match kind.trim().to_ascii_lowercase().as_str() {
+        "gp" | "股票" | "股票型" => Ok("gp"),
+        "hh" | "混合" | "混合型" => Ok("hh"),
+        "zq" | "债券" | "债券型" => Ok("zq"),
+        "zs" | "指数" | "指数型" => Ok("zs"),
+        "qdii" => Ok("qdii"),
+        "fof" | "fof型" => Ok("fof"),
+        _ => anyhow::bail!("`--kind` 须为 gp/hh/zq/zs/qdii/fof 或中文别名（股票/混合/债券/指数）"),
+    }
 }
 
 pub fn no_offline(offline: bool, cmd: &str) -> anyhow::Result<()> {
@@ -112,6 +126,7 @@ pub async fn execute(
             code,
             pick_watchlist,
         } => run_info(&cli, client, cache, code, pick_watchlist).await,
+        Commands::Rank { kind, top, sort } => run_rank(&cli, client, kind, top, sort).await,
     }
 }
 
@@ -212,6 +227,31 @@ async fn run_export_all(
         sess.export_to_path(oc.trim(), PathBuf::from(out), &export.format)
             .await
     }
+}
+
+async fn run_rank(
+    cli: &Cli,
+    client: &EastMoneyClient,
+    kind: String,
+    top: u32,
+    sort: String,
+) -> anyhow::Result<()> {
+    no_offline(cli.offline, "rank")?;
+    if top == 0 {
+        anyhow::bail!("`--top` 须 ≥ 1");
+    }
+    if top > 500 {
+        anyhow::bail!("`--top` 上限为 500");
+    }
+    let ft = rank_ft_code(&kind)?;
+    let sc = sort.trim();
+    if sc.is_empty() {
+        anyhow::bail!("`--sort` 不能为空（默认可用 1n）");
+    }
+    tracing::info!(ft = ft, top = top, sort = %sc, "Fetching fund ranking");
+    let page = client.fetch_fund_ranking_top(ft, sc, top).await?;
+    print_ranking_table(&page.rows, ft, sc, page.total_records);
+    Ok(())
 }
 
 async fn run_info(
@@ -634,4 +674,23 @@ async fn cmd_info(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod rank_kind_tests {
+    use super::rank_ft_code;
+
+    #[test]
+    fn rank_ft_accepts_codes_and_aliases() {
+        assert_eq!(rank_ft_code("gp").unwrap(), "gp");
+        assert_eq!(rank_ft_code("HH").unwrap(), "hh");
+        assert_eq!(rank_ft_code("股票").unwrap(), "gp");
+        assert_eq!(rank_ft_code("混合").unwrap(), "hh");
+        assert_eq!(rank_ft_code("qdii").unwrap(), "qdii");
+    }
+
+    #[test]
+    fn rank_ft_rejects_unknown() {
+        assert!(rank_ft_code("xyz").is_err());
+    }
 }
