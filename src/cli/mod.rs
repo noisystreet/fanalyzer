@@ -1,6 +1,10 @@
 //! CLI 编排：自选、离线缓存、`AppConfig` → HTTP 客户端。
 
+mod analysis_sort;
+mod analyze;
 mod brief;
+mod compare;
+mod compare_output;
 mod fund_session;
 mod handlers;
 mod output;
@@ -52,16 +56,42 @@ pub enum Commands {
         code: Option<String>,
         #[arg(long = "watchlist", help = "分析自选文件中所有基金")]
         pick_watchlist: bool,
-        #[arg(short, long, default_value = "30", help = "分析窗口（日历天）")]
+        #[arg(
+            short,
+            long,
+            default_value_t = 30,
+            help = "分析窗口（日历天）；可被 --period 覆盖"
+        )]
         days: u32,
+        #[arg(
+            long,
+            help = "预设窗口：7d/1m/3m/6m/1y/ytd 或 rank 的 sc（1nzf/zzf 等）"
+        )]
+        period: Option<String>,
     },
     Compare {
         #[arg(short, long, help = "逗号分隔的基金代码或名称", value_delimiter = ',')]
         codes: Vec<String>,
         #[arg(long = "watchlist", help = "对比自选文件中所有基金")]
         pick_watchlist: bool,
-        #[arg(short, long, default_value = "30", help = "分析窗口（日历天）")]
+        #[arg(
+            short,
+            long,
+            default_value_t = 30,
+            help = "分析窗口（日历天）；可被 --period 覆盖"
+        )]
         days: u32,
+        #[arg(long, help = "预设窗口：7d/1m/3m/6m/1y/ytd 或 rank 的 sc")]
+        period: Option<String>,
+        #[arg(
+            long,
+            help = "结果排序：sharpe/sortino/calmar/total-return/max-drawdown/alpha/volatility"
+        )]
+        sort: Option<String>,
+        #[arg(short, long, help = "导出对比结果路径")]
+        output: Option<PathBuf>,
+        #[arg(short, long, default_value = "csv", help = "导出格式 csv 或 json")]
+        format: String,
     },
     Export {
         #[arg(short, long, help = "基金代码或名称")]
@@ -125,8 +155,15 @@ pub enum Commands {
         code: Option<String>,
         #[arg(long = "watchlist", help = "对自选列表逐只生成简报")]
         pick_watchlist: bool,
-        #[arg(short, long, default_value_t = 90, help = "净值分析窗口（日历天）")]
+        #[arg(
+            short,
+            long,
+            default_value_t = 90,
+            help = "净值分析窗口（日历天）；可被 --period 覆盖"
+        )]
         days: u32,
+        #[arg(long, help = "预设窗口：7d/1m/3m/6m/1y/ytd 或 rank 的 sc")]
+        period: Option<String>,
         #[arg(long, default_value_t = 5, help = "行业配置展示前 N 项")]
         industry_top: u32,
         #[arg(long, default_value_t = 10, help = "重仓股展示条数（1～50）")]
@@ -147,16 +184,47 @@ pub enum Commands {
         sort: String,
         #[arg(long, default_value_t = 30, help = "从排行前 N 只中扫描（5～100）")]
         rank_top: u32,
-        #[arg(short, long, default_value_t = 90, help = "分析窗口（日历天）")]
-        days: u32,
+        #[arg(
+            short,
+            long,
+            help = "deep 分析窗口（日历天）；省略时按 --sort 区间对齐"
+        )]
+        days: Option<u32>,
+        #[arg(long, help = "预设窗口：7d/1m/3m/6m/1y/ytd 或 rank 的 sc")]
+        period: Option<String>,
+        #[arg(long, help = "排行区间收益下限（百分点，列与 --sort 一致）")]
+        min_rank_return: Option<f64>,
         #[arg(long, help = "最大回撤上限（百分点，如 25）")]
         max_drawdown: Option<f64>,
         #[arg(long, help = "最低夏普比率")]
         min_sharpe: Option<f64>,
         #[arg(long, help = "管理费率上限（百分点，如 1.5）")]
         max_mgmt_fee: Option<f64>,
+        #[arg(long, help = "最低 Alpha（百分点）")]
+        min_alpha: Option<f64>,
+        #[arg(long, help = "波动率上限（百分点）")]
+        max_volatility: Option<f64>,
+        #[arg(long, help = "区间总收益下限（百分点）")]
+        min_total_return: Option<f64>,
+        #[arg(
+            long,
+            default_value_t = 15,
+            help = "deep 分析最多只数（默认 15，需 --full-scan 扫全池）"
+        )]
+        deep_limit: u32,
+        #[arg(long, help = "对候选池全部做 deep 分析（较慢）")]
+        full_scan: bool,
+        #[arg(
+            long,
+            help = "通过筛选后按指标排序，默认 sharpe；可选 sortino/calmar/total-return 等"
+        )]
+        sort_by: Option<String>,
         #[arg(short, long, default_value_t = 10, help = "对比展示上限（2～30）")]
         limit: u32,
+        #[arg(short, long, help = "导出对比结果路径")]
+        output: Option<PathBuf>,
+        #[arg(short, long, default_value = "csv", help = "导出格式 csv 或 json")]
+        format: String,
     },
 }
 

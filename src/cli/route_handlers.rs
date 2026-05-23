@@ -1,11 +1,13 @@
 //! 既有子命令分派（fetch / analyze / compare 等）。
 
+use super::analyze::AnalyzeOpts;
+use super::compare::{run_compare, CompareOpts};
 use super::{Cli, Commands};
 use crate::api::eastmoney::EastMoneyClient;
 use crate::cache::FundCache;
 use crate::cli::handlers::{
-    cmd_compare, identifiers_many_or_watchlist, run_analyze, run_export_all, run_fetch,
-    run_holdings, run_info, run_rank, run_sectors, ExportInvocation,
+    identifiers_many_or_watchlist, run_analyze, run_export_all, run_fetch, run_holdings, run_info,
+    run_rank, run_sectors, ExportInvocation,
 };
 use crate::nav_cache::NavCache;
 use std::sync::Arc;
@@ -28,14 +30,47 @@ pub async fn dispatch(
             code,
             pick_watchlist,
             days,
-        } => run_analyze(cli, client, cache, nav_store, code, pick_watchlist, days).await,
+            period,
+        } => {
+            run_analyze(
+                cli,
+                client,
+                cache,
+                nav_store,
+                AnalyzeOpts {
+                    code,
+                    pick_watchlist,
+                    days,
+                    period,
+                },
+            )
+            .await
+        }
         Commands::Compare {
             codes,
             pick_watchlist,
             days,
+            period,
+            sort,
+            output,
+            format,
         } => {
             let ids = identifiers_many_or_watchlist(codes, pick_watchlist, &cli.watchlist_file)?;
-            cmd_compare(client, cache, nav_store, cli.offline, ids, days).await
+            run_compare(
+                cli,
+                client,
+                cache,
+                nav_store,
+                CompareOpts {
+                    codes: ids,
+                    days,
+                    period,
+                    sort,
+                    output,
+                    format,
+                },
+            )
+            .await
         }
         Commands::Export {
             code,

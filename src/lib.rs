@@ -1,3 +1,4 @@
+pub mod analysis_period;
 pub mod api;
 pub mod cache;
 pub mod cli;

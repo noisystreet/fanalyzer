@@ -94,7 +94,8 @@ cargo run -- fetch --watchlist --limit 50
 
 ```bash
 cargo run -- analyze --code 000001 --days 90
-cargo run -- analyze --code "华夏成长混合" --days 30
+cargo run -- analyze --code 000001 --period 1y
+cargo run -- analyze --code "华夏成长混合" --period 3m
 cargo run -- analyze --watchlist --days 60
 ```
 
@@ -102,18 +103,26 @@ cargo run -- analyze --watchlist --days 60
 |------|------|
 | `-c` / `--code` | 与 `--watchlist` 二选一（自选模式下可不写） |
 | `--watchlist` | 对自选文件中每只基金各跑一次分析 |
-| `-d` / `--days` | 分析窗口（**日历天**），默认 `30` |
+| `-d` / `--days` | 分析窗口（**日历天**），默认 `30`；可被 `--period` 覆盖 |
+| `--period` | 预设窗口：`7d`/`1m`/`3m`/`6m`/`1y`/`ytd`，或 rank 的 `sc`（如 `1nzf`、`zzf`） |
 
-`--offline` 时从本地净值缓存读取；若缓存不足会报错，需先在线执行过一次相关基金的抓取或分析以写入缓存。
+**分析口径（重要）：**
+
+- 收益、回撤、波动等优先使用 **累计净值 `acc_nav`**（若有效），以更好反映分红再投资；导出 CSV 仍保留 `nav` / `acc_nav` 两列。
+- **Alpha / Beta** 在线时按 F10 **业绩比较基准** 文案推断指数（如沪深300、中证500）；无法识别时按基金类型兜底，再不行用沪深300。
+- 新增 **索提诺比率**、**卡玛比率**（收益/最大回撤），与夏普一并输出。
+
+`--offline` 时从本地净值缓存读取；无契约基准与经理/费率，Alpha/Beta 为 0。
 
 ---
 
 ## `compare` — 对比多只基金
 
 ```bash
-cargo run -- compare --codes 000001,000003 --days 90
-cargo run -- compare --codes "基金甲","基金乙" --days 30
-cargo run -- compare --watchlist --days 60
+cargo run -- compare --codes 000001,000003 --period 1y
+cargo run -- compare --codes 000001,000003 --days 90 --sort sharpe
+cargo run -- compare --watchlist --period 6m --output ./cmp.csv --format csv
+cargo run -- compare --watchlist --period 3m --output ./cmp.json --format json
 ```
 
 | 参数 | 说明 |
@@ -121,6 +130,12 @@ cargo run -- compare --watchlist --days 60
 | `--codes` | 逗号分隔的代码或名称，至少 2 只；与 `--watchlist` 二选一 |
 | `--watchlist` | 使用自选列表中全部基金参与对比（有效样本仍须 ≥2） |
 | `-d` / `--days` | 分析窗口（日历天），默认 `30` |
+| `--period` | 同 `analyze` |
+| `--sort` | 结果排序：`sharpe`/`sortino`/`calmar`/`total-return`/`max-drawdown`/`alpha`/`volatility`（风险类指标默认升序，其余降序） |
+| `-o` / `--output` | 导出对比表（CSV 或 JSON） |
+| `-f` / `--format` | 导出格式，`csv`（默认）或 `json` |
+
+对比时 **每只基金独立解析契约基准** 计算 Alpha/Beta；表格含 Sortino、Calmar 列。
 
 ---
 
@@ -218,40 +233,50 @@ cargo run -- brief --code "华夏成长" --output brief_000001.md
 |------|------|
 | `-c` / `--code` | 与 `--watchlist` 二选一 |
 | `--watchlist` | 对自选列表逐只生成简报（多只时间隔打印分隔线） |
-| `-d` / `--days` | 净值分析窗口（日历天），默认 `90` |
+| `-d` / `--days` | 净值分析窗口（日历天），默认 `90`；可被 `--period` 覆盖 |
+| `--period` | 同 `analyze` |
 | `--industry-top` | 行业配置展示前 N 项，默认 `5` |
 | `--holdings-top` | 重仓股条数，默认 `10`（接口上限 50） |
 | `-o` / `--output` | 可选，将同一份内容写入 Markdown 文件 |
 
-**说明：** 需联网；行业与重仓为 **季报** 口径，与 `analyze` 的净值序列（未复权）并存于同一简报。`--offline` 不可用。
+**说明：** 需联网；行业与重仓为 **季报** 口径；分析段使用累计净值与契约基准（同 `analyze`）。`--offline` 不可用。
 
 ### `screen` — 排行池规则筛选 + 对比
 
-从某类型 **`rank` 前 N 名**（默认 30，范围 5～100）逐只拉净值并 `analyze`，按可选条件过滤，对 **通过者** 输出与 `compare` 相同的对比表。
+从某类型 **`rank` 前 N 名** 中，先用 **排行区间收益**（`--min-rank-return`，列与 `--sort` 一致）预筛，再对少量候选做 **deep 分析**（默认最多 15 只，可用 `--full-scan` 扫全池），按回撤/夏普/Alpha 等过滤，最后排序并输出对比表。
 
 ```bash
-# 股票型排行前 30，剔除回撤 >25%、夏普 <0.5，最多展示 10 只对比
-cargo run -- screen --kind gp --max-drawdown 25 --min-sharpe 0.5
+# 近 1 年排行前 30，区间收益 ≥10%，再 deep 分析并按夏普排序
+cargo run -- screen --kind gp --sort 1nzf --min-rank-return 10 --max-drawdown 25 --min-sharpe 0.5
 
-# 指定排行排序与候选池大小
-cargo run -- screen --kind 混合 --sort 1nzf --rank-top 50 --days 180
+# 显式指定 deep 窗口与导出
+cargo run -- screen --kind 混合 --sort 3yzf --period 3m --deep-limit 20 --sort-by calmar --output out.csv
 
-# 同时限制管理费率（百分点）
-cargo run -- screen --kind gp --max-drawdown 20 --min-sharpe 0.8 --max-mgmt-fee 1.5 --limit 8
+# 扫全池（较慢）
+cargo run -- screen --kind gp --rank-top 50 --full-scan --min-sharpe 0.8
 ```
 
 | 参数 | 说明 |
 |------|------|
 | `-k` / `--kind` | 同 `rank --kind` |
 | `--sort` | 同 `rank --sort`（`sc`），默认 `1n` |
-| `--rank-top` | 从排行前 N 只中扫描，默认 `30`（5～100） |
-| `-d` / `--days` | 分析窗口，默认 `90` |
-| `--max-drawdown` | 可选，最大回撤上限（**百分点**，如 `25` 表示剔除回撤 >25%） |
-| `--min-sharpe` | 可选，最低夏普比率 |
-| `--max-mgmt-fee` | 可选，管理费率上限（**百分点**） |
-| `-l` / `--limit` | 对比表最多展示只数，默认 `10`（2～30） |
+| `--rank-top` | 从排行前 N 只取候选，默认 `30`（5～100） |
+| `-d` / `--days` | deep 分析窗口；**省略时按 `--sort` 区间自动对齐**（如 `1nzf`→365 天） |
+| `--period` | 同 `analyze`，覆盖 `-d` / 自动对齐 |
+| `--min-rank-return` | 排行区间收益下限（**百分点**，与 `--sort` 列一致） |
+| `--max-drawdown` | 可选，最大回撤上限（百分点） |
+| `--min-sharpe` | 可选，最低夏普 |
+| `--max-mgmt-fee` | 可选，管理费率上限（百分点） |
+| `--min-alpha` | 可选，最低 Alpha（百分点） |
+| `--max-volatility` | 可选，波动率上限（百分点） |
+| `--min-total-return` | 可选，deep 分析区间总收益下限（百分点） |
+| `--deep-limit` | deep 分析最多只数，默认 `15` |
+| `--full-scan` | 对预筛后全部候选做 deep 分析 |
+| `--sort-by` | 通过筛选后的排序键，默认 `sharpe` |
+| `-l` / `--limit` | 对比展示上限，默认 `10`（2～30） |
+| `-o` / `--output`、`-f` / `--format` | 同 `compare` 导出 |
 
-**说明：** 未指定 `--max-drawdown` / `--min-sharpe` / `--max-mgmt-fee` 时，不对指标做额外约束，仅按排行池顺序分析；扫描过程会依次请求净值，耗时与 `--rank-top` 成正比。`--sort` 与 `--kind` 含义见下文 `rank` 章节。
+**说明：** 默认 `--deep-limit 15` 避免对整池逐只拉净值；需全量 deep 分析时加 `--full-scan`。`--sort` 与 `--kind` 含义见下文 `rank` 章节。
 
 ---
 

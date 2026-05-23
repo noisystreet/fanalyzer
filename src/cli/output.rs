@@ -21,6 +21,8 @@ pub fn print_analysis(analysis: &FundAnalysis) {
     println!("波动率: {:.2}%", analysis.volatility * 100.0);
     println!("最大回撤: {:.2}%", analysis.max_drawdown * 100.0);
     println!("夏普比率: {:.2}", analysis.sharpe_ratio);
+    println!("索提诺比率: {:.2}", analysis.sortino_ratio);
+    println!("卡玛比率: {:.2}", analysis.calmar_ratio);
     println!("阿尔法 (Alpha): {:.2}%", analysis.alpha * 100.0);
     println!("贝塔 (Beta): {:.2}", analysis.beta);
 
@@ -56,6 +58,10 @@ struct ComparisonTableRow {
     max_drawdown: String,
     #[tabled(rename = "夏普比率")]
     sharpe_ratio: String,
+    #[tabled(rename = "Sortino")]
+    sortino_ratio: String,
+    #[tabled(rename = "Calmar")]
+    calmar_ratio: String,
     #[tabled(rename = "Alpha")]
     alpha: String,
     #[tabled(rename = "Beta")]
@@ -102,6 +108,8 @@ fn comparison_rows(analyses: &[FundAnalysis]) -> Vec<ComparisonTableRow> {
                 volatility: format!("{:.2}%", a.volatility * 100.0),
                 max_drawdown: format!("{:.2}%", a.max_drawdown * 100.0),
                 sharpe_ratio: format!("{:.2}", a.sharpe_ratio),
+                sortino_ratio: format!("{:.2}", a.sortino_ratio),
+                calmar_ratio: format!("{:.2}", a.calmar_ratio),
                 alpha: format!("{:.2}%", a.alpha * 100.0),
                 beta: format!("{:.2}", a.beta),
                 management_fee: mgmt_fee,
@@ -415,6 +423,8 @@ mod tests {
             volatility: 0.03,
             max_drawdown: -0.04,
             sharpe_ratio: 1.5,
+            sortino_ratio: 1.6,
+            calmar_ratio: 1.4,
             alpha: 0.001,
             beta: 0.9,
             manager_name: "张三".into(),

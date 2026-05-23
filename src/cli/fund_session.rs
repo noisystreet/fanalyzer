@@ -4,7 +4,7 @@ use crate::api::eastmoney::EastMoneyClient;
 use crate::cache::FundCache;
 use crate::models::FundAnalysis;
 use crate::nav_cache::{filter_covering_calendar_days, NavCache};
-use crate::services::{BenchmarkData, FundAnalyzer, FundMetaInfo};
+use crate::services::{resolve_benchmark, BenchmarkData, FundAnalyzer, FundMetaInfo, HS300};
 use anyhow::Context;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -93,10 +93,12 @@ pub async fn resolve_fund_identifier(
     }
 }
 
-pub async fn get_benchmark_data(client: &EastMoneyClient, days: u32) -> Option<BenchmarkData> {
-    const HS300_CODE: &str = "1.000300";
-
-    match client.fetch_index_history(HS300_CODE, 1, days * 2).await {
+pub async fn get_benchmark_data(
+    client: &EastMoneyClient,
+    days: u32,
+    index: &crate::services::IndexBenchmark,
+) -> Option<BenchmarkData> {
+    match client.fetch_index_history(index.secid, 1, days * 2).await {
         Ok((data, _)) => {
             let mut dates = Vec::new();
             let mut returns = Vec::new();
@@ -113,13 +115,32 @@ pub async fn get_benchmark_data(client: &EastMoneyClient, days: u32) -> Option<B
                 returns.push(daily_return);
             }
 
-            Some(BenchmarkData { dates, returns })
+            Some(BenchmarkData {
+                dates,
+                returns,
+                label: index.label.to_string(),
+            })
         }
         Err(e) => {
-            tracing::warn!(error = %e, "Failed to fetch benchmark data");
+            tracing::warn!(error = %e, index = index.label, "Failed to fetch benchmark data");
             None
         }
     }
+}
+
+async fn benchmark_for_fund(
+    client: &EastMoneyClient,
+    code: &str,
+    days: u32,
+) -> Option<BenchmarkData> {
+    let index = match client.fetch_fund_profile(code).await {
+        Ok(profile) => resolve_benchmark(&profile.benchmark, &profile.fund_type),
+        Err(e) => {
+            tracing::warn!(code = %code, error = %e, "Failed to fetch profile for benchmark; using HS300");
+            HS300
+        }
+    };
+    get_benchmark_data(client, days, &index).await
 }
 
 pub async fn get_fund_meta(client: &EastMoneyClient, code: &str) -> Option<FundMetaInfo> {
@@ -173,7 +194,7 @@ async fn get_fund_name(
     }
 }
 
-/// 拉净值并计算分析结果（不打印）。
+/// 拉净值并计算分析结果（不打印）；在线时按契约/类型解析基准指数。
 pub async fn analyze_fund(
     client: &EastMoneyClient,
     cache: &Arc<Mutex<FundCache>>,
@@ -186,7 +207,7 @@ pub async fn analyze_fund(
     let benchmark = if offline {
         None
     } else {
-        get_benchmark_data(client, days).await
+        benchmark_for_fund(client, &resolved_code, days).await
     };
     let meta = if offline {
         None

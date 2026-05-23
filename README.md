@@ -63,8 +63,9 @@ cargo run -- fetch --code 000001 --limit 100
 分析基金的多维度指标，包括收益、风险、经理信息等：
 
 ```bash
-# 分析最近 90 天的数据
+# 分析最近 90 天的数据（或使用与 rank 对齐的窗口）
 cargo run -- analyze --code 000001 --days 90
+cargo run -- analyze --code 000001 --period 1y
 ```
 
 **输出指标说明：**
@@ -76,7 +77,9 @@ cargo run -- analyze --code 000001 --days 90
 | 波动率 | 收益率的标准差（年化） | 风险水平，越低越稳定 |
 | 最大回撤 | 峰值到谷底的最大跌幅 | 极端风险，越小越好 |
 | 夏普比率 | (收益-无风险利率)/波动率 | 风险调整后收益，>1 较好 |
-| 阿尔法 (Alpha) | 超越基准的超额收益 | 经理选股能力，越高越好 |
+| 索提诺比率 | 仅计下行波动的风险调整收益 | 比夏普更关注亏损风险 |
+| 卡玛比率 | 年化收益/最大回撤 | 收益与极端回撤的平衡 |
+| 阿尔法 (Alpha) | 超越契约基准指数的超额收益 | 越高越好 |
 | 贝塔 (Beta) | 相对于市场的波动程度 | 系统风险，1 为市场水平 |
 | 基金经理 | 当前基金经理姓名 | 稳定性参考 |
 | 经理任期 | 经理管理该基金的时间 | 越长经验越丰富 |
@@ -89,11 +92,8 @@ cargo run -- analyze --code 000001 --days 90
 同时对比多只基金的表现：
 
 ```bash
-# 对比两只基金
-cargo run -- compare --codes 000001,000003 --days 90
-
-# 支持基金名称（自动搜索）
-cargo run -- compare --codes "华夏成长","中海可转债" --days 90
+# 对比两只基金，按夏普排序并导出
+cargo run -- compare --codes 000001,000003 --period 1y --sort sharpe --output cmp.csv
 ```
 
 ### 4. 数据导出
@@ -142,10 +142,10 @@ cargo run -- brief --code 000001 --days 90 --output brief.md
 cargo run -- brief --watchlist
 ```
 
-**`screen`**：从类型排行前 N 只中按回撤/夏普/费率筛选，并对通过者做对比表：
+**`screen`**：排行预筛 + deep 分析 + 规则过滤 + 对比/导出：
 
 ```bash
-cargo run -- screen --kind gp --rank-top 30 --max-drawdown 25 --min-sharpe 0.5
+cargo run -- screen --kind gp --sort 1nzf --min-rank-return 10 --max-drawdown 25 --sort-by sharpe --output screen.csv
 ```
 
 参数与示例见 [docs/MANUAL.md](docs/MANUAL.md) 中「选基工作流」章节。

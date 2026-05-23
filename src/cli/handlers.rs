@@ -1,18 +1,14 @@
-use super::fund_session::{
-    analyze_fund, fetch_nav_series, get_benchmark_data, get_fund_meta, resolve_fund_identifier,
-};
+use super::fund_session::{fetch_nav_series, resolve_fund_identifier};
 use super::output::{
-    export_csv, export_json, print_analysis, print_comparison, print_fund_profile,
-    print_holdings_report, print_industry_report, print_ranking_table,
+    export_csv, export_json, print_fund_profile, print_holdings_report, print_industry_report,
+    print_ranking_table,
 };
 use super::rank_kind::rank_ft_code;
 use super::route;
 use super::Cli;
 use crate::api::eastmoney::{EastMoneyClient, EastMoneyError};
 use crate::cache::FundCache;
-use crate::models::FundAnalysis;
 use crate::nav_cache::NavCache;
-use crate::services::{BenchmarkData, FundAnalyzer};
 use clap::Parser;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -104,20 +100,9 @@ pub(crate) async fn run_analyze(
     client: &EastMoneyClient,
     cache: &Arc<Mutex<FundCache>>,
     nav_store: &NavCache,
-    code: Option<String>,
-    pick_watchlist: bool,
-    days: u32,
+    opts: super::analyze::AnalyzeOpts,
 ) -> anyhow::Result<()> {
-    let ids = identifiers_one_or_watchlist(
-        code,
-        pick_watchlist,
-        &cli.watchlist_file,
-        "--code/--watchlist",
-    )?;
-    for id in ids {
-        cmd_analyze(client, cache, nav_store, cli.offline, id, days).await?;
-    }
-    Ok(())
+    super::analyze::run_analyze_cmd(cli, client, cache, nav_store, opts).await
 }
 
 pub(crate) struct ExportInvocation {
@@ -380,112 +365,6 @@ async fn cmd_fetch(
         Err(e) => {
             tracing::error!(error = %e, "Failed to fetch nav history");
         }
-    }
-    Ok(())
-}
-
-async fn cmd_analyze(
-    client: &EastMoneyClient,
-    cache: &Arc<Mutex<FundCache>>,
-    nav_store: &NavCache,
-    offline: bool,
-    code: String,
-    days: u32,
-) -> anyhow::Result<()> {
-    tracing::info!(code = %code, days = days, "Analyzing fund");
-    match analyze_fund(client, cache, nav_store, &code, days, offline).await {
-        Ok(Some(analysis)) => print_analysis(&analysis),
-        Ok(None) => tracing::warn!("Insufficient data for analysis"),
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to analyze");
-            return Err(e);
-        }
-    }
-    Ok(())
-}
-
-struct CompareProbe<'a> {
-    client: &'a EastMoneyClient,
-    cache: &'a Arc<Mutex<FundCache>>,
-    nav_store: &'a NavCache,
-    offline: bool,
-    days: u32,
-    benchmark: Option<&'a BenchmarkData>,
-}
-
-async fn try_push_compare_analysis(
-    analyses: &mut Vec<FundAnalysis>,
-    identifier: &str,
-    ctx: &CompareProbe<'_>,
-) -> anyhow::Result<()> {
-    let (resolved_code, name) =
-        match resolve_fund_identifier(ctx.client, ctx.cache, identifier, ctx.offline).await {
-            Ok(p) => p,
-            Err(e) => {
-                tracing::warn!(identifier = identifier, error = %e, "跳过该标的");
-                return Ok(());
-            }
-        };
-
-    let meta = if ctx.offline {
-        None
-    } else {
-        get_fund_meta(ctx.client, &resolved_code).await
-    };
-
-    let navs = fetch_nav_series(
-        ctx.client,
-        ctx.nav_store,
-        &resolved_code,
-        ctx.days,
-        ctx.offline,
-    )
-    .await?;
-
-    if let Some(a) = FundAnalyzer::analyze(&navs, ctx.days, &name, ctx.benchmark, meta.as_ref()) {
-        analyses.push(a);
-    } else {
-        tracing::warn!("Insufficient data for fund {}", resolved_code);
-    }
-    Ok(())
-}
-
-pub(crate) async fn cmd_compare(
-    client: &EastMoneyClient,
-    cache: &Arc<Mutex<FundCache>>,
-    nav_store: &NavCache,
-    offline: bool,
-    codes: Vec<String>,
-    days: u32,
-) -> anyhow::Result<()> {
-    if codes.len() < 2 {
-        anyhow::bail!("对比至少需要 2 只基金（当前 {} 条）", codes.len());
-    }
-    tracing::info!(codes = ?codes, days = days, "Comparing funds");
-    let benchmark_holder = if offline {
-        None
-    } else {
-        get_benchmark_data(client, days).await
-    };
-
-    let ctx = CompareProbe {
-        client,
-        cache,
-        nav_store,
-        offline,
-        days,
-        benchmark: benchmark_holder.as_ref(),
-    };
-
-    let mut analyses = Vec::new();
-    for identifier in codes {
-        try_push_compare_analysis(&mut analyses, &identifier, &ctx).await?;
-    }
-
-    if analyses.len() >= 2 {
-        print_comparison(&analyses);
-    } else {
-        tracing::warn!("有效样本不足（需要≥2）；请检查离线缓存或数据源");
     }
     Ok(())
 }

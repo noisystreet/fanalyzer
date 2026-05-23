@@ -120,9 +120,48 @@ pub fn parse_rankhandler_body(body: &str) -> Result<FundRankingPage, String> {
     })
 }
 
+/// 按排行 `sc` 取对应区间收益率（百分点）。
+pub fn rank_return_for_sort(entry: &FundRankEntry, sort: &str) -> Option<f64> {
+    let sc = sort.trim().to_ascii_lowercase();
+    match sc.as_str() {
+        "rzdf" => entry.pct_day,
+        "zzf" => entry.pct_week,
+        "1yzf" => entry.pct_month,
+        "3yzf" => entry.pct_3m,
+        "6yzf" => entry.pct_6m,
+        "1n" | "1nzf" | "2nzf" | "3nzf" => entry.pct_1y,
+        "jnzf" => entry.pct_this_year,
+        "lnzf" | "qjzf" => entry.pct_since_start,
+        _ => entry.pct_1y.or(entry.pct_6m),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rank_return_maps_sort() {
+        let r = FundRankEntry {
+            code: "1".into(),
+            name: "t".into(),
+            nav_date: String::new(),
+            unit_nav: None,
+            acc_nav: None,
+            pct_day: Some(1.0),
+            pct_week: Some(2.0),
+            pct_month: Some(3.0),
+            pct_3m: Some(4.0),
+            pct_6m: Some(5.0),
+            pct_1y: Some(6.0),
+            pct_2y: None,
+            pct_3y: None,
+            pct_this_year: Some(7.0),
+            pct_since_start: Some(8.0),
+        };
+        assert_eq!(rank_return_for_sort(&r, "zzf"), Some(2.0));
+        assert_eq!(rank_return_for_sort(&r, "1nzf"), Some(6.0));
+    }
 
     #[test]
     fn parse_sample_rankhandler() {

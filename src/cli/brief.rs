@@ -37,6 +37,7 @@ pub struct BriefOpts {
     pub code: Option<String>,
     pub pick_watchlist: bool,
     pub days: u32,
+    pub period: Option<String>,
     pub industry_top: u32,
     pub holdings_top: u32,
     pub output: Option<std::path::PathBuf>,
@@ -50,6 +51,7 @@ pub async fn run_brief(
     opts: BriefOpts,
 ) -> anyhow::Result<()> {
     crate::cli::handlers::no_offline(cli.offline, "brief")?;
+    let days = crate::analysis_period::resolve_analysis_days(opts.period.as_deref(), opts.days)?;
     let ids = crate::cli::handlers::identifiers_one_or_watchlist(
         opts.code,
         opts.pick_watchlist,
@@ -63,7 +65,7 @@ pub async fn run_brief(
             cache,
             nav_store,
             &id,
-            opts.days,
+            days,
             opts.holdings_top,
             opts.industry_top,
         )
