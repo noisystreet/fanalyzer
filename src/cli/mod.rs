@@ -2,6 +2,7 @@
 
 mod dispatch;
 mod dispatch_query;
+mod dispatch_query_info;
 mod dispatch_workflow;
 
 use crate::api::eastmoney::{EastMoneyClient, EastMoneyClientOptions, EastMoneyError};
@@ -227,8 +228,9 @@ pub async fn run(cli: Cli, config: AppConfig) -> anyhow::Result<()> {
         proxy: config.api.proxy.clone(),
     };
     let client = EastMoneyClient::with_options(opts).map_err(map_client_err)?;
-    let name_cache = Arc::new(Mutex::new(FundCache::new()));
-    let nav_store = NavCache::new();
+    let cache_root = config.cache_root();
+    let name_cache = Arc::new(Mutex::new(FundCache::with_root(cache_root.clone())));
+    let nav_store = NavCache::with_root(cache_root);
 
     dispatch::dispatch(cli, &client, &name_cache, &nav_store).await
 }

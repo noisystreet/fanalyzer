@@ -8,7 +8,11 @@ use crate::domain::{
     sort_analyses, AnalysisSortKey, ScreenFilters,
 };
 use crate::models::FundAnalysis;
-use crate::presentation::render_comparison;
+use crate::presentation::{
+    print_deep_limit_hint, print_filter_hint, print_insufficient_candidates, print_rank_prefilter,
+    print_screen_header, print_screen_passed, render_comparison, ScreenHeaderContext,
+};
+use chrono::Local;
 use std::path::PathBuf;
 use std::time::Duration as StdDuration;
 
@@ -27,14 +31,19 @@ pub struct ScreenRequest {
     pub format: String,
 }
 
-fn resolve_screen_days(period: Option<&str>, days: Option<u32>, sort: &str) -> anyhow::Result<u32> {
+fn resolve_screen_days(
+    period: Option<&str>,
+    days: Option<u32>,
+    sort: &str,
+    today: chrono::NaiveDate,
+) -> anyhow::Result<u32> {
     if let Some(p) = period {
-        return resolve_analysis_days(Some(p), days.unwrap_or(365));
+        return resolve_analysis_days(Some(p), days.unwrap_or(365), today);
     }
     if let Some(d) = days {
         return Ok(d);
     }
-    Ok(days_for_rank_sort(sort))
+    Ok(days_for_rank_sort(sort, today))
 }
 
 fn filter_rank_pool<'a>(
@@ -84,25 +93,9 @@ fn sort_passed(analyses: &mut [FundAnalysis], sort_by: Option<&str>) -> anyhow::
     Ok(())
 }
 
-fn print_insufficient(passed: &[FundAnalysis]) {
-    println!(
-        "筛选后有效样本 {} 只（需 ≥2 才能对比）；可放宽筛选条件或增大 --rank-top / --deep-limit",
-        passed.len()
-    );
-    for a in passed {
-        println!(
-            "  {} {}  收益 {:.2}%  回撤 {:.2}%  夏普 {:.2}",
-            a.code,
-            a.name,
-            a.total_return * 100.0,
-            a.max_drawdown * 100.0,
-            a.sharpe_ratio
-        );
-    }
-}
-
 pub async fn run_screen(ctx: &CommandContext<'_>, req: ScreenRequest) -> anyhow::Result<()> {
     require_online(ctx.offline, "screen")?;
+    let today = Local::now().date_naive();
     let ft = rank_ft_code(&req.kind)?;
     let sc = req.sort.trim();
     if sc.is_empty() {
@@ -115,25 +108,25 @@ pub async fn run_screen(ctx: &CommandContext<'_>, req: ScreenRequest) -> anyhow:
     } else {
         req.deep_limit.clamp(3, pool)
     };
-    let days = resolve_screen_days(req.period.as_deref(), req.days, sc)?;
+    let days = resolve_screen_days(req.period.as_deref(), req.days, sc, today)?;
 
     let page = ctx
         .session
         .client
         .fetch_fund_ranking_top(ft, sc, pool)
         .await?;
-    print_screen_header(&req, sc, page.rows.len(), days);
+    print_screen_header(&ScreenHeaderContext {
+        kind: &req.kind,
+        sort: sc,
+        pool_len: page.rows.len(),
+        days,
+        period_user_specified: req.period.is_some() || req.days.is_some(),
+    });
     print_filter_hint(&req.filters, sc);
 
     let candidates = filter_rank_pool(&page.rows, sc, req.filters.min_rank_return_pct);
     if let Some(min_rr) = req.filters.min_rank_return_pct {
-        println!(
-            "排行预筛（{} 区间收益 ≥ {:.2}%）：剩余 {} 只",
-            sc,
-            min_rr,
-            candidates.len()
-        );
-        println!();
+        print_rank_prefilter(sc, min_rr, candidates.len());
     }
 
     let to_analyze = if req.full_scan {
@@ -142,12 +135,7 @@ pub async fn run_screen(ctx: &CommandContext<'_>, req: ScreenRequest) -> anyhow:
         candidates.len().min(deep_cap as usize)
     };
     if to_analyze < candidates.len() {
-        println!(
-            "deep 分析前 {} 只（共 {} 只候选；加 --full-scan 扫描全部）",
-            to_analyze,
-            candidates.len()
-        );
-        println!();
+        print_deep_limit_hint(to_analyze, candidates.len());
     }
 
     let mut passed =
@@ -157,61 +145,22 @@ pub async fn run_screen(ctx: &CommandContext<'_>, req: ScreenRequest) -> anyhow:
     passed.truncate(show as usize);
 
     if passed.len() < 2 {
-        print_insufficient(&passed);
+        let samples: Vec<_> = passed
+            .iter()
+            .map(|a| {
+                (
+                    a.code.clone(),
+                    a.name.clone(),
+                    a.total_return,
+                    a.max_drawdown,
+                    a.sharpe_ratio,
+                )
+            })
+            .collect();
+        print_insufficient_candidates(passed.len(), &samples);
         return Ok(());
     }
 
-    println!(
-        "通过筛选 {} 只，展示前 {} 只对比：",
-        passed.len(),
-        passed.len()
-    );
-    println!();
+    print_screen_passed(passed.len());
     render_comparison(&passed, req.output.as_deref(), &req.format)
-}
-
-fn print_screen_header(req: &ScreenRequest, sc: &str, pool_len: usize, days: u32) {
-    println!(
-        "候选池：{} 类型排行前 {}（sc={}），deep 分析窗口 {} 天（{}）",
-        req.kind,
-        pool_len,
-        sc,
-        days,
-        if req.period.is_some() || req.days.is_some() {
-            "用户指定"
-        } else {
-            "与 sort 对齐"
-        }
-    );
-}
-
-fn print_filter_hint(f: &ScreenFilters, sort: &str) {
-    let mut parts = Vec::new();
-    if let Some(rr) = f.min_rank_return_pct {
-        parts.push(format!("排行 {sort} 收益 ≥ {rr:.2}%"));
-    }
-    if let Some(dd) = f.max_drawdown_pct {
-        parts.push(format!("最大回撤 ≤ {dd:.1}%"));
-    }
-    if let Some(s) = f.min_sharpe {
-        parts.push(format!("夏普 ≥ {s:.2}"));
-    }
-    if let Some(fee) = f.max_mgmt_fee_pct {
-        parts.push(format!("管理费 ≤ {fee:.2}%"));
-    }
-    if let Some(a) = f.min_alpha_pct {
-        parts.push(format!("Alpha ≥ {a:.2}%"));
-    }
-    if let Some(v) = f.max_volatility_pct {
-        parts.push(format!("波动率 ≤ {v:.1}%"));
-    }
-    if let Some(r) = f.min_total_return_pct {
-        parts.push(format!("区间总收益 ≥ {r:.2}%"));
-    }
-    if parts.is_empty() {
-        println!("筛选条件：（无额外约束，deep 分析后全部展示）");
-    } else {
-        println!("筛选条件：{}", parts.join("；"));
-    }
-    println!();
 }

@@ -32,6 +32,6 @@ pub async fn dispatch(
         Commands::Brief { .. } | Commands::Screen { .. } => {
             super::dispatch_workflow::dispatch(&ctx, cmd).await
         }
-        other => super::dispatch_query::dispatch(&ctx, other).await,
+        other => super::dispatch_query::dispatch_core(&ctx, other).await,
     }
 }

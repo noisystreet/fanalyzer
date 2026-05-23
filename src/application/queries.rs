@@ -2,26 +2,50 @@
 
 use super::context::{require_online, resolve_fund_ids, CommandContext};
 use super::fund_service::resolve_fund_identifier;
+use super::mappers::{map_holdings, map_industry, map_profile, map_rank_rows};
 use crate::domain::rank_ft_code;
 use crate::presentation::{
-    print_fund_profile, print_holdings_report, print_industry_report, print_ranking_table,
+    print_fetch_result, print_fund_overview, print_holdings, print_industry, print_ranking_table,
 };
 
-pub async fn run_fetch(
-    ctx: &CommandContext<'_>,
-    code: Option<String>,
-    pick_watchlist: bool,
-    limit: u32,
-) -> anyhow::Result<()> {
+pub struct FetchRequest {
+    pub code: Option<String>,
+    pub pick_watchlist: bool,
+    pub limit: u32,
+}
+
+pub struct InfoRequest {
+    pub code: Option<String>,
+    pub pick_watchlist: bool,
+}
+
+pub struct RankRequest {
+    pub kind: String,
+    pub top: u32,
+    pub sort: String,
+}
+
+pub struct SectorsRequest {
+    pub code: Option<String>,
+    pub pick_watchlist: bool,
+}
+
+pub struct HoldingsRequest {
+    pub code: Option<String>,
+    pub pick_watchlist: bool,
+    pub top: u32,
+}
+
+pub async fn run_fetch(ctx: &CommandContext<'_>, req: FetchRequest) -> anyhow::Result<()> {
     require_online(ctx.offline, "fetch")?;
     let ids = resolve_fund_ids(
-        code,
-        pick_watchlist,
+        req.code,
+        req.pick_watchlist,
         ctx.watchlist_path,
         "--code/--watchlist",
     )?;
     for id in ids {
-        fetch_one(&ctx.session, id, limit).await?;
+        fetch_one(&ctx.session, id, req.limit).await?;
     }
     Ok(())
 }
@@ -40,47 +64,23 @@ async fn fetch_one(
     {
         Ok((nav_list, total)) => {
             tracing::info!(total = total, fetched = nav_list.len(), "Fetched nav data");
-            println!(
-                "Fetched {} records (total: {}) for fund {} ({})",
-                nav_list.len(),
-                total,
-                resolved_code,
-                name
-            );
-            for nav in &nav_list {
-                println!(
-                    "  {}  NAV: {:.4}  AccNAV: {:.4}  DailyReturn: {}",
-                    nav.date,
-                    nav.nav,
-                    nav.acc_nav,
-                    nav.daily_return
-                        .map(|r| format!("{:.2}%", r * 100.0))
-                        .unwrap_or_else(|| "N/A".to_string())
-                );
-            }
+            print_fetch_result(&resolved_code, &name, &nav_list, total);
         }
         Err(e) => tracing::error!(error = %e, "Failed to fetch nav history"),
     }
     Ok(())
 }
 
-pub async fn run_info(
-    ctx: &CommandContext<'_>,
-    code: Option<String>,
-    pick_watchlist: bool,
-) -> anyhow::Result<()> {
+pub async fn run_info(ctx: &CommandContext<'_>, req: InfoRequest) -> anyhow::Result<()> {
     require_online(ctx.offline, "info")?;
-    if pick_watchlist {
-        let ids = crate::watchlist::load_watchlist(ctx.watchlist_path)?;
-        if ids.is_empty() {
-            anyhow::bail!("自选列表为空或无有效项：{}", ctx.watchlist_path.display());
-        }
-        for id in ids {
-            info_one(&ctx.session, id).await?;
-        }
-    } else {
-        let c = code.ok_or_else(|| anyhow::anyhow!("请指定 --code 或使用 --watchlist"))?;
-        info_one(&ctx.session, c).await?;
+    let ids = resolve_fund_ids(
+        req.code,
+        req.pick_watchlist,
+        ctx.watchlist_path,
+        "--code/--watchlist",
+    )?;
+    for id in ids {
+        info_one(&ctx.session, id).await?;
     }
     Ok(())
 }
@@ -89,49 +89,41 @@ async fn info_one(session: &super::context::Session<'_>, code: String) -> anyhow
     let (resolved_code, _name) = resolve_fund_identifier(session, &code, false).await?;
     tracing::info!(code = %resolved_code, "Fetching fund info");
     match session.client.fetch_fund_profile(&resolved_code).await {
-        Ok(profile) => print_fund_profile(&profile),
+        Ok(profile) => print_fund_overview(&map_profile(&profile)),
         Err(e) => tracing::error!(error = %e, "Failed to fetch fund info"),
     }
     Ok(())
 }
 
-pub async fn run_rank(
-    ctx: &CommandContext<'_>,
-    kind: String,
-    top: u32,
-    sort: String,
-) -> anyhow::Result<()> {
+pub async fn run_rank(ctx: &CommandContext<'_>, req: RankRequest) -> anyhow::Result<()> {
     require_online(ctx.offline, "rank")?;
-    if top == 0 {
+    if req.top == 0 {
         anyhow::bail!("`--top` 须 ≥ 1");
     }
-    if top > 500 {
+    if req.top > 500 {
         anyhow::bail!("`--top` 上限为 500");
     }
-    let ft = rank_ft_code(&kind)?;
-    let sc = sort.trim();
+    let ft = rank_ft_code(&req.kind)?;
+    let sc = req.sort.trim();
     if sc.is_empty() {
         anyhow::bail!("`--sort` 不能为空（默认可用 1n）");
     }
-    tracing::info!(ft = ft, top = top, sort = %sc, "Fetching fund ranking");
+    tracing::info!(ft = ft, top = req.top, sort = %sc, "Fetching fund ranking");
     let page = ctx
         .session
         .client
-        .fetch_fund_ranking_top(ft, sc, top)
+        .fetch_fund_ranking_top(ft, sc, req.top)
         .await?;
-    print_ranking_table(&page.rows, ft, sc, page.total_records);
+    let rows = map_rank_rows(&page.rows);
+    print_ranking_table(&rows, ft, sc, page.total_records);
     Ok(())
 }
 
-pub async fn run_sectors(
-    ctx: &CommandContext<'_>,
-    code: Option<String>,
-    pick_watchlist: bool,
-) -> anyhow::Result<()> {
+pub async fn run_sectors(ctx: &CommandContext<'_>, req: SectorsRequest) -> anyhow::Result<()> {
     require_online(ctx.offline, "sectors")?;
     let ids = resolve_fund_ids(
-        code,
-        pick_watchlist,
+        req.code,
+        req.pick_watchlist,
         ctx.watchlist_path,
         "--code/--watchlist",
     )?;
@@ -149,21 +141,16 @@ async fn sectors_one(session: &super::context::Session<'_>, code: String) -> any
         .fetch_fund_industry_allocation(&resolved_code)
         .await
         .map_err(|e| anyhow::anyhow!("行业配置获取失败：{e}"))?;
-    print_industry_report(&resolved_code, &name, &report);
+    print_industry(&resolved_code, &name, &map_industry(&report));
     Ok(())
 }
 
-pub async fn run_holdings(
-    ctx: &CommandContext<'_>,
-    code: Option<String>,
-    pick_watchlist: bool,
-    top: u32,
-) -> anyhow::Result<()> {
+pub async fn run_holdings(ctx: &CommandContext<'_>, req: HoldingsRequest) -> anyhow::Result<()> {
     require_online(ctx.offline, "holdings")?;
-    let top = top.clamp(1, 50);
+    let top = req.top.clamp(1, 50);
     let ids = resolve_fund_ids(
-        code,
-        pick_watchlist,
+        req.code,
+        req.pick_watchlist,
         ctx.watchlist_path,
         "--code/--watchlist",
     )?;
@@ -185,6 +172,6 @@ async fn holdings_one(
         .fetch_fund_stock_holdings(&resolved_code, top)
         .await
         .map_err(|e| anyhow::anyhow!("重仓股接口失败：{e}"))?;
-    print_holdings_report(&resolved_code, &name, &report);
+    print_holdings(&resolved_code, &name, &map_holdings(&report));
     Ok(())
 }

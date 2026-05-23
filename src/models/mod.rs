@@ -1,3 +1,10 @@
+pub mod reports;
+
+pub use reports::{
+    FundBrief, FundOverview, FundRankRow, IndustryAllocation, IndustryRow, StockHoldingRow,
+    StockHoldings,
+};
+
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;

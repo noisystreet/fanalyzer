@@ -1,7 +1,6 @@
 //! 基金数据访问与分析编排（应用层）。
 
 use super::context::Session;
-use crate::api::eastmoney::EastMoneyClient;
 use crate::domain::{
     resolve_benchmark, BenchmarkData, FundAnalyzer, FundMetaInfo, IndexBenchmark, HS300,
 };
@@ -98,11 +97,15 @@ pub async fn resolve_fund_identifier(
 }
 
 pub async fn get_benchmark_data(
-    client: &EastMoneyClient,
+    session: &Session<'_>,
     days: u32,
     index: &IndexBenchmark,
 ) -> Option<BenchmarkData> {
-    match client.fetch_index_history(index.secid, 1, days * 2).await {
+    match session
+        .client
+        .fetch_index_history(index.secid, 1, days * 2)
+        .await
+    {
         Ok((data, _)) => {
             let mut dates = Vec::new();
             let mut returns = Vec::new();
@@ -138,7 +141,7 @@ async fn benchmark_for_fund(session: &Session<'_>, code: &str, days: u32) -> Opt
             HS300
         }
     };
-    get_benchmark_data(session.client, days, &index).await
+    get_benchmark_data(session, days, &index).await
 }
 
 pub async fn get_fund_meta(session: &Session<'_>, code: &str) -> Option<FundMetaInfo> {

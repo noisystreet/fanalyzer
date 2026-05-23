@@ -4,6 +4,7 @@ use super::context::{resolve_fund_ids, CommandContext};
 use super::fund_service;
 use crate::domain::resolve_analysis_days;
 use crate::presentation::print_analysis;
+use chrono::Local;
 
 pub struct AnalyzeRequest {
     pub code: Option<String>,
@@ -13,7 +14,8 @@ pub struct AnalyzeRequest {
 }
 
 pub async fn run_analyze(ctx: &CommandContext<'_>, req: AnalyzeRequest) -> anyhow::Result<()> {
-    let days = resolve_analysis_days(req.period.as_deref(), req.days)?;
+    let today = Local::now().date_naive();
+    let days = resolve_analysis_days(req.period.as_deref(), req.days, today)?;
     let ids = resolve_fund_ids(
         req.code,
         req.pick_watchlist,

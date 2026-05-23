@@ -20,7 +20,10 @@ impl FundCache {
         let cache_dir = dirs::cache_dir()
             .unwrap_or_else(|| PathBuf::from(".cache"))
             .join("analysis_fund");
+        Self::with_root(cache_dir)
+    }
 
+    pub fn with_root(cache_dir: PathBuf) -> Self {
         let cache_path = cache_dir.join("fund_names.json");
 
         let code_to_name: HashMap<String, String> = if cache_path.exists() {

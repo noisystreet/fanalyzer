@@ -14,10 +14,19 @@ pub enum ConfigError {
 pub struct AppConfig {
     pub api: ApiConfig,
     pub log: LogConfig,
+    #[serde(default)]
+    pub cache: CacheConfig,
 }
 
 fn default_timeout_secs() -> u64 {
     30
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct CacheConfig {
+    /// 缓存根目录（默认 `dirs::cache_dir()/analysis_fund`）
+    #[serde(default)]
+    pub root: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -57,11 +66,24 @@ impl Default for AppConfig {
             log: LogConfig {
                 level: default_log_level(),
             },
+            cache: CacheConfig::default(),
         }
     }
 }
 
 impl AppConfig {
+    pub fn cache_root(&self) -> std::path::PathBuf {
+        self.cache
+            .root
+            .as_ref()
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                dirs::cache_dir()
+                    .unwrap_or_else(|| std::path::PathBuf::from(".cache"))
+                    .join("analysis_fund")
+            })
+    }
+
     pub fn load_from_file(path: &Path) -> Result<Self, ConfigError> {
         let content = std::fs::read_to_string(path)?;
         let config: AppConfig = toml::from_str(&content)?;

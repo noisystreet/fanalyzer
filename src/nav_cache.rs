@@ -34,6 +34,12 @@ impl NavCache {
         Self { root }
     }
 
+    pub fn with_root(cache_root: PathBuf) -> Self {
+        Self {
+            root: cache_root.join("nav"),
+        }
+    }
+
     pub fn dir(&self) -> &PathBuf {
         &self.root
     }

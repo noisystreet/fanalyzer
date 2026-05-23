@@ -1,10 +1,14 @@
 //! 分析窗口预设（与 `rank --sort` / 官网区间列对齐）。
 
 use anyhow::{bail, Context};
-use chrono::{Datelike, Local};
+use chrono::{Datelike, NaiveDate};
 
 /// 将 `--period` 解析为日历天数；未指定时返回 `days`。
-pub fn resolve_analysis_days(period: Option<&str>, days: u32) -> anyhow::Result<u32> {
+pub fn resolve_analysis_days(
+    period: Option<&str>,
+    days: u32,
+    today: NaiveDate,
+) -> anyhow::Result<u32> {
     let Some(raw) = period else {
         return Ok(days);
     };
@@ -18,7 +22,7 @@ pub fn resolve_analysis_days(period: Option<&str>, days: u32) -> anyhow::Result<
         "90d" | "3m" | "3yzf" => Ok(90),
         "180d" | "6m" | "6yzf" => Ok(180),
         "365d" | "1y" | "1n" | "1nzf" | "2nzf" | "3nzf" => Ok(365),
-        "ytd" | "jnzf" => Ok(ytd_calendar_days()),
+        "ytd" | "jnzf" => Ok(ytd_calendar_days(today)),
         "730d" | "2y" => Ok(730),
         "1095d" | "3y" => Ok(1095),
         other if other.chars().all(|c| c.is_ascii_digit()) => other
@@ -31,12 +35,11 @@ pub fn resolve_analysis_days(period: Option<&str>, days: u32) -> anyhow::Result<
 }
 
 /// 排行 `sc` 参数对应的近似分析窗口（日历天），用于 `screen` 与 deep analyze 对齐。
-pub fn days_for_rank_sort(sort: &str) -> u32 {
-    resolve_analysis_days(Some(sort.trim()), 365).unwrap_or(365)
+pub fn days_for_rank_sort(sort: &str, today: NaiveDate) -> u32 {
+    resolve_analysis_days(Some(sort.trim()), 365, today).unwrap_or(365)
 }
 
-fn ytd_calendar_days() -> u32 {
-    let today = Local::now().date_naive();
+fn ytd_calendar_days(today: NaiveDate) -> u32 {
     let jan1 = chrono::NaiveDate::from_ymd_opt(today.year(), 1, 1).unwrap();
     (today - jan1).num_days().max(1) as u32
 }
@@ -44,17 +47,34 @@ fn ytd_calendar_days() -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::NaiveDate;
+
+    const SAMPLE_TODAY: NaiveDate = NaiveDate::from_ymd_opt(2026, 5, 23).unwrap();
 
     #[test]
     fn resolve_period_aliases() {
-        assert_eq!(resolve_analysis_days(Some("1m"), 30).unwrap(), 30);
-        assert_eq!(resolve_analysis_days(Some("1nzf"), 30).unwrap(), 365);
-        assert_eq!(resolve_analysis_days(None, 90).unwrap(), 90);
+        assert_eq!(
+            resolve_analysis_days(Some("1m"), 30, SAMPLE_TODAY).unwrap(),
+            30
+        );
+        assert_eq!(
+            resolve_analysis_days(Some("1nzf"), 30, SAMPLE_TODAY).unwrap(),
+            365
+        );
+        assert_eq!(resolve_analysis_days(None, 90, SAMPLE_TODAY).unwrap(), 90);
+    }
+
+    #[test]
+    fn ytd_uses_injected_today() {
+        assert_eq!(
+            resolve_analysis_days(Some("ytd"), 30, SAMPLE_TODAY).unwrap(),
+            142
+        );
     }
 
     #[test]
     fn rank_sort_days() {
-        assert_eq!(days_for_rank_sort("zzf"), 7);
-        assert_eq!(days_for_rank_sort("3yzf"), 90);
+        assert_eq!(days_for_rank_sort("zzf", SAMPLE_TODAY), 7);
+        assert_eq!(days_for_rank_sort("3yzf", SAMPLE_TODAY), 90);
     }
 }

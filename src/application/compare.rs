@@ -1,13 +1,15 @@
 //! 多基金对比用例。
 
-use super::context::CommandContext;
+use super::context::{resolve_many_fund_ids, CommandContext};
 use super::fund_service;
 use crate::domain::{parse_sort_key, resolve_analysis_days, sort_analyses, AnalysisSortKey};
 use crate::presentation::render_comparison;
+use chrono::Local;
 use std::path::PathBuf;
 
 pub struct CompareRequest {
     pub codes: Vec<String>,
+    pub pick_watchlist: bool,
     pub days: u32,
     pub period: Option<String>,
     pub sort: Option<String>,
@@ -16,14 +18,16 @@ pub struct CompareRequest {
 }
 
 pub async fn run_compare(ctx: &CommandContext<'_>, req: CompareRequest) -> anyhow::Result<()> {
-    if req.codes.len() < 2 {
-        anyhow::bail!("对比至少需要 2 只基金（当前 {} 条）", req.codes.len());
+    let ids = resolve_many_fund_ids(req.codes, req.pick_watchlist, ctx.watchlist_path)?;
+    if ids.len() < 2 {
+        anyhow::bail!("对比至少需要 2 只基金（当前 {} 条）", ids.len());
     }
-    let days = resolve_analysis_days(req.period.as_deref(), req.days)?;
-    tracing::info!(codes = ?req.codes, days = days, "Comparing funds");
+    let today = Local::now().date_naive();
+    let days = resolve_analysis_days(req.period.as_deref(), req.days, today)?;
+    tracing::info!(codes = ?ids, days = days, "Comparing funds");
 
     let mut analyses = Vec::new();
-    for identifier in &req.codes {
+    for identifier in &ids {
         match fund_service::analyze_fund(&ctx.session, identifier, days, ctx.offline).await {
             Ok(Some(a)) => analyses.push(a),
             Ok(None) => tracing::warn!(identifier = %identifier, "分析数据不足，跳过"),
