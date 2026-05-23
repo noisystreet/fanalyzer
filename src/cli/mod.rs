@@ -1,7 +1,13 @@
 //! CLI 编排：自选、离线缓存、`AppConfig` → HTTP 客户端。
 
+mod brief;
+mod fund_session;
 mod handlers;
 mod output;
+mod rank_kind;
+mod route;
+mod route_handlers;
+mod screen;
 
 pub use handlers::map_client_err;
 
@@ -112,6 +118,45 @@ pub enum Commands {
             help = "rankhandler 的排序字段 sc（默认 1n）；st 固定 desc。rzdf/zzf/1yzf/3yzf/6yzf/1nzf/2nzf/3nzf/jnzf/lnzf 等见 docs/MANUAL.md"
         )]
         sort: String,
+    },
+    /// 单基金选基综合简报（分析 + 行业 + 重仓，可导出 Markdown）
+    Brief {
+        #[arg(short, long, help = "基金代码或名称")]
+        code: Option<String>,
+        #[arg(long = "watchlist", help = "对自选列表逐只生成简报")]
+        pick_watchlist: bool,
+        #[arg(short, long, default_value_t = 90, help = "净值分析窗口（日历天）")]
+        days: u32,
+        #[arg(long, default_value_t = 5, help = "行业配置展示前 N 项")]
+        industry_top: u32,
+        #[arg(long, default_value_t = 10, help = "重仓股展示条数（1～50）")]
+        holdings_top: u32,
+        #[arg(short, long, help = "同时写入 Markdown 报告路径")]
+        output: Option<PathBuf>,
+    },
+    /// 从类型排行池中按回撤/夏普/费率筛选，并对比通过者
+    Screen {
+        #[arg(short, long, help = "排行类型，同 rank --kind")]
+        kind: String,
+        #[arg(
+            long,
+            value_name = "SC",
+            default_value = "1n",
+            help = "排行排序 sc，同 rank --sort"
+        )]
+        sort: String,
+        #[arg(long, default_value_t = 30, help = "从排行前 N 只中扫描（5～100）")]
+        rank_top: u32,
+        #[arg(short, long, default_value_t = 90, help = "分析窗口（日历天）")]
+        days: u32,
+        #[arg(long, help = "最大回撤上限（百分点，如 25）")]
+        max_drawdown: Option<f64>,
+        #[arg(long, help = "最低夏普比率")]
+        min_sharpe: Option<f64>,
+        #[arg(long, help = "管理费率上限（百分点，如 1.5）")]
+        max_mgmt_fee: Option<f64>,
+        #[arg(short, long, default_value_t = 10, help = "对比展示上限（2～30）")]
+        limit: u32,
     },
 }
 

@@ -54,7 +54,7 @@ funds = ["000001", "110011", "某基金简称"]
 
 | 参数 | 说明 |
 |------|------|
-| `--offline` | 仅使用本地已缓存的净值数据。**不可**与 `fetch`、`info`、`rank` 等需联网子命令共用；`analyze` / `compare` / `export` 在已有缓存时可用。 |
+| `--offline` | 仅使用本地已缓存的净值数据。**不可**与 `fetch`、`info`、`rank`、`brief`、`screen` 等需联网子命令共用；`analyze` / `compare` / `export` 在已有缓存时可用。 |
 | `--watchlist-file <PATH>` | 自选文件路径，默认 `config/watchlist.toml`。 |
 
 ## 子命令总览
@@ -69,6 +69,8 @@ funds = ["000001", "110011", "某基金简称"]
 | `sectors` | 是 | 支持 | 季报「行业配置」（证监会行业分类），用于板块/行业集中度浏览 |
 | `holdings` | 是 | 支持 | 季报「股票投资明细」重仓股（`FundArchivesDatas type=jjcc`） |
 | `rank` | 是 | 不适用 | 按天天基金官网排行接口拉取某类型全市场前 N 名 |
+| `brief` | 是 | 支持 | 单基金/自选综合简报：概况 + 分析 + 行业 + 重仓 |
+| `screen` | 是 | 不适用 | 从类型排行池中按回撤/夏普/费率筛选，并对比通过者 |
 
 ---
 
@@ -187,6 +189,69 @@ cargo run -- holdings --watchlist --top 10
 | `-t` / `--top` | 对应接口 `topline`，默认 `10`，范围 **1～50**（超出将被限制为 50） |
 
 **说明：** 债券型、货币型基金通常无股票明细表；表中「最新价」「涨跌幅」由官网脚本异步填充，本工具不请求行情接口故留空列不展示。解析依赖 HTML 结构，改版后可能需要更新。
+
+---
+
+## 选基工作流：`brief` 与 `screen`
+
+两条命令把「单只尽调」与「全市场初筛」串起来，适合日常选基：先用 `screen` 从排行池里按规则缩小范围，再对少数标的用 `brief` 出一份可读报告。
+
+### `brief` — 单基金综合简报
+
+一次输出 **概况**（类型、公司、规模）+ **`analyze` 指标** + **行业配置前 N 项** + **重仓股前 N 条**。可选写入 Markdown。
+
+```bash
+# 单只基金，默认近 90 天、行业前 5、重仓前 10
+cargo run -- brief --code 000001
+
+# 指定分析窗口与展示条数
+cargo run -- brief --code 000001 --days 180 --industry-top 8 --holdings-top 15
+
+# 自选逐只简报，并保存 Markdown
+cargo run -- brief --watchlist --output reports/brief.md
+
+# 单只 + 独立报告文件
+cargo run -- brief --code "华夏成长" --output brief_000001.md
+```
+
+| 参数 | 说明 |
+|------|------|
+| `-c` / `--code` | 与 `--watchlist` 二选一 |
+| `--watchlist` | 对自选列表逐只生成简报（多只时间隔打印分隔线） |
+| `-d` / `--days` | 净值分析窗口（日历天），默认 `90` |
+| `--industry-top` | 行业配置展示前 N 项，默认 `5` |
+| `--holdings-top` | 重仓股条数，默认 `10`（接口上限 50） |
+| `-o` / `--output` | 可选，将同一份内容写入 Markdown 文件 |
+
+**说明：** 需联网；行业与重仓为 **季报** 口径，与 `analyze` 的净值序列（未复权）并存于同一简报。`--offline` 不可用。
+
+### `screen` — 排行池规则筛选 + 对比
+
+从某类型 **`rank` 前 N 名**（默认 30，范围 5～100）逐只拉净值并 `analyze`，按可选条件过滤，对 **通过者** 输出与 `compare` 相同的对比表。
+
+```bash
+# 股票型排行前 30，剔除回撤 >25%、夏普 <0.5，最多展示 10 只对比
+cargo run -- screen --kind gp --max-drawdown 25 --min-sharpe 0.5
+
+# 指定排行排序与候选池大小
+cargo run -- screen --kind 混合 --sort 1nzf --rank-top 50 --days 180
+
+# 同时限制管理费率（百分点）
+cargo run -- screen --kind gp --max-drawdown 20 --min-sharpe 0.8 --max-mgmt-fee 1.5 --limit 8
+```
+
+| 参数 | 说明 |
+|------|------|
+| `-k` / `--kind` | 同 `rank --kind` |
+| `--sort` | 同 `rank --sort`（`sc`），默认 `1n` |
+| `--rank-top` | 从排行前 N 只中扫描，默认 `30`（5～100） |
+| `-d` / `--days` | 分析窗口，默认 `90` |
+| `--max-drawdown` | 可选，最大回撤上限（**百分点**，如 `25` 表示剔除回撤 >25%） |
+| `--min-sharpe` | 可选，最低夏普比率 |
+| `--max-mgmt-fee` | 可选，管理费率上限（**百分点**） |
+| `-l` / `--limit` | 对比表最多展示只数，默认 `10`（2～30） |
+
+**说明：** 未指定 `--max-drawdown` / `--min-sharpe` / `--max-mgmt-fee` 时，不对指标做额外约束，仅按排行池顺序分析；扫描过程会依次请求净值，耗时与 `--rank-top` 成正比。`--sort` 与 `--kind` 含义见下文 `rank` 章节。
 
 ---
 

@@ -14,3 +14,14 @@ pub fn extract_apidata_content(body: &str) -> Result<&str, String> {
         .ok_or_else(|| "F10 apidata: missing \",arryear:\"".to_string())?;
     Ok(&tail[..end])
 }
+
+#[cfg(test)]
+mod tests {
+    use super::extract_apidata_content;
+
+    #[test]
+    fn extract_content_ok() {
+        let js = r#"var apidata={ content:"<p>hi</p>",arryear:[2026]};"#;
+        assert_eq!(extract_apidata_content(js).unwrap(), "<p>hi</p>");
+    }
+}

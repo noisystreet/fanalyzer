@@ -44,7 +44,7 @@ cargo fmt -- --check && cargo clippy -- -D warnings
 
 ### 全局与自选（摘要）
 
-- **`--offline`**：仅用本地净值缓存；不能与 `fetch`、`info`、`rank` 同时使用。
+- **`--offline`**：仅用本地净值缓存；不能与 `fetch`、`info`、`rank`、`brief`、`screen` 等需联网子命令同时使用。
 - **`--watchlist-file`**：自选列表路径，默认 `config/watchlist.toml`；配合各子命令的 **`--watchlist`** 批量处理。
 - 自选文件格式：TOML 中 `funds = ["000001", "基金名称"]`。
 
@@ -133,7 +133,24 @@ cargo run -- holdings --code 000001 --top 10
 
 详见 [docs/MANUAL.md](docs/MANUAL.md) 中 `holdings` 子命令。
 
-### 8. 查看基金详细信息
+### 8. 选基工作流（`brief` + `screen`）
+
+**`brief`**：单只或自选综合简报（分析 + 行业 + 重仓），可写 Markdown：
+
+```bash
+cargo run -- brief --code 000001 --days 90 --output brief.md
+cargo run -- brief --watchlist
+```
+
+**`screen`**：从类型排行前 N 只中按回撤/夏普/费率筛选，并对通过者做对比表：
+
+```bash
+cargo run -- screen --kind gp --rank-top 30 --max-drawdown 25 --min-sharpe 0.5
+```
+
+参数与示例见 [docs/MANUAL.md](docs/MANUAL.md) 中「选基工作流」章节。
+
+### 9. 查看基金详细信息
 
 获取基金的基本概况、投资目标、投资范围、基金经理等详细信息：
 
@@ -165,7 +182,7 @@ cargo run -- info --code "华夏成长混合"
 | 投资目标 | 基金的投资目标和策略方向 |
 | 投资范围 | 基金可投资的资产类别 |
 
-### 9. 使用中文基金名称
+### 10. 使用中文基金名称
 
 支持通过中文名称搜索基金：
 

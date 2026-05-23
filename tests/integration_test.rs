@@ -44,3 +44,21 @@ fn test_cli_holdings_help() {
         .assert()
         .success();
 }
+
+#[test]
+fn test_cli_brief_help() {
+    Command::cargo_bin("analysis_fund")
+        .unwrap()
+        .args(["brief", "--help"])
+        .assert()
+        .success();
+}
+
+#[test]
+fn test_cli_screen_help() {
+    Command::cargo_bin("analysis_fund")
+        .unwrap()
+        .args(["screen", "--help"])
+        .assert()
+        .success();
+}
