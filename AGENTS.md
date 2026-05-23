@@ -11,9 +11,11 @@
 
 ### Dependency Direction
 
-- `CLI → Services → Models ← Config`
+- `CLI → Application → Domain ← Models`
+- `Application → Presentation`；`Application → API/Infra`（经 `Session`）
 - `API/Infra → Models`
-- **禁止反向依赖**：Models 不依赖 API 层；Config 不依赖 CLI 层
+- **禁止反向依赖**：Domain/Models 不依赖 API 层；Config 不依赖 CLI 层
+- `services/` 为兼容 re-export，新代码请用 `domain` / `application`
 
 ### Prohibited Libraries
 

@@ -1,20 +1,16 @@
 //! 单基金选基综合简报：分析 + 行业 + 重仓。
 
-use super::fund_session::{analyze_fund, resolve_fund_identifier};
-use super::output::{
-    print_analysis, print_holdings_report, print_industry_report, truncate_string,
-};
-use super::Cli;
-use crate::api::eastmoney::EastMoneyClient;
+use super::context::{require_online, resolve_fund_ids, CommandContext};
+use super::fund_service::{analyze_fund, resolve_fund_identifier};
 use crate::api::fund_holdings::FundStockHoldingsReport;
 use crate::api::fund_industry::FundIndustryReport;
-use crate::cache::FundCache;
+use crate::domain::resolve_analysis_days;
 use crate::models::FundAnalysis;
-use crate::nav_cache::NavCache;
+use crate::presentation::{
+    print_analysis, print_holdings_report, print_industry_report, truncate_string,
+};
 use std::fs;
 use std::path::Path;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 /// 综合简报数据（供终端与 Markdown 共用）。
 #[derive(Debug, Clone)]
@@ -32,8 +28,8 @@ pub struct FundBrief {
     pub holdings_top: usize,
 }
 
-/// `brief` 子命令参数。
-pub struct BriefOpts {
+/// `brief` 请求参数。
+pub struct BriefRequest {
     pub code: Option<String>,
     pub pick_watchlist: bool,
     pub days: u32,
@@ -43,35 +39,21 @@ pub struct BriefOpts {
     pub output: Option<std::path::PathBuf>,
 }
 
-pub async fn run_brief(
-    cli: &Cli,
-    client: &EastMoneyClient,
-    cache: &Arc<Mutex<FundCache>>,
-    nav_store: &NavCache,
-    opts: BriefOpts,
-) -> anyhow::Result<()> {
-    crate::cli::handlers::no_offline(cli.offline, "brief")?;
-    let days = crate::analysis_period::resolve_analysis_days(opts.period.as_deref(), opts.days)?;
-    let ids = crate::cli::handlers::identifiers_one_or_watchlist(
-        opts.code,
-        opts.pick_watchlist,
-        &cli.watchlist_file,
+pub async fn run_brief(ctx: &CommandContext<'_>, req: BriefRequest) -> anyhow::Result<()> {
+    require_online(ctx.offline, "brief")?;
+    let days = resolve_analysis_days(req.period.as_deref(), req.days)?;
+    let ids = resolve_fund_ids(
+        req.code,
+        req.pick_watchlist,
+        ctx.watchlist_path,
         "--code/--watchlist",
     )?;
     let multi = ids.len() > 1;
     for id in ids {
-        let brief = gather_brief(
-            client,
-            cache,
-            nav_store,
-            &id,
-            days,
-            opts.holdings_top,
-            opts.industry_top,
-        )
-        .await?;
+        let brief =
+            gather_brief(&ctx.session, &id, days, req.holdings_top, req.industry_top).await?;
         render_brief_terminal(&brief);
-        if let Some(ref path) = opts.output {
+        if let Some(ref path) = req.output {
             write_brief_markdown(&brief, path)?;
             tracing::info!(path = %path.display(), "Wrote brief markdown");
         }
@@ -85,20 +67,18 @@ pub async fn run_brief(
 }
 
 async fn gather_brief(
-    client: &EastMoneyClient,
-    cache: &Arc<Mutex<FundCache>>,
-    nav_store: &NavCache,
+    session: &super::context::Session<'_>,
     identifier: &str,
     days: u32,
     holdings_top: u32,
     industry_top: u32,
 ) -> anyhow::Result<FundBrief> {
-    let (code, name) = resolve_fund_identifier(client, cache, identifier, false).await?;
+    let (code, name) = resolve_fund_identifier(session, identifier, false).await?;
     tracing::info!(code = %code, days = days, "Building fund brief");
 
-    let analysis = analyze_fund(client, cache, nav_store, &code, days, false).await?;
+    let analysis = analyze_fund(session, &code, days, false).await?;
 
-    let profile = client.fetch_fund_profile(&code).await.ok();
+    let profile = session.client.fetch_fund_profile(&code).await.ok();
     let fund_type = profile
         .as_ref()
         .map(|p| p.fund_type.clone())
@@ -117,11 +97,13 @@ async fn gather_brief(
         .filter(|n| !n.is_empty())
         .unwrap_or(name);
 
-    let industry = client
+    let industry = session
+        .client
         .fetch_fund_industry_allocation(&code)
         .await
         .unwrap_or_default();
-    let holdings = client
+    let holdings = session
+        .client
         .fetch_fund_stock_holdings(&code, holdings_top.clamp(1, 50))
         .await
         .unwrap_or_default();

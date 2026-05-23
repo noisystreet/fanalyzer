@@ -1,8 +1,13 @@
+//! 终端呈现：表格、报告与导出。
+
+mod comparison;
+
 use crate::api::eastmoney::FundProfile;
 use crate::api::fund_holdings::FundStockHoldingsReport;
 use crate::api::fund_industry::FundIndustryReport;
 use crate::api::fund_ranking::FundRankEntry;
 use crate::models::{FundAnalysis, FundNav};
+pub use comparison::{export_comparison_csv, export_comparison_json, render_comparison};
 use std::fs::File;
 use std::io::Write;
 use tabled::settings::{object::Columns, Alignment, Style};

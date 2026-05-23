@@ -1,7 +1,7 @@
 //! 对比结果终端输出与 CSV/JSON 导出。
 
-use crate::cli::output::print_comparison;
 use crate::models::FundAnalysis;
+use crate::presentation::print_comparison;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;

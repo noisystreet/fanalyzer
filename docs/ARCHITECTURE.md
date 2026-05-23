@@ -15,89 +15,100 @@
 - Error Handling: anyhow (app) + thiserror (library)
 - DateTime: chrono
 
-## Goals
-
-- 提供准确可靠的基金数据分析
-- CLI 优先，易于脚本化与自动化
-- 模块化架构，便于扩展新数据源与分析算法
-- 可复现的构建与测试
-
-## Non-Goals
-
-- 不做实时交易系统
-- 不做 Web UI（后期可独立仓库）
-- 不做移动端
-
 ## Layer Diagram
 
 ```
 ┌─────────────────────────────────────────┐
-│              CLI (clap)                  │  入口层
+│  cli/          Clap 定义 + dispatch      │  入口层（无业务逻辑）
 ├─────────────────────────────────────────┤
-│          Application Services            │  业务逻辑层
-│  (fund analysis, report generation)      │
+│  application/  用例编排（Use Case）       │  应用层
+├─────────────────────────────────────────┤
+│  domain/       纯计算与规则（无 IO）        │  领域层
+├─────────────────────────────────────────┤
+│  presentation/ 终端表格 / 导出 / Markdown  │  呈现层
 ├────────────┬────────────────────────────┤
-│   Models   │         Config             │  领域层
-│ (Fund,     │  (AppConfig, LogConfig)    │
-│  FundNav,  │                            │
-│  Analysis) │                            │
+│  models/   │  config/  watchlist/        │  领域模型与配置
 ├────────────┴────────────────────────────┤
-│           API / Infra Adapter            │  基础设施层
-│  (HTTP client, data source adapters)     │
+│  api/  cache/  nav_cache/               │  基础设施（HTTP、缓存）
 └─────────────────────────────────────────┘
 ```
 
 ## Dependency Direction
 
-- CLI → Application Services → Models ← Config
-- API/Infra → Models
-- **禁止反向依赖**：Models 不依赖 API 层，Config 不依赖 CLI 层
+- `cli` → `application` → `domain` ← `models`
+- `application` → `presentation`（输出）
+- `application` → `api` / `cache` / `nav_cache`（通过 `Session`）
+- `api` → `models`
+- **禁止反向依赖**：`domain` / `models` 不依赖 `api` 或 `cli`
+
+`services/` 为兼容 re-export，新代码请使用 `domain` / `application`。
 
 ## Directory Layout
 
 ```
-analysis_fund/
-├── src/
-│   ├── main.rs           # CLI 入口
-│   ├── api/              # HTTP 客户端与数据源适配
-│   │   └── mod.rs
-│   ├── config/           # 配置管理
-│   │   └── mod.rs
-│   └── models/           # 领域模型
-│       └── mod.rs
-├── tests/                # 集成测试
-├── config/               # 配置文件
-│   └── default.toml
-├── docs/                 # 文档
-├── scripts/              # 辅助脚本
-├── .github/              # CI / 模板
-├── Cargo.toml
-└── ...
+src/
+├── main.rs                 # 入口
+├── lib.rs
+├── cli/                    # Clap + dispatch（薄）
+│   ├── mod.rs              # Cli / Commands 定义
+│   ├── dispatch.rs
+│   ├── dispatch_query.rs
+│   └── dispatch_workflow.rs
+├── application/            # 用例
+│   ├── context.rs          # Session / CommandContext
+│   ├── fund_service.rs     # 解析、净值、分析编排
+│   ├── analyze.rs / compare.rs / screen.rs / brief.rs
+│   ├── export.rs / queries.rs
+│   └── mod.rs
+├── domain/                 # 纯逻辑
+│   ├── analyzer.rs         # FundAnalyzer
+│   ├── benchmark.rs        # 契约基准 → 指数
+│   ├── period.rs / sort.rs / screen_filter.rs / rank_kind.rs
+│   └── mod.rs
+├── presentation/           # 终端输出
+│   ├── mod.rs              # 表格、报告、净值导出
+│   └── comparison.rs       # 对比表 + CSV/JSON
+├── api/                    # 东方财富 HTTP 与解析
+├── models/
+├── config/
+├── cache/                  # 名称↔代码映射缓存
+└── nav_cache/              # 净值 JSON 缓存
 ```
+
+## Application Context
+
+- **`Session`**：`EastMoneyClient` + 名称缓存 + 净值缓存（数据访问门面，`FundRepository` 类型别名）
+- **`CommandContext`**：`Session` + `offline` + 自选文件路径
+
+CLI 子命令经 `dispatch` 构造 `CommandContext`，调用 `application::*` 用例，由 `presentation` 渲染。
+
+## 已实现 CLI 能力
+
+| 类别 | 子命令 |
+|------|--------|
+| 数据 | `fetch`, `export` |
+| 分析 | `analyze`, `compare` |
+| 查询 | `info`, `rank`, `sectors`, `holdings` |
+| 工作流 | `brief`, `screen` |
+
+分析口径：优先 `acc_nav`；Alpha/Beta 按 F10 契约基准推断指数；支持 `--period` 与 Sortino/Calmar。
+
+## Testing Strategy
+
+- **domain/**：单元测试（analyzer、period、sort、screen_filter）
+- **presentation/comparison.rs**：导出 CSV 头测试
+- **tests/**：CLI `--help` 集成测试
+- 外部 HTTP：后续可通过 `Session` trait 化 + mock 扩展
 
 ## Evolution Roadmap
 
-1. **v0.1** — CLI 骨架 + 基础数据获取
-2. **v0.2** — 净值分析（收益率、波动率、最大回撤）
-3. **v0.3** — 多数据源支持（天天基金、东方财富等）
-4. **v0.4** — 报告生成（Markdown / HTML）
-5. **v0.5** — 投资组合分析
-
-## 已实现功能
-
-### v0.2+ 增强功能
-
-- **夏普比率 (Sharpe Ratio)** — 风险调整后收益评估
-- **Alpha / Beta 分析** — 基于沪深300基准的超额收益和系统风险
-- **基金经理信息** — 经理任期、任职回报评估
-- **费率信息** — 管理费、托管费持有成本分析
-- **多基金对比** — 并排比较多只基金指标
-- **数据导出** — CSV / JSON 格式导出
-- **中文名称支持** — 通过基金名称自动搜索匹配代码
-- **基金详情查询** — 基金概况、投资目标、投资范围、业绩比较基准等详细信息
+1. **存储统一** — `storage/` 模块合并 name_cache + nav_cache，可选 TTL
+2. **API trait** — `FundDataSource` async trait，便于 mock 与第二数据源
+3. **配置化筛选** — `screen` 规则 TOML 模板
+4. **组合分析** — 相关性、重仓重叠（v0.5）
 
 ## Open Decisions
 
-- [ ] 数据存储方案：SQLite vs 文件缓存 vs 纯内存
-- [ ] 是否引入 charting 库做终端图表
-- [ ] 配置热更新 vs 仅启动时加载
+- [ ] SQLite vs 纯文件缓存（自选/筛选结果持久化）
+- [ ] 终端 charting 库
+- [ ] 配置热更新

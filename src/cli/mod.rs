@@ -1,21 +1,10 @@
-//! CLI 编排：自选、离线缓存、`AppConfig` → HTTP 客户端。
+//! CLI 入口：Clap 定义与启动 wiring。
 
-mod analysis_sort;
-mod analyze;
-mod brief;
-mod compare;
-mod compare_output;
-mod fund_session;
-mod handlers;
-mod output;
-mod rank_kind;
-mod route;
-mod route_handlers;
-mod screen;
+mod dispatch;
+mod dispatch_query;
+mod dispatch_workflow;
 
-pub use handlers::map_client_err;
-
-use crate::api::eastmoney::{EastMoneyClient, EastMoneyClientOptions};
+use crate::api::eastmoney::{EastMoneyClient, EastMoneyClientOptions, EastMoneyError};
 use crate::cache::FundCache;
 use crate::config::AppConfig;
 use crate::nav_cache::NavCache;
@@ -23,6 +12,10 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+
+pub fn map_client_err(e: EastMoneyError) -> anyhow::Error {
+    anyhow::Error::msg(e.to_string())
+}
 
 #[derive(Parser, Debug)]
 #[command(name = "analysis_fund", version, about = "Fund analysis tool")]
@@ -136,7 +129,6 @@ pub enum Commands {
     },
     /// 按天天基金官网排行拉取某类型全市场前 N 名（数据源需网络与 Referer）
     Rank {
-        /// 类型：gp/hh/zq/zs/qdii/fof，或 股票/混合/债券/指数
         #[arg(short, long)]
         kind: String,
         #[arg(short, long, default_value_t = 100, help = "取前 N 名（≤500）")]
@@ -145,7 +137,7 @@ pub enum Commands {
             long,
             value_name = "SC",
             default_value = "1n",
-            help = "rankhandler 的排序字段 sc（默认 1n）；st 固定 desc。rzdf/zzf/1yzf/3yzf/6yzf/1nzf/2nzf/3nzf/jnzf/lnzf 等见 docs/MANUAL.md"
+            help = "rankhandler 的排序字段 sc（默认 1n）；st 固定 desc"
         )]
         sort: String,
     },
@@ -235,8 +227,8 @@ pub async fn run(cli: Cli, config: AppConfig) -> anyhow::Result<()> {
         proxy: config.api.proxy.clone(),
     };
     let client = EastMoneyClient::with_options(opts).map_err(map_client_err)?;
-    let cache = Arc::new(Mutex::new(FundCache::new()));
+    let name_cache = Arc::new(Mutex::new(FundCache::new()));
     let nav_store = NavCache::new();
 
-    handlers::execute(cli, &client, &cache, &nav_store).await
+    dispatch::dispatch(cli, &client, &name_cache, &nav_store).await
 }

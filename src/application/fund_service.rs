@@ -1,23 +1,22 @@
-//! 基金解析、净值序列、分析等 CLI 共用异步逻辑。
+//! 基金数据访问与分析编排（应用层）。
 
+use super::context::Session;
 use crate::api::eastmoney::EastMoneyClient;
-use crate::cache::FundCache;
+use crate::domain::{
+    resolve_benchmark, BenchmarkData, FundAnalyzer, FundMetaInfo, IndexBenchmark, HS300,
+};
 use crate::models::FundAnalysis;
-use crate::nav_cache::{filter_covering_calendar_days, NavCache};
-use crate::services::{resolve_benchmark, BenchmarkData, FundAnalyzer, FundMetaInfo, HS300};
+use crate::nav_cache::filter_covering_calendar_days;
 use anyhow::Context;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 pub async fn fetch_nav_series(
-    client: &EastMoneyClient,
-    nav_store: &NavCache,
+    session: &Session<'_>,
     resolved_code: &str,
     days: u32,
     offline: bool,
 ) -> anyhow::Result<Vec<crate::models::FundNav>> {
     if offline {
-        let loaded = nav_store.load(resolved_code).with_context(|| {
+        let loaded = session.nav_store.load(resolved_code).with_context(|| {
             format!(
                 "`--offline` 且无缓存 `{}`，请先在线跑一次 analyze/export",
                 resolved_code
@@ -33,10 +32,11 @@ pub async fn fetch_nav_series(
         }
         Ok(trimmed)
     } else {
-        let navs = client
+        let navs = session
+            .client
             .fetch_nav_history_by_days(resolved_code, days)
             .await?;
-        if !navs.is_empty() && nav_store.save_merged(resolved_code, &navs).is_err() {
+        if !navs.is_empty() && session.nav_store.save_merged(resolved_code, &navs).is_err() {
             tracing::warn!("写入净值缓存失败（已忽略）：{}", resolved_code);
         }
         Ok(navs)
@@ -44,8 +44,7 @@ pub async fn fetch_nav_series(
 }
 
 pub async fn resolve_fund_identifier(
-    client: &EastMoneyClient,
-    cache: &Arc<Mutex<FundCache>>,
+    session: &Session<'_>,
     identifier: &str,
     offline: bool,
 ) -> anyhow::Result<(String, String)> {
@@ -53,36 +52,41 @@ pub async fn resolve_fund_identifier(
 
     if is_likely_code {
         let name = if offline {
-            let g = cache.lock().await;
+            let g = session.name_cache.lock().await;
             g.get_name(identifier)
                 .unwrap_or_else(|| identifier.to_string())
         } else {
-            get_fund_name(client, cache, identifier).await
+            get_fund_name(session, identifier).await
         };
         return Ok((identifier.to_string(), name));
     }
 
     if offline {
-        let code = cache.lock().await.get_code(identifier).ok_or_else(|| {
-            anyhow::anyhow!(
-                "`--offline` 无法解析名称 `{id}`，请先在线跑一次或直接使用 6 位代码",
-                id = identifier
-            )
-        })?;
+        let code = session
+            .name_cache
+            .lock()
+            .await
+            .get_code(identifier)
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "`--offline` 无法解析名称 `{id}`，请先在线跑一次或直接使用 6 位代码",
+                    id = identifier
+                )
+            })?;
         return Ok((code, identifier.to_string()));
     }
 
     {
-        let cache_guard = cache.lock().await;
+        let cache_guard = session.name_cache.lock().await;
         if let Some(code) = cache_guard.get_code(identifier) {
             return Ok((code, identifier.to_string()));
         }
     }
 
-    match client.search_fund(identifier).await {
+    match session.client.search_fund(identifier).await {
         Ok(results) => {
             if let Some((code, name)) = results.first() {
-                let mut cache_guard = cache.lock().await;
+                let mut cache_guard = session.name_cache.lock().await;
                 cache_guard.set_mapping(code, name);
                 Ok((code.clone(), name.clone()))
             } else {
@@ -96,13 +100,12 @@ pub async fn resolve_fund_identifier(
 pub async fn get_benchmark_data(
     client: &EastMoneyClient,
     days: u32,
-    index: &crate::services::IndexBenchmark,
+    index: &IndexBenchmark,
 ) -> Option<BenchmarkData> {
     match client.fetch_index_history(index.secid, 1, days * 2).await {
         Ok((data, _)) => {
             let mut dates = Vec::new();
             let mut returns = Vec::new();
-
             for i in 1..data.len() {
                 let prev = &data[i - 1];
                 let curr = &data[i];
@@ -114,7 +117,6 @@ pub async fn get_benchmark_data(
                 dates.push(curr.date.date_naive());
                 returns.push(daily_return);
             }
-
             Some(BenchmarkData {
                 dates,
                 returns,
@@ -128,38 +130,32 @@ pub async fn get_benchmark_data(
     }
 }
 
-async fn benchmark_for_fund(
-    client: &EastMoneyClient,
-    code: &str,
-    days: u32,
-) -> Option<BenchmarkData> {
-    let index = match client.fetch_fund_profile(code).await {
+async fn benchmark_for_fund(session: &Session<'_>, code: &str, days: u32) -> Option<BenchmarkData> {
+    let index = match session.client.fetch_fund_profile(code).await {
         Ok(profile) => resolve_benchmark(&profile.benchmark, &profile.fund_type),
         Err(e) => {
             tracing::warn!(code = %code, error = %e, "Failed to fetch profile for benchmark; using HS300");
             HS300
         }
     };
-    get_benchmark_data(client, days, &index).await
+    get_benchmark_data(session.client, days, &index).await
 }
 
-pub async fn get_fund_meta(client: &EastMoneyClient, code: &str) -> Option<FundMetaInfo> {
-    let manager = match client.fetch_fund_manager(code).await {
+pub async fn get_fund_meta(session: &Session<'_>, code: &str) -> Option<FundMetaInfo> {
+    let manager = match session.client.fetch_fund_manager(code).await {
         Ok(m) => m,
         Err(e) => {
             tracing::warn!(code = %code, error = %e, "Failed to fetch fund manager");
             return None;
         }
     };
-
-    let fee = match client.fetch_fund_fee(code).await {
+    let fee = match session.client.fetch_fund_fee(code).await {
         Ok(f) => f,
         Err(e) => {
             tracing::warn!(code = %code, error = %e, "Failed to fetch fund fee");
             return None;
         }
     };
-
     Some(FundMetaInfo {
         manager_name: manager.name,
         manager_tenure_days: manager.tenure_days,
@@ -169,21 +165,16 @@ pub async fn get_fund_meta(client: &EastMoneyClient, code: &str) -> Option<FundM
     })
 }
 
-async fn get_fund_name(
-    client: &EastMoneyClient,
-    cache: &Arc<Mutex<FundCache>>,
-    code: &str,
-) -> String {
+async fn get_fund_name(session: &Session<'_>, code: &str) -> String {
     {
-        let cache_guard = cache.lock().await;
+        let cache_guard = session.name_cache.lock().await;
         if let Some(name) = cache_guard.get_name(code) {
             return name;
         }
     }
-
-    match client.fetch_fund_name(code).await {
+    match session.client.fetch_fund_name(code).await {
         Ok(name) => {
-            let mut cache_guard = cache.lock().await;
+            let mut cache_guard = session.name_cache.lock().await;
             cache_guard.set_mapping(code, &name);
             name
         }
@@ -194,27 +185,25 @@ async fn get_fund_name(
     }
 }
 
-/// 拉净值并计算分析结果（不打印）；在线时按契约/类型解析基准指数。
+/// 拉净值并计算分析结果（不打印）。
 pub async fn analyze_fund(
-    client: &EastMoneyClient,
-    cache: &Arc<Mutex<FundCache>>,
-    nav_store: &NavCache,
+    session: &Session<'_>,
     identifier: &str,
     days: u32,
     offline: bool,
 ) -> anyhow::Result<Option<FundAnalysis>> {
-    let (resolved_code, name) = resolve_fund_identifier(client, cache, identifier, offline).await?;
+    let (resolved_code, name) = resolve_fund_identifier(session, identifier, offline).await?;
     let benchmark = if offline {
         None
     } else {
-        benchmark_for_fund(client, &resolved_code, days).await
+        benchmark_for_fund(session, &resolved_code, days).await
     };
     let meta = if offline {
         None
     } else {
-        get_fund_meta(client, &resolved_code).await
+        get_fund_meta(session, &resolved_code).await
     };
-    let navs = fetch_nav_series(client, nav_store, &resolved_code, days, offline).await?;
+    let navs = fetch_nav_series(session, &resolved_code, days, offline).await?;
     if navs.is_empty() {
         return Ok(None);
     }

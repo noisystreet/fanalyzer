@@ -1,19 +1,10 @@
-//! 子命令分派（从 `handlers::execute` 拆出以满足行数门控）。
+//! 选基工作流子命令分派。
 
-use super::{brief, route_handlers, screen, Cli, Commands};
-use crate::api::eastmoney::EastMoneyClient;
-use crate::cache::FundCache;
-use crate::nav_cache::NavCache;
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use super::Commands;
+use crate::application::{run_brief, run_screen, BriefRequest, CommandContext, ScreenRequest};
+use crate::domain::ScreenFilters;
 
-pub async fn route_command(
-    cmd: Commands,
-    cli: &Cli,
-    client: &EastMoneyClient,
-    cache: &Arc<Mutex<FundCache>>,
-    nav_store: &NavCache,
-) -> anyhow::Result<()> {
+pub async fn dispatch(ctx: &CommandContext<'_>, cmd: Commands) -> anyhow::Result<()> {
     match cmd {
         Commands::Brief {
             code,
@@ -24,12 +15,9 @@ pub async fn route_command(
             holdings_top,
             output,
         } => {
-            brief::run_brief(
-                cli,
-                client,
-                cache,
-                nav_store,
-                brief::BriefOpts {
+            run_brief(
+                ctx,
+                BriefRequest {
                     code,
                     pick_watchlist,
                     days,
@@ -61,18 +49,15 @@ pub async fn route_command(
             output,
             format,
         } => {
-            screen::run_screen(
-                cli,
-                client,
-                cache,
-                nav_store,
-                screen::ScreenOpts {
+            run_screen(
+                ctx,
+                ScreenRequest {
                     kind,
                     sort,
                     rank_top,
                     days,
                     period,
-                    filters: screen::ScreenFilters {
+                    filters: ScreenFilters {
                         min_rank_return_pct: min_rank_return,
                         max_drawdown_pct: max_drawdown,
                         min_sharpe,
@@ -91,6 +76,6 @@ pub async fn route_command(
             )
             .await
         }
-        other => route_handlers::dispatch(other, cli, client, cache, nav_store).await,
+        _ => unreachable!("only Brief/Screen in dispatch_workflow"),
     }
 }
