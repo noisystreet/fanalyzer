@@ -71,6 +71,20 @@ async fn fetch_one(
     Ok(())
 }
 
+pub async fn load_fund_overview(
+    session: &super::context::Session<'_>,
+    code: &str,
+) -> anyhow::Result<crate::models::FundOverview> {
+    let (resolved_code, _name) = resolve_fund_identifier(session, code, false).await?;
+    tracing::info!(code = %resolved_code, "Fetching fund info");
+    let profile = session
+        .client
+        .fetch_fund_profile(&resolved_code)
+        .await
+        .map_err(|e| anyhow::anyhow!("获取基金概况失败：{e}"))?;
+    Ok(map_profile(&profile))
+}
+
 pub async fn run_info(ctx: &CommandContext<'_>, req: InfoRequest) -> anyhow::Result<()> {
     require_online(ctx.offline, "info")?;
     let ids = resolve_fund_ids(
@@ -86,10 +100,8 @@ pub async fn run_info(ctx: &CommandContext<'_>, req: InfoRequest) -> anyhow::Res
 }
 
 async fn info_one(session: &super::context::Session<'_>, code: String) -> anyhow::Result<()> {
-    let (resolved_code, _name) = resolve_fund_identifier(session, &code, false).await?;
-    tracing::info!(code = %resolved_code, "Fetching fund info");
-    match session.client.fetch_fund_profile(&resolved_code).await {
-        Ok(profile) => print_fund_overview(&map_profile(&profile)),
+    match load_fund_overview(session, &code).await {
+        Ok(profile) => print_fund_overview(&profile),
         Err(e) => tracing::error!(error = %e, "Failed to fetch fund info"),
     }
     Ok(())

@@ -1,6 +1,6 @@
 //! Leptos 布局与页面组件（纯 SSR）。
 
-use crate::models::FundAnalysis;
+use crate::models::{FundAnalysis, FundBrief, FundOverview, IndustryAllocation, StockHoldings};
 use leptos::prelude::*;
 
 #[component]
@@ -20,6 +20,8 @@ pub fn Layout(title: String, children: Children) -> impl IntoView {
                         <a href="/">"首页"</a>
                         <a href="/analyze">"分析"</a>
                         <a href="/compare">"对比"</a>
+                        <a href="/info">"概况"</a>
+                        <a href="/brief">"简报"</a>
                     </nav>
                 </header>
                 <main>{children()}</main>
@@ -126,6 +128,10 @@ pub fn HomePage() -> impl IntoView {
                     <a class="btn" href="/analyze">"单基金分析"</a>
                     " "
                     <a class="btn" href="/compare">"多基金对比"</a>
+                    " "
+                    <a class="btn" href="/info">"基金概况"</a>
+                    " "
+                    <a class="btn" href="/brief">"选基简报"</a>
                 </p>
             </section>
             <section class="card">
@@ -133,6 +139,8 @@ pub fn HomePage() -> impl IntoView {
                 <ul>
                     <li>"分析页：输入 6 位代码或基金名称，选择分析窗口。"</li>
                     <li>"对比页：逗号分隔多只基金，至少 2 只。"</li>
+                    <li>"概况页：F10 基金基本信息、经理与费率。"</li>
+                    <li>"简报页：分析 + 行业配置 + 重仓股（季报口径）。"</li>
                     <li>"需联网访问东方财富接口；与 CLI 共用本地缓存。"</li>
                 </ul>
             </section>
@@ -216,6 +224,202 @@ pub fn ComparePage(
     }
 }
 
+#[component]
+pub fn OverviewDetail(profile: FundOverview) -> impl IntoView {
+    let tenure = profile.manager_tenure_days as f64 / 365.0;
+    view! {
+        <section class="card">
+            <h2>"基金概况"</h2>
+            <table class="metrics">
+                <tbody>
+                    {(!profile.full_name.is_empty()).then(|| view! {
+                        <tr><th>"基金全称"</th><td>{profile.full_name.clone()}</td></tr>
+                    })}
+                    <tr><th>"基金简称"</th><td>{profile.name.clone()}</td></tr>
+                    <tr><th>"基金代码"</th><td>{profile.code.clone()}</td></tr>
+                    {(!profile.fund_type.is_empty()).then(|| view! {
+                        <tr><th>"基金类型"</th><td>{profile.fund_type.clone()}</td></tr>
+                    })}
+                    {(!profile.establishment_date.is_empty()).then(|| view! {
+                        <tr><th>"成立日期"</th><td>{profile.establishment_date.clone()}</td></tr>
+                    })}
+                    {(!profile.asset_size.is_empty()).then(|| view! {
+                        <tr><th>"资产规模"</th><td>{profile.asset_size.clone()}</td></tr>
+                    })}
+                    {(!profile.company.is_empty()).then(|| view! {
+                        <tr><th>"管理公司"</th><td>{profile.company.clone()}</td></tr>
+                    })}
+                    {(!profile.benchmark.is_empty()).then(|| view! {
+                        <tr><th>"业绩比较基准"</th><td>{profile.benchmark.clone()}</td></tr>
+                    })}
+                    {(!profile.manager_name.is_empty()).then(|| view! {
+                        <tr><th>"基金经理"</th><td>{profile.manager_name.clone()}</td></tr>
+                    })}
+                    {(profile.manager_tenure_days > 0).then(|| view! {
+                        <tr><th>"经理任期"</th><td>{format!("{tenure:.1} 年")}</td></tr>
+                    })}
+                    {(profile.manager_total_return != 0.0).then(|| view! {
+                        <tr><th>"任职回报"</th><td>{format!("{:.2}%", profile.manager_total_return * 100.0)}</td></tr>
+                    })}
+                    {(profile.management_fee > 0.0).then(|| view! {
+                        <tr><th>"管理/托管费率"</th><td>{format!("{:.2}% / {:.2}%", profile.management_fee, profile.custody_fee)}</td></tr>
+                    })}
+                </tbody>
+            </table>
+            {(!profile.investment_target.is_empty()).then(|| view! {
+                <section>
+                    <h3>"投资目标"</h3>
+                    <p>{profile.investment_target.clone()}</p>
+                </section>
+            })}
+            {(!profile.investment_scope.is_empty()).then(|| view! {
+                <section>
+                    <h3>"投资范围"</h3>
+                    <p>{profile.investment_scope.clone()}</p>
+                </section>
+            })}
+        </section>
+    }
+}
+
+#[component]
+pub fn IndustryTable(report: IndustryAllocation) -> impl IntoView {
+    view! {
+        <section class="card">
+            <h3>"行业配置"</h3>
+            {report.as_of.clone().map(|d| view! { <p class="muted">"报告截止: " {d}</p> })}
+            {report.rows.is_empty().then(|| view! { <p class="muted">"暂无行业配置数据。"</p> })}
+            {(!report.rows.is_empty()).then(|| view! {
+                <table class="compare">
+                    <thead><tr><th>"序号"</th><th>"行业"</th><th>"占净值"</th></tr></thead>
+                    <tbody>
+                        {report.rows.iter().map(|r| view! {
+                            <tr>
+                                <td>{r.rank}</td>
+                                <td>{r.industry.clone()}</td>
+                                <td>{format!("{:.2}%", r.pct_nav)}</td>
+                            </tr>
+                        }).collect_view()}
+                    </tbody>
+                </table>
+            })}
+        </section>
+    }
+}
+
+#[component]
+pub fn HoldingsTable(report: StockHoldings) -> impl IntoView {
+    view! {
+        <section class="card">
+            <h3>"重仓股"</h3>
+            {report.as_of.clone().map(|d| view! { <p class="muted">"报告截止: " {d}</p> })}
+            {report.rows.is_empty().then(|| view! { <p class="muted">"暂无重仓股数据。"</p> })}
+            {(!report.rows.is_empty()).then(|| view! {
+                <table class="compare">
+                    <thead><tr><th>"序号"</th><th>"代码"</th><th>"名称"</th><th>"占净值"</th></tr></thead>
+                    <tbody>
+                        {report.rows.iter().map(|r| view! {
+                            <tr>
+                                <td>{r.rank}</td>
+                                <td>{r.stock_code.clone()}</td>
+                                <td>{r.stock_name.clone()}</td>
+                                <td>{format!("{:.2}%", r.pct_nav)}</td>
+                            </tr>
+                        }).collect_view()}
+                    </tbody>
+                </table>
+            })}
+        </section>
+    }
+}
+
+#[component]
+pub fn InfoPage(
+    code: String,
+    profile: Option<FundOverview>,
+    error: Option<String>,
+) -> impl IntoView {
+    view! {
+        <Layout title="基金概况".into()>
+            <section class="card">
+                <h1>"基金概况"</h1>
+                <form method="get" action="/info">
+                    <div class="row">
+                        <label>"基金代码/名称"
+                            <input name="code" type="text" placeholder="000001" value=code />
+                        </label>
+                        <button type="submit">"查询"</button>
+                    </div>
+                </form>
+            </section>
+            {error.map(|e| view! { <ErrorAlert message=e /> })}
+            {profile.map(|p| view! { <OverviewDetail profile=p /> })}
+        </Layout>
+    }
+}
+
+#[component]
+pub fn BriefPage(
+    code: String,
+    days: u32,
+    period: String,
+    industry_top: u32,
+    holdings_top: u32,
+    brief: Option<FundBrief>,
+    error: Option<String>,
+) -> impl IntoView {
+    view! {
+        <Layout title="选基简报".into()>
+            <section class="card">
+                <h1>"选基综合简报"</h1>
+                <form method="get" action="/brief">
+                    <div class="row">
+                        <label>"基金代码/名称"
+                            <input name="code" type="text" placeholder="000001" value=code />
+                        </label>
+                        <label>"日历天"
+                            <input name="days" type="number" min="7" value=days.to_string() />
+                        </label>
+                        <label>"period（可选）"
+                            <input name="period" type="text" placeholder="1y / 3m" value=period />
+                        </label>
+                        <label>"行业前 N"
+                            <input name="industry_top" type="number" min="1" value=industry_top.to_string() />
+                        </label>
+                        <label>"重仓前 N"
+                            <input name="holdings_top" type="number" min="1" max="50" value=holdings_top.to_string() />
+                        </label>
+                        <button type="submit">"生成简报"</button>
+                    </div>
+                </form>
+            </section>
+            {error.map(|e| view! { <ErrorAlert message=e /> })}
+            {brief.map(|b| {
+                let mut ind = b.industry.clone();
+                ind.rows.truncate(b.industry_top.max(1));
+                let mut hold = b.holdings.clone();
+                hold.rows.truncate(b.holdings_top.max(1));
+                view! {
+                    <section class="card">
+                        <h2>{b.name.clone()} " (" {b.code.clone()} ")"</h2>
+                        <p class="muted">
+                            {if !b.fund_type.is_empty() { format!("类型: {}  ", b.fund_type) } else { String::new() }}
+                            {if !b.company.is_empty() { format!("管理人: {}  ", b.company) } else { String::new() }}
+                            {if !b.asset_size.is_empty() { format!("规模: {}", b.asset_size) } else { String::new() }}
+                        </p>
+                    </section>
+                    {b.analysis.clone().map(|a| view! { <AnalysisMetrics analysis=a /> })}
+                    {(!b.analysis.is_some()).then(|| view! {
+                        <section class="card"><p class="muted">"（净值分析数据不足，跳过风险收益段）"</p></section>
+                    })}
+                    <IndustryTable report=ind />
+                    <HoldingsTable report=hold />
+                }
+            })}
+        </Layout>
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -251,5 +455,17 @@ mod tests {
         let html = view! { <AnalysisMetrics analysis=sample() /> }.to_html();
         assert!(html.contains("000001"));
         assert!(html.contains("总收益率"));
+    }
+
+    #[test]
+    fn overview_detail_renders() {
+        let profile = FundOverview {
+            code: "000001".into(),
+            name: "测试基金".into(),
+            ..Default::default()
+        };
+        let html = view! { <OverviewDetail profile=profile /> }.to_html();
+        assert!(html.contains("000001"));
+        assert!(html.contains("基金概况"));
     }
 }

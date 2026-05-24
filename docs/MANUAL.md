@@ -364,6 +364,8 @@ cargo run --features web -- serve --host 0.0.0.0 --port 8080
 - `/` — 首页
 - `/analyze?code=000001&days=90` — 单基金分析
 - `/compare?codes=000001,110011&days=90&sort=sharpe` — 多基金对比
+- `/info?code=000001` — 基金概况（F10）
+- `/brief?code=000001&days=90&industry_top=5&holdings_top=10` — 选基综合简报
 
 **说明：** 纯 SSR（无 WASM  hydration）；需联网。HTTP 代理可配置 `config/default.toml` 的 `[api].proxy` 或环境变量 `http_proxy` / `https_proxy`。
 

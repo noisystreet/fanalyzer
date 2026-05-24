@@ -45,7 +45,7 @@ pub async fn run_brief(ctx: &CommandContext<'_>, req: BriefRequest) -> anyhow::R
     Ok(())
 }
 
-async fn gather_brief(
+pub async fn gather_brief(
     session: &super::context::Session<'_>,
     identifier: &str,
     days: u32,

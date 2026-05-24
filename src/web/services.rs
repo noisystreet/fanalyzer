@@ -1,9 +1,9 @@
 //! Web 用例：复用 application / domain 层。
 
 use super::state::AppState;
-use crate::application::analyze_fund;
+use crate::application::{analyze_fund, gather_brief, load_fund_overview};
 use crate::domain::{parse_sort_key, resolve_analysis_days, sort_analyses, AnalysisSortKey};
-use crate::models::FundAnalysis;
+use crate::models::{FundAnalysis, FundBrief, FundOverview};
 use chrono::Local;
 
 pub async fn analyze_one(
@@ -16,6 +16,32 @@ pub async fn analyze_one(
     let window = resolve_analysis_days(period, days, today)?;
     let ctx = state.command_context();
     analyze_fund(&ctx.session, code.trim(), window, false).await
+}
+
+pub async fn fetch_overview(state: &AppState, code: &str) -> anyhow::Result<FundOverview> {
+    let ctx = state.command_context();
+    load_fund_overview(&ctx.session, code.trim()).await
+}
+
+pub async fn build_brief(
+    state: &AppState,
+    code: &str,
+    days: u32,
+    period: Option<&str>,
+    industry_top: u32,
+    holdings_top: u32,
+) -> anyhow::Result<FundBrief> {
+    let today = Local::now().date_naive();
+    let window = resolve_analysis_days(period, days, today)?;
+    let ctx = state.command_context();
+    gather_brief(
+        &ctx.session,
+        code.trim(),
+        window,
+        holdings_top,
+        industry_top,
+    )
+    .await
 }
 
 pub async fn compare_funds(

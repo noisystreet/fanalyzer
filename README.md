@@ -202,7 +202,7 @@ cargo run --features web -- serve
 # 浏览器打开 http://127.0.0.1:3000
 ```
 
-页面：`/` 首页、`/analyze` 单基金分析、`/compare` 多基金对比；与 CLI 共用 application 层与本地缓存。
+页面：`/` 首页、`/analyze` 单基金分析、`/compare` 多基金对比、`/info` 基金概况、`/brief` 选基简报；与 CLI 共用 application 层与本地缓存。
 
 ```bash
 cargo run --features web -- serve --host 0.0.0.0 --port 8080

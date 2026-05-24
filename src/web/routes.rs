@@ -1,6 +1,6 @@
 //! Axum 路由与 SSR 渲染。
 
-use super::components::{AnalyzePage, ComparePage, HomePage};
+use super::components::{AnalyzePage, BriefPage, ComparePage, HomePage, InfoPage};
 use super::services;
 use super::state::AppState;
 use axum::{
@@ -25,6 +25,20 @@ struct CompareParams {
     days: Option<u32>,
     period: Option<String>,
     sort: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct InfoParams {
+    code: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct BriefParams {
+    code: Option<String>,
+    days: Option<u32>,
+    period: Option<String>,
+    industry_top: Option<u32>,
+    holdings_top: Option<u32>,
 }
 
 fn render<V>(view: V) -> Html<String>
@@ -110,10 +124,58 @@ async fn compare(State(state): State<AppState>, Query(q): Query<CompareParams>) 
     })
 }
 
+async fn info(State(state): State<AppState>, Query(q): Query<InfoParams>) -> Html<String> {
+    let code = q.code.unwrap_or_default();
+    let (profile, error) = if code.trim().is_empty() {
+        (None, None)
+    } else {
+        match services::fetch_overview(&state, &code).await {
+            Ok(p) => (Some(p), None),
+            Err(e) => (None, Some(e.to_string())),
+        }
+    };
+
+    render(view! { <InfoPage code=code profile=profile error=error /> })
+}
+
+async fn brief(State(state): State<AppState>, Query(q): Query<BriefParams>) -> Html<String> {
+    let code = q.code.unwrap_or_default();
+    let days = q.days.unwrap_or(90);
+    let period = q.period.unwrap_or_default();
+    let industry_top = q.industry_top.unwrap_or(5).clamp(1, 20);
+    let holdings_top = q.holdings_top.unwrap_or(10).clamp(1, 50);
+    let period_opt = (!period.is_empty()).then_some(period.as_str());
+
+    let (brief, error) = if code.trim().is_empty() {
+        (None, None)
+    } else {
+        match services::build_brief(&state, &code, days, period_opt, industry_top, holdings_top)
+            .await
+        {
+            Ok(b) => (Some(b), None),
+            Err(e) => (None, Some(e.to_string())),
+        }
+    };
+
+    render(view! {
+        <BriefPage
+            code=code
+            days=days
+            period=period
+            industry_top=industry_top
+            holdings_top=holdings_top
+            brief=brief
+            error=error
+        />
+    })
+}
+
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/", get(home))
         .route("/analyze", get(analyze))
         .route("/compare", get(compare))
+        .route("/info", get(info))
+        .route("/brief", get(brief))
         .with_state(state)
 }
