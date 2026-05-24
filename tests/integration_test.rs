@@ -62,3 +62,13 @@ fn test_cli_screen_help() {
         .assert()
         .success();
 }
+
+#[cfg(feature = "web")]
+#[test]
+fn test_cli_serve_help() {
+    Command::cargo_bin("analysis_fund")
+        .unwrap()
+        .args(["serve", "--help"])
+        .assert()
+        .success();
+}

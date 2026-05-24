@@ -1,37 +1,29 @@
 //! 子命令分派（CLI 薄层 → application 用例）。
 
-use super::{Cli, Commands};
+use super::Commands;
 use crate::api::eastmoney::EastMoneyClient;
 use crate::application::CommandContext;
 use crate::cache::FundCache;
 use crate::nav_cache::NavCache;
-use clap::Parser;
+use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-pub async fn dispatch(
-    mut cli: Cli,
+pub async fn dispatch_with_command(
+    cmd: Commands,
     client: &EastMoneyClient,
     name_cache: &Arc<Mutex<FundCache>>,
     nav_store: &NavCache,
+    offline: bool,
+    watchlist_path: &Path,
 ) -> anyhow::Result<()> {
-    let Some(cmd) = cli.command.take() else {
-        Cli::parse_from(["analysis_fund", "--help"]);
-        return Ok(());
-    };
-
-    let ctx = CommandContext::new(
-        client,
-        name_cache,
-        nav_store,
-        cli.offline,
-        &cli.watchlist_file,
-    );
+    let ctx = CommandContext::new(client, name_cache, nav_store, offline, watchlist_path);
 
     match cmd {
         Commands::Brief { .. } | Commands::Screen { .. } => {
             super::dispatch_workflow::dispatch(&ctx, cmd).await
         }
+        Commands::Serve { .. } => unreachable!("serve handled in cli::run"),
         other => super::dispatch_query::dispatch_core(&ctx, other).await,
     }
 }

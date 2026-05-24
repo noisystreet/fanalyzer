@@ -71,6 +71,7 @@ funds = ["000001", "110011", "某基金简称"]
 | `rank` | 是 | 不适用 | 按天天基金官网排行接口拉取某类型全市场前 N 名 |
 | `brief` | 是 | 支持 | 单基金/自选综合简报：概况 + 分析 + 行业 + 重仓 |
 | `screen` | 是 | 不适用 | 从类型排行池中按回撤/夏普/费率筛选，并对比通过者 |
+| `serve` | 是 | 不适用 | 启动 Leptos SSR Web 界面（**须** `cargo run --features web -- serve`） |
 
 ---
 
@@ -341,6 +342,30 @@ cargo run -- rank --kind 混合 --top 100
 终端表格中会打印近 1 周、近 1 月、近 3 月、近 6 月、近 1 年、今年来等收益率（百分点，与解析列一致）。
 
 **说明：** `rank` 不支持 `--offline`；若接口返回异常，请检查网络与代理配置（`config/default.toml` 中的 `proxy`）。
+
+---
+
+## `serve` — Web 界面（Leptos SSR）
+
+需编译时启用 feature：
+
+```bash
+cargo run --features web -- serve
+cargo run --features web -- serve --host 0.0.0.0 --port 8080
+```
+
+| 参数 | 说明 |
+|------|------|
+| `--host` | 监听地址，默认 `127.0.0.1` |
+| `-p` / `--port` | 端口，默认 `3000` |
+
+浏览器访问：
+
+- `/` — 首页
+- `/analyze?code=000001&days=90` — 单基金分析
+- `/compare?codes=000001,110011&days=90&sort=sharpe` — 多基金对比
+
+**说明：** 纯 SSR（无 WASM  hydration）；需联网。HTTP 代理可配置 `config/default.toml` 的 `[api].proxy` 或环境变量 `http_proxy` / `https_proxy`。
 
 ---
 

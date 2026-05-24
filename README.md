@@ -193,6 +193,21 @@ cargo run -- analyze --code "华夏成长混合" --days 90
 # 系统会自动搜索并匹配基金代码
 ```
 
+### 11. Web 界面（Leptos SSR，可选）
+
+编译时需启用 `web` feature：
+
+```bash
+cargo run --features web -- serve
+# 浏览器打开 http://127.0.0.1:3000
+```
+
+页面：`/` 首页、`/analyze` 单基金分析、`/compare` 多基金对比；与 CLI 共用 application 层与本地缓存。
+
+```bash
+cargo run --features web -- serve --host 0.0.0.0 --port 8080
+```
+
 ## 环境变量
 
 复制 `.env.example` 为 `.env` 并填入实际值：

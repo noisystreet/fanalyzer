@@ -219,9 +219,16 @@ pub enum Commands {
         #[arg(short, long, default_value = "csv", help = "导出格式 csv 或 json")]
         format: String,
     },
+    /// 启动 Leptos SSR Web 界面（需编译 feature `web`）
+    Serve {
+        #[arg(long, default_value = "127.0.0.1", help = "监听地址")]
+        host: String,
+        #[arg(short, long, default_value_t = 3000, help = "监听端口")]
+        port: u16,
+    },
 }
 
-pub async fn run(cli: Cli, config: AppConfig) -> anyhow::Result<()> {
+pub async fn run(mut cli: Cli, config: AppConfig) -> anyhow::Result<()> {
     let opts = EastMoneyClientOptions {
         timeout_secs: config.api.timeout_secs.max(1),
         user_agent: config.api.user_agent.clone(),
@@ -232,5 +239,30 @@ pub async fn run(cli: Cli, config: AppConfig) -> anyhow::Result<()> {
     let name_cache = Arc::new(Mutex::new(FundCache::with_root(cache_root.clone())));
     let nav_store = NavCache::with_root(cache_root);
 
-    dispatch::dispatch(cli, &client, &name_cache, &nav_store).await
+    let Some(cmd) = cli.command.take() else {
+        Cli::parse_from(["analysis_fund", "--help"]);
+        return Ok(());
+    };
+
+    match cmd {
+        #[cfg(feature = "web")]
+        Commands::Serve { host, port } => {
+            return crate::web::run(&host, port, config, cli.watchlist_file).await;
+        }
+        #[cfg(not(feature = "web"))]
+        Commands::Serve { .. } => {
+            anyhow::bail!("Web 界面未编译进当前二进制；请使用: cargo run --features web -- serve");
+        }
+        cmd => {
+            dispatch::dispatch_with_command(
+                cmd,
+                &client,
+                &name_cache,
+                &nav_store,
+                cli.offline,
+                &cli.watchlist_file,
+            )
+            .await
+        }
+    }
 }

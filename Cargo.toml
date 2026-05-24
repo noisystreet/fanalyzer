@@ -9,6 +9,10 @@ readme = "README.md"
 keywords = ["fund", "finance", "analysis"]
 categories = ["finance"]
 
+[features]
+default = []
+web = ["dep:leptos", "dep:axum", "dep:tower", "dep:tower-http"]
+
 [dependencies]
 anyhow = "1"
 thiserror = "2"
@@ -23,10 +27,12 @@ toml = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
 csv = "1"
 dirs = "5"
-# F10 行业配置 HTML 行解析
 regex = "1"
-# 终端表格对齐与边框（CLI 输出）
 tabled = { version = "0.20", default-features = false, features = ["std", "derive"] }
+leptos = { version = "0.7", default-features = false, features = ["ssr"], optional = true }
+axum = { version = "0.7", optional = true, features = ["macros"] }
+tower = { version = "0.4", optional = true }
+tower-http = { version = "0.5", optional = true, features = ["trace"] }
 
 [dev-dependencies]
 assert_cmd = "2"
