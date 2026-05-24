@@ -59,6 +59,7 @@ pub fn AnalysisMetrics(analysis: FundAnalysis) -> impl IntoView {
         <section class="card">
             <h2>{analysis.name.clone()} " (" {analysis.code.clone()} ")"</h2>
             <p class="muted">"分析窗口 " {analysis.period_days} " 日历天"</p>
+            <div class="table-scroll">
             <table class="metrics">
                 <tbody>
                     <tr><th>"总收益率"</th><td>{pct(analysis.total_return)}</td></tr>
@@ -74,6 +75,7 @@ pub fn AnalysisMetrics(analysis: FundAnalysis) -> impl IntoView {
                     {fee.map(|f| view! { <tr><th>"管理/托管费率"</th><td>{f}</td></tr> })}
                 </tbody>
             </table>
+            </div>
         </section>
     }
 }
@@ -83,6 +85,7 @@ pub fn CompareTable(analyses: Vec<FundAnalysis>) -> impl IntoView {
     view! {
         <section class="card">
             <h2>"对比结果"</h2>
+            <div class="table-scroll">
             <table class="compare">
                 <thead>
                     <tr>
@@ -113,6 +116,7 @@ pub fn CompareTable(analyses: Vec<FundAnalysis>) -> impl IntoView {
                     }).collect_view()}
                 </tbody>
             </table>
+            </div>
         </section>
     }
 }
@@ -122,17 +126,28 @@ pub fn HomePage() -> impl IntoView {
     view! {
         <Layout title="analysis_fund".into()>
             <section class="card">
-                <h1>"基金分析 Web"</h1>
-                <p class="muted">"基于 Leptos SSR 的简易界面，复用 CLI 同一套分析引擎。"</p>
-                <p>
-                    <a class="btn" href="/analyze">"单基金分析"</a>
-                    " "
-                    <a class="btn" href="/compare">"多基金对比"</a>
-                    " "
-                    <a class="btn" href="/info">"基金概况"</a>
-                    " "
-                    <a class="btn" href="/brief">"选基简报"</a>
-                </p>
+                <div class="page-header">
+                    <h1>"基金分析 Web"</h1>
+                    <p class="muted">"基于 Leptos SSR 的简易界面，复用 CLI 同一套分析引擎。"</p>
+                </div>
+                <div class="feature-grid">
+                    <a class="feature-card" href="/analyze">
+                        <h3>"单基金分析"</h3>
+                        <p class="muted">"输入代码或名称，查看风险收益与 Alpha/Beta。"</p>
+                    </a>
+                    <a class="feature-card" href="/compare">
+                        <h3>"多基金对比"</h3>
+                        <p class="muted">"并排比较夏普、回撤、年化等核心指标。"</p>
+                    </a>
+                    <a class="feature-card" href="/info">
+                        <h3>"基金概况"</h3>
+                        <p class="muted">"F10 基本信息、经理任期与费率。"</p>
+                    </a>
+                    <a class="feature-card" href="/brief">
+                        <h3>"选基简报"</h3>
+                        <p class="muted">"分析 + 行业配置 + 重仓股一页汇总。"</p>
+                    </a>
+                </div>
             </section>
             <section class="card">
                 <h2>"使用说明"</h2>
@@ -159,19 +174,24 @@ pub fn AnalyzePage(
     view! {
         <Layout title="基金分析".into()>
             <section class="card">
-                <h1>"单基金分析"</h1>
-                <form method="get" action="/analyze">
-                    <div class="row">
-                        <label>"基金代码/名称"
+                <div class="page-header">
+                    <h1>"单基金分析"</h1>
+                    <p class="muted">"输入基金代码或名称，选择分析窗口后提交。"</p>
+                </div>
+                <form class="query-form" method="get" action="/analyze">
+                    <div class="form-grid">
+                        <label class="field field-wide">"基金代码/名称"
                             <input name="code" type="text" placeholder="000001" value=code />
                         </label>
-                        <label>"日历天"
+                        <label class="field">"日历天"
                             <input name="days" type="number" min="7" value=days.to_string() />
                         </label>
-                        <label>"period（可选）"
+                        <label class="field">"period（可选）"
                             <input name="period" type="text" placeholder="1y / 3m / ytd" value=period />
                         </label>
-                        <button type="submit">"分析"</button>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">"开始分析"</button>
                     </div>
                 </form>
             </section>
@@ -193,19 +213,22 @@ pub fn ComparePage(
     view! {
         <Layout title="基金对比".into()>
             <section class="card">
-                <h1>"多基金对比"</h1>
-                <form method="get" action="/compare">
-                    <div class="row">
-                        <label>"基金列表（逗号分隔）"
+                <div class="page-header">
+                    <h1>"多基金对比"</h1>
+                    <p class="muted">"逗号分隔至少 2 只基金，可按夏普等指标排序。"</p>
+                </div>
+                <form class="query-form" method="get" action="/compare">
+                    <div class="form-grid">
+                        <label class="field field-wide">"基金列表（逗号分隔）"
                             <input name="codes" type="text" placeholder="000001,110011" value=codes />
                         </label>
-                        <label>"日历天"
+                        <label class="field">"日历天"
                             <input name="days" type="number" min="7" value=days.to_string() />
                         </label>
-                        <label>"period（可选）"
+                        <label class="field">"period（可选）"
                             <input name="period" type="text" value=period />
                         </label>
-                        <label>"排序"
+                        <label class="field">"排序"
                             <select name="sort">
                                 <option value="" selected=sort.is_empty()>"代码"</option>
                                 <option value="sharpe" selected=sort == "sharpe">"夏普"</option>
@@ -214,7 +237,9 @@ pub fn ComparePage(
                                 <option value="total-return" selected=sort == "total-return">"总收益"</option>
                             </select>
                         </label>
-                        <button type="submit">"对比"</button>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">"开始对比"</button>
                     </div>
                 </form>
             </section>
@@ -230,6 +255,7 @@ pub fn OverviewDetail(profile: FundOverview) -> impl IntoView {
     view! {
         <section class="card">
             <h2>"基金概况"</h2>
+            <div class="table-scroll">
             <table class="metrics">
                 <tbody>
                     {(!profile.full_name.is_empty()).then(|| view! {
@@ -266,6 +292,7 @@ pub fn OverviewDetail(profile: FundOverview) -> impl IntoView {
                     })}
                 </tbody>
             </table>
+            </div>
             {(!profile.investment_target.is_empty()).then(|| view! {
                 <section>
                     <h3>"投资目标"</h3>
@@ -290,6 +317,7 @@ pub fn IndustryTable(report: IndustryAllocation) -> impl IntoView {
             {report.as_of.clone().map(|d| view! { <p class="muted">"报告截止: " {d}</p> })}
             {report.rows.is_empty().then(|| view! { <p class="muted">"暂无行业配置数据。"</p> })}
             {(!report.rows.is_empty()).then(|| view! {
+                <div class="table-scroll">
                 <table class="compare">
                     <thead><tr><th>"序号"</th><th>"行业"</th><th>"占净值"</th></tr></thead>
                     <tbody>
@@ -302,6 +330,7 @@ pub fn IndustryTable(report: IndustryAllocation) -> impl IntoView {
                         }).collect_view()}
                     </tbody>
                 </table>
+                </div>
             })}
         </section>
     }
@@ -315,6 +344,7 @@ pub fn HoldingsTable(report: StockHoldings) -> impl IntoView {
             {report.as_of.clone().map(|d| view! { <p class="muted">"报告截止: " {d}</p> })}
             {report.rows.is_empty().then(|| view! { <p class="muted">"暂无重仓股数据。"</p> })}
             {(!report.rows.is_empty()).then(|| view! {
+                <div class="table-scroll">
                 <table class="compare">
                     <thead><tr><th>"序号"</th><th>"代码"</th><th>"名称"</th><th>"占净值"</th></tr></thead>
                     <tbody>
@@ -328,6 +358,7 @@ pub fn HoldingsTable(report: StockHoldings) -> impl IntoView {
                         }).collect_view()}
                     </tbody>
                 </table>
+                </div>
             })}
         </section>
     }
@@ -342,13 +373,18 @@ pub fn InfoPage(
     view! {
         <Layout title="基金概况".into()>
             <section class="card">
-                <h1>"基金概况"</h1>
-                <form method="get" action="/info">
-                    <div class="row">
-                        <label>"基金代码/名称"
+                <div class="page-header">
+                    <h1>"基金概况"</h1>
+                    <p class="muted">"查询 F10 基本信息、基金经理与费率。"</p>
+                </div>
+                <form class="query-form" method="get" action="/info">
+                    <div class="form-grid">
+                        <label class="field field-wide">"基金代码/名称"
                             <input name="code" type="text" placeholder="000001" value=code />
                         </label>
-                        <button type="submit">"查询"</button>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">"查询概况"</button>
                     </div>
                 </form>
             </section>
@@ -371,25 +407,30 @@ pub fn BriefPage(
     view! {
         <Layout title="选基简报".into()>
             <section class="card">
-                <h1>"选基综合简报"</h1>
-                <form method="get" action="/brief">
-                    <div class="row">
-                        <label>"基金代码/名称"
+                <div class="page-header">
+                    <h1>"选基综合简报"</h1>
+                    <p class="muted">"一页汇总分析指标、行业配置与重仓股。"</p>
+                </div>
+                <form class="query-form" method="get" action="/brief">
+                    <div class="form-grid">
+                        <label class="field field-wide">"基金代码/名称"
                             <input name="code" type="text" placeholder="000001" value=code />
                         </label>
-                        <label>"日历天"
+                        <label class="field">"日历天"
                             <input name="days" type="number" min="7" value=days.to_string() />
                         </label>
-                        <label>"period（可选）"
+                        <label class="field">"period（可选）"
                             <input name="period" type="text" placeholder="1y / 3m" value=period />
                         </label>
-                        <label>"行业前 N"
+                        <label class="field">"行业前 N"
                             <input name="industry_top" type="number" min="1" value=industry_top.to_string() />
                         </label>
-                        <label>"重仓前 N"
+                        <label class="field">"重仓前 N"
                             <input name="holdings_top" type="number" min="1" max="50" value=holdings_top.to_string() />
                         </label>
-                        <button type="submit">"生成简报"</button>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">"生成简报"</button>
                     </div>
                 </form>
             </section>
@@ -455,6 +496,24 @@ mod tests {
         let html = view! { <AnalysisMetrics analysis=sample() /> }.to_html();
         assert!(html.contains("000001"));
         assert!(html.contains("总收益率"));
+    }
+
+    #[test]
+    fn analyze_page_renders_submit_button() {
+        let html = view! {
+            <AnalyzePage
+                code=String::new()
+                days=90
+                period=String::new()
+                analysis=None
+                error=None
+            />
+        }
+        .to_html();
+        assert!(html.contains("<button"), "missing button: {html}");
+        assert!(html.contains("type=\"submit\""), "missing submit: {html}");
+        assert!(html.contains("开始分析"), "missing button label: {html}");
+        assert!(html.contains("form-grid"), "missing form-grid: {html}");
     }
 
     #[test]
