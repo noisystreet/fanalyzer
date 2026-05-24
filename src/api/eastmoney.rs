@@ -1,4 +1,5 @@
 pub use crate::api::eastmoney_error::EastMoneyError;
+use crate::api::f10_jbgk;
 use crate::api::fund_holdings::{fetch_fund_stock_holdings_jjcc, FundStockHoldingsReport};
 use crate::api::fund_industry::{fetch_fund_industry_hypz, FundIndustryReport};
 use crate::api::fund_ranking::FundRankingPage;
@@ -616,7 +617,7 @@ impl EastMoneyClient {
             .await?;
 
         // 解析详细基金信息
-        let detail_info = Self::parse_fund_detail(&detail_resp);
+        let detail_info = f10_jbgk::parse_fund_detail(&detail_resp);
 
         Ok(FundProfile {
             code: fund_code.to_string(),
@@ -636,66 +637,6 @@ impl EastMoneyClient {
             investment_strategy: detail_info.investment_strategy,
             benchmark: detail_info.benchmark,
         })
-    }
-
-    /// 关键字后紧随的首个 `<td>...</td>` 纯文本。
-    fn extract_td_after_keyword(html: &str, anchor: &str) -> Option<String> {
-        let idx = html.find(anchor)?;
-        let tail = &html[idx..];
-        let open = tail.find("<td>")?;
-        let inner = &tail[open + 4..];
-        let close = inner.find("</td>")?;
-        Some(Self::clean_html(&inner[..close]))
-    }
-
-    /// 关键字后紧随的首个 `<td class="tditem">...</td>` 纯文本。
-    fn extract_tditem_after_keyword(html: &str, anchor: &str) -> Option<String> {
-        const TDITEM: &str = "<td class=\"tditem\">";
-        let idx = html.find(anchor)?;
-        let tail = &html[idx..];
-        let open = tail.find(TDITEM)?;
-        let inner = &tail[open + TDITEM.len()..];
-        let close = inner.find("</td>")?;
-        Some(Self::clean_html(&inner[..close]))
-    }
-
-    fn parse_fund_detail(html: &str) -> FundDetailInfo {
-        FundDetailInfo {
-            full_name: Self::extract_td_after_keyword(html, "基金全称"),
-            fund_type: Self::extract_td_after_keyword(html, "基金类型").unwrap_or_default(),
-            establishment_date: Self::extract_td_after_keyword(html, "成立日期")
-                .unwrap_or_default(),
-            asset_size: Self::extract_td_after_keyword(html, "资产规模").unwrap_or_default(),
-            company: Self::extract_td_after_keyword(html, "基金管理人").unwrap_or_default(),
-            investment_target: Self::extract_tditem_after_keyword(html, "投资目标")
-                .unwrap_or_default(),
-            investment_scope: Self::extract_tditem_after_keyword(html, "投资范围")
-                .unwrap_or_default(),
-            investment_strategy: Self::extract_tditem_after_keyword(html, "投资策略")
-                .unwrap_or_default(),
-            benchmark: Self::extract_td_after_keyword(html, "业绩比较基准").unwrap_or_default(),
-        }
-    }
-
-    fn clean_html(html: &str) -> String {
-        let mut result = html.to_string();
-        // 移除HTML标签
-        while let Some(start) = result.find('<') {
-            if let Some(end) = result[start..].find('>') {
-                result.replace_range(start..start + end + 1, "");
-            } else {
-                break;
-            }
-        }
-        // 解码HTML实体
-        result = result
-            .replace("&nbsp;", " ")
-            .replace("&amp;", "&")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&quot;", "\"");
-        // 移除多余空白
-        result.split_whitespace().collect::<Vec<_>>().join(" ")
     }
 
     fn extract_js_string_value(js_content: &str, var_name: &str) -> Option<String> {
@@ -733,19 +674,6 @@ pub struct FundFeeInfo {
     pub custody_fee: f64,
     pub purchase_fee: f64,
     pub redemption_fee: f64,
-}
-
-#[derive(Debug, Clone, Default)]
-struct FundDetailInfo {
-    pub full_name: Option<String>,
-    pub fund_type: String,
-    pub establishment_date: String,
-    pub asset_size: String,
-    pub company: String,
-    pub investment_target: String,
-    pub investment_scope: String,
-    pub investment_strategy: String,
-    pub benchmark: String,
 }
 
 #[derive(Debug, Clone)]

@@ -2,6 +2,7 @@ pub mod eastmoney;
 pub mod eastmoney_error;
 pub mod eastmoney_ranking;
 pub mod f10_apidata;
+pub mod f10_jbgk;
 pub mod fund_holdings;
 pub mod fund_industry;
 pub mod fund_ranking;
