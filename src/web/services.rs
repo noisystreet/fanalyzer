@@ -1,8 +1,10 @@
 //! Web 用例：复用 application / domain 层。
 
 use super::state::AppState;
-use crate::application::{analyze_fund, gather_brief, load_fund_overview};
-use crate::domain::{parse_sort_key, resolve_analysis_days, sort_analyses, AnalysisSortKey};
+use crate::application::{
+    analyze_fund, gather_brief, gather_compare_analyses, load_fund_overview, sort_compare_analyses,
+};
+use crate::domain::resolve_analysis_days;
 use crate::models::{FundAnalysis, FundBrief, FundOverview};
 use chrono::Local;
 
@@ -54,20 +56,8 @@ pub async fn compare_funds(
     let today = Local::now().date_naive();
     let window = resolve_analysis_days(period, days, today)?;
     let ctx = state.command_context();
-    let mut analyses = Vec::new();
-    for code in codes {
-        match analyze_fund(&ctx.session, code.trim(), window, false).await {
-            Ok(Some(a)) => analyses.push(a),
-            Ok(None) => {}
-            Err(e) => tracing::warn!(code = %code, error = %e, "compare skip"),
-        }
-    }
-    if let Some(raw) = sort.filter(|s| !s.is_empty()) {
-        let key = parse_sort_key(raw)?;
-        sort_analyses(&mut analyses, key, key.default_desc());
-    } else {
-        sort_analyses(&mut analyses, AnalysisSortKey::Code, false);
-    }
+    let mut analyses = gather_compare_analyses(&ctx.session, codes, window, false).await;
+    sort_compare_analyses(&mut analyses, sort)?;
     Ok(analyses)
 }
 

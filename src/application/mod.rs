@@ -12,7 +12,7 @@ mod screen;
 
 pub use analyze::{run_analyze, AnalyzeRequest};
 pub use brief::{gather_brief, run_brief, BriefRequest};
-pub use compare::{run_compare, CompareRequest};
+pub use compare::{gather_compare_analyses, run_compare, sort_compare_analyses, CompareRequest};
 pub use context::{require_online, CommandContext, FundRepository, Session};
 pub use export::{run_export, ExportRequest};
 pub use queries::{

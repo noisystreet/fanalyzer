@@ -5,7 +5,7 @@ mod dispatch_query;
 mod dispatch_query_info;
 mod dispatch_workflow;
 
-use crate::api::eastmoney::{EastMoneyClient, EastMoneyClientOptions, EastMoneyError};
+use crate::api::eastmoney::{into_anyhow, EastMoneyClient, EastMoneyClientOptions};
 use crate::cache::FundCache;
 use crate::config::AppConfig;
 use crate::nav_cache::NavCache;
@@ -13,10 +13,6 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-
-pub fn map_client_err(e: EastMoneyError) -> anyhow::Error {
-    anyhow::Error::msg(e.to_string())
-}
 
 #[derive(Parser, Debug)]
 #[command(
@@ -238,7 +234,7 @@ pub async fn run(mut cli: Cli, config: AppConfig) -> anyhow::Result<()> {
         user_agent: config.api.user_agent.clone(),
         proxy: config.api.proxy.clone(),
     };
-    let client = EastMoneyClient::with_options(opts).map_err(map_client_err)?;
+    let client = EastMoneyClient::with_options(opts).map_err(into_anyhow)?;
     let cache_root = config.cache_root();
     let name_cache = Arc::new(Mutex::new(FundCache::with_root(cache_root.clone())));
     let nav_store = NavCache::with_root(cache_root);

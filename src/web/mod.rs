@@ -5,9 +5,8 @@ mod routes;
 mod services;
 mod state;
 
-use crate::api::eastmoney::{EastMoneyClient, EastMoneyClientOptions};
+use crate::api::eastmoney::{into_anyhow, EastMoneyClient, EastMoneyClientOptions};
 use crate::cache::FundCache;
-use crate::cli::map_client_err;
 use crate::config::AppConfig;
 use crate::nav_cache::NavCache;
 use state::AppState;
@@ -29,7 +28,7 @@ pub async fn run(
         user_agent: config.api.user_agent.clone(),
         proxy: config.api.proxy.clone(),
     };
-    let client = EastMoneyClient::with_options(opts).map_err(map_client_err)?;
+    let client = EastMoneyClient::with_options(opts).map_err(into_anyhow)?;
     let cache_root = config.cache_root();
     let name_cache = Arc::new(Mutex::new(FundCache::with_root(cache_root.clone())));
     let nav_store = NavCache::with_root(cache_root);

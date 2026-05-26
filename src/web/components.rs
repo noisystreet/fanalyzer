@@ -453,7 +453,7 @@ pub fn BriefPage(
                         </p>
                     </section>
                     {b.analysis.clone().map(|a| view! { <AnalysisMetrics analysis=a /> })}
-                    {(!b.analysis.is_some()).then(|| view! {
+                    {b.analysis.is_none().then(|| view! {
                         <section class="card"><p class="muted">"（净值分析数据不足，跳过风险收益段）"</p></section>
                     })}
                     <IndustryTable report=ind />

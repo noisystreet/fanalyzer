@@ -13,3 +13,19 @@ pub enum EastMoneyError {
     #[error("HTTP client configuration failed: {0}")]
     ClientBuildFailed(String),
 }
+
+/// 应用层 / Web 入口将 `EastMoneyError` 转为 `anyhow::Error`。
+pub fn into_anyhow(e: EastMoneyError) -> anyhow::Error {
+    anyhow::Error::msg(e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn into_anyhow_preserves_message() {
+        let err = into_anyhow(EastMoneyError::ParseFailed("bad json".into()));
+        assert!(err.to_string().contains("bad json"));
+    }
+}

@@ -1,4 +1,4 @@
-pub use crate::api::eastmoney_error::EastMoneyError;
+pub use crate::api::eastmoney_error::{into_anyhow, EastMoneyError};
 use crate::api::f10_jbgk;
 use crate::api::fund_holdings::{fetch_fund_stock_holdings_jjcc, FundStockHoldingsReport};
 use crate::api::fund_industry::{fetch_fund_industry_hypz, FundIndustryReport};
