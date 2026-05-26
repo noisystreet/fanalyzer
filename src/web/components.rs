@@ -25,7 +25,10 @@ pub fn Layout(title: String, children: Children) -> impl IntoView {
                     </nav>
                 </header>
                 <main>{children()}</main>
-                <footer>"数据仅供研究参考，不构成投资建议。"</footer>
+                <footer class="site-footer">
+                    <p>"数据来自第三方公开渠道，仅供个人研究参考，不构成投资建议。"</p>
+                    <p><a href="/disclaimer">"免责声明与数据使用说明"</a></p>
+                </footer>
             </body>
         </html>
     }
@@ -461,6 +464,22 @@ pub fn BriefPage(
     }
 }
 
+#[component]
+pub fn DisclaimerPage() -> impl IntoView {
+    let body = include_str!("../../docs/DISCLAIMER.md");
+    view! {
+        <Layout title="免责声明".into()>
+            <section class="card">
+                <div class="page-header">
+                    <h1>"免责声明与数据使用说明"</h1>
+                    <p class="muted">"使用本软件前请仔细阅读以下条款。"</p>
+                </div>
+                <article class="legal-body">{body}</article>
+            </section>
+        </Layout>
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -514,6 +533,14 @@ mod tests {
         assert!(html.contains("type=\"submit\""), "missing submit: {html}");
         assert!(html.contains("开始分析"), "missing button label: {html}");
         assert!(html.contains("form-grid"), "missing form-grid: {html}");
+    }
+
+    #[test]
+    fn disclaimer_page_renders_notice() {
+        let html = view! { <DisclaimerPage /> }.to_html();
+        assert!(html.contains("非投资建议"));
+        assert!(html.contains("东方财富"));
+        assert!(html.contains("免责声明与数据使用说明"));
     }
 
     #[test]

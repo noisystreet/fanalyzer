@@ -71,7 +71,7 @@ pub fn write_brief_markdown(b: &FundBrief, path: &Path) -> anyhow::Result<()> {
     md.push_str("\n## 重仓股\n\n");
     append_holdings_md(&mut md, &b.holdings, b.holdings_top);
 
-    md.push_str("\n---\n\n_数据来源：天天基金；仅供研究参考，不构成投资建议。_\n");
+    md.push_str("\n---\n\n_数据来源：东方财富 / 天天基金公开渠道；仅供个人研究参考，不构成投资建议。完整条款见项目 `docs/DISCLAIMER.md`。_\n");
     fs::write(path, md)?;
     Ok(())
 }

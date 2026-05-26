@@ -2,6 +2,8 @@
 
 基于 Rust 的基金数据分析工具，面向个人投资者，提供基金数据获取、净值分析、收益计算与可视化功能。
 
+> **免责声明**：本工具数据来自第三方公开渠道，输出仅供个人研究参考，**不构成投资建议**。使用前请阅读 [docs/DISCLAIMER.md](docs/DISCLAIMER.md)。
+
 ## 功能
 
 - 基金数据获取（净值、排行、行业配置、重仓股等）
@@ -14,6 +16,7 @@
 | 文档 | 说明 |
 |------|------|
 | [docs/MANUAL.md](docs/MANUAL.md) | **CLI 使用手册**（子命令、自选、离线、排行等） |
+| [docs/DISCLAIMER.md](docs/DISCLAIMER.md) | **免责声明与数据使用说明**（发布前必读） |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 架构总览 |
 | [docs/DATA_MODEL.md](docs/DATA_MODEL.md) | 数据模型 |
 | [AGENTS.md](AGENTS.md) | AI Agent 入口文档 |
@@ -202,7 +205,7 @@ cargo run --features web -- serve
 # 浏览器打开 http://127.0.0.1:3000
 ```
 
-页面：`/` 首页、`/analyze` 单基金分析、`/compare` 多基金对比、`/info` 基金概况、`/brief` 选基简报；与 CLI 共用 application 层与本地缓存。
+页面：`/` 首页、`/analyze` 单基金分析、`/compare` 多基金对比、`/info` 基金概况、`/brief` 选基简报、`/disclaimer` 免责声明；与 CLI 共用 application 层与本地缓存。
 
 ```bash
 cargo run --features web -- serve --host 0.0.0.0 --port 8080
@@ -215,6 +218,15 @@ cargo run --features web -- serve --host 0.0.0.0 --port 8080
 ```bash
 cp .env.example .env
 ```
+
+## 免责声明与数据合规
+
+完整条款见 **[docs/DISCLAIMER.md](docs/DISCLAIMER.md)**，核心要点：
+
+- 数据主要来自东方财富 / 天天基金等公开渠道；**与官方无关联、无授权**
+- 输出仅供**个人非商业研究**，**不构成**投资建议
+- 须遵守法律法规及第三方服务条款，**合理控制访问频率**
+- 数据与指标可能存在延迟、误差或解析失败，**请以基金官方公告为准**
 
 ## 许可证
 

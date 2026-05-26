@@ -1,6 +1,6 @@
 //! Axum 路由与 SSR 渲染。
 
-use super::components::{AnalyzePage, BriefPage, ComparePage, HomePage, InfoPage};
+use super::components::{AnalyzePage, BriefPage, ComparePage, DisclaimerPage, HomePage, InfoPage};
 use super::services;
 use super::state::AppState;
 use axum::{
@@ -170,6 +170,10 @@ async fn brief(State(state): State<AppState>, Query(q): Query<BriefParams>) -> H
     })
 }
 
+async fn disclaimer() -> Html<String> {
+    render(view! { <DisclaimerPage /> })
+}
+
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/", get(home))
@@ -177,5 +181,6 @@ pub fn router(state: AppState) -> Router {
         .route("/compare", get(compare))
         .route("/info", get(info))
         .route("/brief", get(brief))
+        .route("/disclaimer", get(disclaimer))
         .with_state(state)
 }

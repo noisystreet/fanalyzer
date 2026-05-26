@@ -403,6 +403,31 @@ footer {
   margin-top: auto;
 }
 
+.site-footer p {
+  margin: 0.35rem 0;
+}
+
+.site-footer a {
+  color: var(--muted);
+  text-decoration: underline;
+}
+
+.site-footer a:hover {
+  color: var(--accent);
+}
+
+.legal-body {
+  white-space: pre-wrap;
+  font-size: 0.88rem;
+  line-height: 1.65;
+  color: var(--text);
+  max-height: none;
+}
+
+.legal-body strong {
+  font-weight: 600;
+}
+
 @media (max-width: 640px) {
   main {
     padding: var(--space-md) 1rem var(--space-lg);
