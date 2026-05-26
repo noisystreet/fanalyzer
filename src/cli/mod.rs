@@ -19,7 +19,11 @@ pub fn map_client_err(e: EastMoneyError) -> anyhow::Error {
 }
 
 #[derive(Parser, Debug)]
-#[command(name = "analysis_fund", version, about = "Fund analysis tool")]
+#[command(
+    name = "fanalyzer",
+    version,
+    about = "Fanalyzer — fund analysis CLI & Web UI"
+)]
 pub struct Cli {
     /// 仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）
     #[arg(long, global = true)]
@@ -240,7 +244,7 @@ pub async fn run(mut cli: Cli, config: AppConfig) -> anyhow::Result<()> {
     let nav_store = NavCache::with_root(cache_root);
 
     let Some(cmd) = cli.command.take() else {
-        Cli::parse_from(["analysis_fund", "--help"]);
+        Cli::parse_from(["fanalyzer", "--help"]);
         return Ok(());
     };
 

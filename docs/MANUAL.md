@@ -1,4 +1,4 @@
-# analysis_fund 使用手册
+# Fanalyzer 使用手册
 
 面向终端用户的命令说明。
 
@@ -16,7 +16,7 @@ cargo run -- <子命令与参数>
 
 ```bash
 cargo build --release
-./target/release/analysis_fund <子命令与参数>
+./target/release/fanalyzer <子命令与参数>
 ```
 
 查看全局与子命令帮助：

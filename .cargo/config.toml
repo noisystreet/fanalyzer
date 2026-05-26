@@ -2,4 +2,4 @@
 target-dir = "target"
 
 [env]
-RUST_LOG = "analysis_fund=info"
+RUST_LOG = "fanalyzer=info"

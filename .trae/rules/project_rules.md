@@ -1,4 +1,4 @@
-# Project Rules for analysis_fund
+# Project Rules for Fanalyzer
 
 ## Always Apply
 

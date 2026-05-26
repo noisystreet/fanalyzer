@@ -1,12 +1,12 @@
 [package]
-name = "analysis_fund"
+name = "fanalyzer"
 version = "0.1.0"
 edition = "2021"
-description = "A Rust-based fund analysis tool for retrieving, analyzing and visualizing fund data"
+description = "Fanalyzer — fund analysis CLI and Web UI for personal research"
 license = "MIT"
-repository = "https://github.com/user/analysis_fund"
+repository = "https://github.com/noisystreet/fanalyzer"
 readme = "README.md"
-keywords = ["fund", "finance", "analysis"]
+keywords = ["fund", "finance", "analysis", "fanalyzer"]
 categories = ["finance"]
 
 [features]

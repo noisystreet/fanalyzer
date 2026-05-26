@@ -2,7 +2,7 @@
 
 ## Project Identity
 
-**analysis_fund** — Rust 基金分析 CLI 工具，面向个人投资者，提供基金数据获取、分析与报告生成。
+**Fanalyzer** — Rust 基金分析 CLI 工具，面向个人投资者，提供基金数据获取、分析与报告生成。
 
 ## Tech Stack
 

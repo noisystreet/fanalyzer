@@ -15,7 +15,7 @@ pub fn Layout(title: String, children: Children) -> impl IntoView {
             </head>
             <body>
                 <header>
-                    <a class="brand" href="/">"analysis_fund"</a>
+                    <a class="brand" href="/">"Fanalyzer"</a>
                     <nav>
                         <a href="/">"首页"</a>
                         <a href="/analyze">"分析"</a>
@@ -127,11 +127,11 @@ pub fn CompareTable(analyses: Vec<FundAnalysis>) -> impl IntoView {
 #[component]
 pub fn HomePage() -> impl IntoView {
     view! {
-        <Layout title="analysis_fund".into()>
+        <Layout title="Fanalyzer".into()>
             <section class="card">
                 <div class="page-header">
-                    <h1>"基金分析 Web"</h1>
-                    <p class="muted">"基于 Leptos SSR 的简易界面，复用 CLI 同一套分析引擎。"</p>
+                    <h1>"Fanalyzer"</h1>
+                    <p class="muted">"Fund analysis Web — 基于 Leptos SSR，与 CLI 共用同一套分析引擎。"</p>
                 </div>
                 <div class="feature-grid">
                     <a class="feature-card" href="/analyze">

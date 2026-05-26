@@ -2,7 +2,7 @@
 
 ## Project Identity
 
-- **Name**: analysis_fund
+- **Name**: Fanalyzer (`fanalyzer`)
 - **Description**: Rust 基金数据分析 CLI 工具
 - **Tech Stack**: Rust 2021 Edition, Tokio, Reqwest, Clap, Serde, tracing, anyhow/thiserror, chrono
 - **Directory**: See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for layout

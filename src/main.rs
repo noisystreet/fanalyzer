@@ -1,6 +1,6 @@
-use analysis_fund::cli::{run, Cli};
-use analysis_fund::config::AppConfig;
 use clap::Parser;
+use fanalyzer::cli::{run, Cli};
+use fanalyzer::config::AppConfig;
 
 fn init_tracing() {
     use tracing_subscriber::EnvFilter;

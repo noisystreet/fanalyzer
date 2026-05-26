@@ -29,7 +29,7 @@ impl NavCache {
     pub fn new() -> Self {
         let root = dirs::cache_dir()
             .unwrap_or_else(|| PathBuf::from(".cache"))
-            .join("analysis_fund")
+            .join("fanalyzer")
             .join("nav");
         Self { root }
     }

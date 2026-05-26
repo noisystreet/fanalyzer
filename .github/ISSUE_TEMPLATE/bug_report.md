@@ -21,4 +21,4 @@ labels: bug
 
 - OS:
 - Rust version:
-- analysis_fund version:
+- Fanalyzer version:

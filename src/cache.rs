@@ -19,7 +19,7 @@ impl FundCache {
     pub fn new() -> Self {
         let cache_dir = dirs::cache_dir()
             .unwrap_or_else(|| PathBuf::from(".cache"))
-            .join("analysis_fund");
+            .join("fanalyzer");
         Self::with_root(cache_dir)
     }
 

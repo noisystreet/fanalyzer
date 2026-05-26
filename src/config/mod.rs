@@ -24,7 +24,7 @@ fn default_timeout_secs() -> u64 {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct CacheConfig {
-    /// 缓存根目录（默认 `dirs::cache_dir()/analysis_fund`）
+    /// 缓存根目录（默认 `dirs::cache_dir()/fanalyzer`）
     #[serde(default)]
     pub root: Option<String>,
 }
@@ -80,7 +80,7 @@ impl AppConfig {
             .unwrap_or_else(|| {
                 dirs::cache_dir()
                     .unwrap_or_else(|| std::path::PathBuf::from(".cache"))
-                    .join("analysis_fund")
+                    .join("fanalyzer")
             })
     }
 

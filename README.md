@@ -1,6 +1,8 @@
-# analysis_fund
+# Fanalyzer
 
-基于 Rust 的基金数据分析工具，面向个人投资者，提供基金数据获取、净值分析、收益计算与可视化功能。
+Fund analysis CLI & Web UI — 个人基金研究与选基工具（Rust）。
+
+仓库：<https://github.com/noisystreet/fanalyzer>
 
 > **免责声明**：本工具数据来自第三方公开渠道，输出仅供个人研究参考，**不构成投资建议**。使用前请阅读 [docs/DISCLAIMER.md](docs/DISCLAIMER.md)。
 
@@ -25,6 +27,11 @@
 | [CHANGELOG.md](CHANGELOG.md) | 变更日志 |
 
 ## 快速开始
+
+```bash
+git clone https://github.com/noisystreet/fanalyzer.git
+cd fanalyzer
+```
 
 ```bash
 # 构建

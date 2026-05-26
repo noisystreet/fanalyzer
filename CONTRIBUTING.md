@@ -1,4 +1,4 @@
-# Contributing to analysis_fund
+# Contributing to Fanalyzer
 
 Thank you for your interest in contributing! Please follow the guidelines below.
 
