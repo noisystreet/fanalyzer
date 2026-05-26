@@ -1,5 +1,6 @@
 //! 组合分析 Web 组件。
 
+use super::super::chart_components::PortfolioCharts;
 use super::{num, pct, ErrorAlert, Layout};
 use crate::models::{CorrelationMatrix, OverlapPair, PortfolioInterpretation, PortfolioReport};
 use leptos::prelude::*;
@@ -217,6 +218,9 @@ pub fn PortfolioPage(
             })}
             {report.as_ref().map(|r| view! {
                 <PortfolioMetricsCard summary=r.summary.clone() />
+            })}
+            {report.as_ref().and_then(|r| r.series.clone()).map(|series| view! {
+                <PortfolioCharts series=series />
             })}
             {report.as_ref().map(|r| view! {
                 <PortfolioMembersTable members=r.summary.members.clone() />

@@ -5,7 +5,11 @@ mod portfolio_components;
 
 pub use portfolio_components::PortfolioPage;
 
-use crate::models::{FundAnalysis, FundBrief, FundOverview, IndustryAllocation, StockHoldings};
+use super::chart_components::AnalysisCharts;
+
+use crate::models::{
+    FundAnalysis, FundAnalysisReport, FundBrief, FundOverview, IndustryAllocation, StockHoldings,
+};
 use leptos::prelude::*;
 
 #[component]
@@ -182,7 +186,7 @@ pub fn AnalyzePage(
     code: String,
     days: u32,
     period: String,
-    analysis: Option<FundAnalysis>,
+    report: Option<FundAnalysisReport>,
     error: Option<String>,
 ) -> impl IntoView {
     view! {
@@ -210,7 +214,11 @@ pub fn AnalyzePage(
                 </form>
             </section>
             {error.map(|e| view! { <ErrorAlert message=e /> })}
-            {analysis.map(|a| view! { <AnalysisMetrics analysis=a /> })}
+            {report.as_ref().map(|r| view! { <AnalysisMetrics analysis=r.snapshot.clone() /> })}
+            {report.as_ref().and_then(|r| r.series.clone()).map(|series| {
+                let bench = report.as_ref().and_then(|r| r.benchmark_label.clone());
+                view! { <AnalysisCharts series=series benchmark_label=bench /> }
+            })}
         </Layout>
     }
 }
@@ -535,7 +543,7 @@ mod tests {
                 code=String::new()
                 days=90
                 period=String::new()
-                analysis=None
+                report=None
                 error=None
             />
         }

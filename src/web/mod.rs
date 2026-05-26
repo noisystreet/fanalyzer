@@ -1,5 +1,7 @@
 //! Leptos SSR Web 界面（可选 feature `web`）。
 
+mod chart_components;
+mod charts;
 mod components;
 mod routes;
 mod services;

@@ -63,6 +63,15 @@ pub enum Commands {
             help = "预设窗口：7d/1m/3m/6m/1y/ytd 或 rank 的 sc（1nzf/zzf 等）"
         )]
         period: Option<String>,
+        #[arg(short, long, help = "导出分析报告路径（JSON，含时间序列）")]
+        output: Option<PathBuf>,
+        #[arg(
+            short,
+            long,
+            default_value = "json",
+            help = "导出格式（目前支持 json）"
+        )]
+        format: String,
     },
     Compare {
         #[arg(short, long, help = "逗号分隔的基金代码或名称", value_delimiter = ',')]

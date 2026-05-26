@@ -479,6 +479,53 @@ footer {
   color: var(--accent);
 }
 
+.charts-card h2 {
+  margin-bottom: 0.35rem;
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.chart-panel {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem;
+  overflow-x: auto;
+}
+
+.chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.chart-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  fill: var(--text);
+}
+
+.chart-axis {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+
+.chart-line {
+  stroke: var(--accent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.chart-tick {
+  font-size: 0.68rem;
+  fill: var(--muted);
+}
+
 .legal-body {
   white-space: pre-wrap;
   font-size: 0.88rem;

@@ -204,6 +204,7 @@ mod tests {
             },
             overlaps: vec![],
             interpretation: None,
+            series: None,
         }
     }
 

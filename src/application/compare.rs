@@ -26,7 +26,7 @@ async fn try_push_analysis(
     out: &mut Vec<FundAnalysis>,
 ) {
     match fund_service::analyze_fund(session, identifier, days, offline).await {
-        Ok(Some(a)) => out.push(a),
+        Ok(Some(r)) => out.push(r.snapshot),
         Ok(None) => tracing::warn!(identifier = %identifier, "分析数据不足，跳过"),
         Err(e) => tracing::warn!(identifier = %identifier, error = %e, "跳过该标的"),
     }

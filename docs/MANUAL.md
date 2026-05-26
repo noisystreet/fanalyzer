@@ -99,6 +99,7 @@ cargo run -- fetch --watchlist --limit 50
 ```bash
 cargo run -- analyze --code 000001 --days 90
 cargo run -- analyze --code 000001 --period 1y
+cargo run -- analyze --code 000001 --period 1y --output ./analysis.json --format json
 cargo run -- analyze --code "华夏成长混合" --period 3m
 cargo run -- analyze --watchlist --days 60
 ```
@@ -109,12 +110,15 @@ cargo run -- analyze --watchlist --days 60
 | `--watchlist` | 对自选文件中每只基金各跑一次分析 |
 | `-d` / `--days` | 分析窗口（**日历天**），默认 `30`；可被 `--period` 覆盖 |
 | `--period` | 预设窗口：`7d`/`1m`/`3m`/`6m`/`1y`/`ytd`，或 rank 的 `sc`（如 `1nzf`、`zzf`） |
+| `-o` / `--output` | 导出 JSON 报告（含标量指标与时间序列） |
+| `-f` / `--format` | 导出格式，目前支持 `json` |
 
 **分析口径（重要）：**
 
 - 收益、回撤、波动等优先使用 **累计净值 `acc_nav`**（若有效），以更好反映分红再投资；导出 CSV 仍保留 `nav` / `acc_nav` 两列。
 - **Alpha / Beta** 在线时按 F10 **业绩比较基准** 文案推断指数（如沪深300、中证500）；无法识别时按基金类型兜底，再不行用沪深300。
 - 新增 **索提诺比率**、**卡玛比率**（收益/最大回撤），与夏普一并输出。
+- **时间序列（v0.3）**：默认 60 交易日滚动窗口，输出归一化净值、回撤、滚动夏普/波动率/Beta（JSON 导出与 Web 图表共用）。
 
 `--offline` 时从本地净值缓存读取；无契约基准与经理/费率，Alpha/Beta 为 0。
 
@@ -184,6 +188,7 @@ weight = 0.5
 **输出说明：**
 
 - **组合指标**：按成分日收益加权合成组合曲线，再算总收益、年化、波动、回撤、夏普
+- **时间序列**：组合归一化净值、回撤、滚动夏普/波动率（JSON 与 Web 图表）
 - **成分贡献**：静态近似 `weight × 单基总收益`
 - **相关矩阵**：成分日收益 Pearson 相关（日期取交集）
 - **重仓重叠**：对共同持仓取 `min(占净值%)` 之和；`--offline` 时跳过
@@ -414,9 +419,9 @@ cargo run --features web -- serve --host 0.0.0.0 --port 8080
 浏览器访问：
 
 - `/` — 首页
-- `/analyze?code=000001&days=90` — 单基金分析
+- `/analyze?code=000001&days=90` — 单基金分析（含净值/回撤/滚动指标 SVG 图表）
 - `/compare?codes=000001,110011&days=90&sort=sharpe` — 多基金对比
-- `/portfolio?run=1&days=90` — 组合分析（在页面编辑自选组合与权重）
+- `/portfolio?run=1&days=90` — 组合分析（含组合净值与滚动指标图表）
 - `/info?code=000001` — 基金概况（F10）
 - `/brief?code=000001&days=90&industry_top=5&holdings_top=10` — 选基综合简报
 

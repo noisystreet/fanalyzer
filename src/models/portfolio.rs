@@ -53,6 +53,9 @@ pub struct PortfolioReport {
     /// 规则引擎生成的解读（可选，由 application 填充）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub interpretation: Option<PortfolioInterpretation>,
+    /// 组合净值与滚动指标时间序列
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub series: Option<crate::models::PortfolioTimeSeries>,
 }
 
 /// 解读条目严重程度。

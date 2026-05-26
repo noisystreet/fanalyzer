@@ -1,6 +1,6 @@
-pub mod reports;
-
 pub mod portfolio;
+pub mod reports;
+pub mod series;
 
 pub use portfolio::{
     CorrelationMatrix, InsightLevel, OverlapPair, PortfolioInsight, PortfolioInterpretation,
@@ -10,6 +10,7 @@ pub use reports::{
     FundBrief, FundOverview, FundRankRow, IndustryAllocation, IndustryRow, StockHoldingRow,
     StockHoldings,
 };
+pub use series::{FundAnalysisReport, FundAnalysisSeries, PortfolioTimeSeries, SeriesPoint};
 
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};

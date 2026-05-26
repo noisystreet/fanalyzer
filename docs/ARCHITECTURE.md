@@ -146,7 +146,14 @@ Web 组合页在表单中编辑自选组合（每行「代码 权重」）；首
 3. **配置化筛选** — `screen` 规则 TOML 模板
 4. **组合分析** — 相关性、重仓重叠（v0.2 ✅ portfolio 子命令）
 5. **Web 功能追平** — screen、rank、导出等页面
-6. **滚动指标与图表** — 滚动 Sharpe/Beta、净值/回撤曲线（v0.3）
+6. **滚动指标与图表** — 滚动 Sharpe/Beta、净值/回撤曲线（v0.3 ✅ analyze / portfolio Web + JSON）
+
+实现要点：
+
+- `domain/rolling.rs`：归一化净值、回撤、60 日滚动夏普/波动/Beta
+- `models/series.rs`：`FundAnalysisReport`、`PortfolioTimeSeries`
+- Web：`web/charts.rs` 内联 SVG；`chart_components.rs` 挂载于 `/analyze`、`/portfolio`
+- CLI：`analyze --output report.json` 导出完整时间序列
 
 ## Open Decisions
 

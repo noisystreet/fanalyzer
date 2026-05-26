@@ -40,6 +40,8 @@ async fn dispatch_fund(ctx: &CommandContext<'_>, cmd: Commands) -> anyhow::Resul
             pick_watchlist,
             days,
             period,
+            output,
+            format,
         } => {
             run_analyze(
                 ctx,
@@ -48,6 +50,8 @@ async fn dispatch_fund(ctx: &CommandContext<'_>, cmd: Commands) -> anyhow::Resul
                     pick_watchlist,
                     days,
                     period,
+                    output,
+                    format,
                 },
             )
             .await

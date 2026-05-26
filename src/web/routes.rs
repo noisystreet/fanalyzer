@@ -71,11 +71,11 @@ async fn analyze(State(state): State<AppState>, Query(q): Query<AnalyzeParams>) 
     let period = q.period.unwrap_or_default();
     let period_opt = (!period.is_empty()).then_some(period.as_str());
 
-    let (analysis, error) = if code.trim().is_empty() {
+    let (report, error) = if code.trim().is_empty() {
         (None, None)
     } else {
         match services::analyze_one(&state, &code, days, period_opt).await {
-            Ok(Some(a)) => (Some(a), None),
+            Ok(Some(r)) => (Some(r), None),
             Ok(None) => (None, Some("净值数据不足，无法完成分析".into())),
             Err(e) => (None, Some(e.to_string())),
         }
@@ -86,7 +86,7 @@ async fn analyze(State(state): State<AppState>, Query(q): Query<AnalyzeParams>) 
             code=code
             days=days
             period=period
-            analysis=analysis
+            report=report
             error=error
         />
     })

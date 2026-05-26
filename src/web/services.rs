@@ -6,7 +6,7 @@ use crate::application::{
     load_fund_overview, sort_compare_analyses,
 };
 use crate::domain::resolve_analysis_days;
-use crate::models::{FundAnalysis, FundBrief, FundOverview, PortfolioReport};
+use crate::models::{FundAnalysis, FundAnalysisReport, FundBrief, FundOverview, PortfolioReport};
 use crate::portfolio::PortfolioDefinition;
 use chrono::Local;
 
@@ -15,7 +15,7 @@ pub async fn analyze_one(
     code: &str,
     days: u32,
     period: Option<&str>,
-) -> anyhow::Result<Option<FundAnalysis>> {
+) -> anyhow::Result<Option<FundAnalysisReport>> {
     let today = Local::now().date_naive();
     let window = resolve_analysis_days(period, days, today)?;
     let ctx = state.command_context();

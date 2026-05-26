@@ -2,9 +2,10 @@
 
 use super::context::Session;
 use crate::domain::{
-    resolve_benchmark, BenchmarkData, FundAnalyzer, FundMetaInfo, IndexBenchmark, HS300,
+    build_fund_analysis_series, resolve_benchmark, BenchmarkData, FundAnalyzer, FundMetaInfo,
+    IndexBenchmark, DEFAULT_ROLLING_WINDOW, HS300,
 };
-use crate::models::FundAnalysis;
+use crate::models::FundAnalysisReport;
 use crate::nav_cache::filter_covering_calendar_days;
 use anyhow::Context;
 
@@ -194,7 +195,7 @@ pub async fn analyze_fund(
     identifier: &str,
     days: u32,
     offline: bool,
-) -> anyhow::Result<Option<FundAnalysis>> {
+) -> anyhow::Result<Option<FundAnalysisReport>> {
     let (resolved_code, name) = resolve_fund_identifier(session, identifier, offline).await?;
     let benchmark = if offline {
         None
@@ -210,11 +211,16 @@ pub async fn analyze_fund(
     if navs.is_empty() {
         return Ok(None);
     }
-    Ok(FundAnalyzer::analyze(
-        &navs,
-        days,
-        &name,
-        benchmark.as_ref(),
-        meta.as_ref(),
-    ))
+    let snapshot =
+        match FundAnalyzer::analyze(&navs, days, &name, benchmark.as_ref(), meta.as_ref()) {
+            Some(a) => a,
+            None => return Ok(None),
+        };
+    let series = build_fund_analysis_series(&navs, benchmark.as_ref(), DEFAULT_ROLLING_WINDOW);
+    let benchmark_label = benchmark.map(|b| b.label);
+    Ok(Some(FundAnalysisReport {
+        snapshot,
+        series,
+        benchmark_label,
+    }))
 }

@@ -55,7 +55,9 @@ pub async fn gather_brief(
     let (code, name) = resolve_fund_identifier(session, identifier, false).await?;
     tracing::info!(code = %code, days = days, "Building fund brief");
 
-    let analysis = analyze_fund(session, &code, days, false).await?;
+    let analysis = analyze_fund(session, &code, days, false)
+        .await?
+        .map(|r| r.snapshot);
 
     let profile = session.client.fetch_fund_profile(&code).await.ok();
     let fund_type = profile

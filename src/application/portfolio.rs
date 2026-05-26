@@ -4,8 +4,9 @@ use super::context::CommandContext;
 use super::fund_service::{analyze_fund, fetch_nav_series, resolve_fund_identifier};
 use super::queries::load_fund_holdings;
 use crate::domain::{
-    align_daily_returns, correlation_matrix, daily_returns, metrics_from_daily_returns,
-    weighted_holdings_overlap, weighted_portfolio_returns,
+    align_daily_returns, build_portfolio_series, correlation_matrix, daily_returns,
+    metrics_from_daily_returns, weighted_holdings_overlap, weighted_portfolio_returns,
+    DEFAULT_ROLLING_WINDOW,
 };
 use crate::models::{
     CorrelationMatrix, OverlapPair, PortfolioMember, PortfolioReport, PortfolioSummary,
@@ -99,7 +100,9 @@ async fn fetch_return_series(
             anyhow::bail!("`{}` 净值数据为空，无法完成组合分析", m.code);
         }
         let returns = daily_returns(&navs);
-        let analysis = analyze_fund(session, &m.code, days, offline).await?;
+        let analysis = analyze_fund(session, &m.code, days, offline)
+            .await?
+            .map(|r| r.snapshot);
         let label = format!("{} {}", m.code, m.name);
         out.push(MemberReturns {
             label,
@@ -146,12 +149,14 @@ async fn build_report(
         &correlation,
         &overlaps,
     ));
+    let series = build_portfolio_series(&dates, &portfolio_daily, DEFAULT_ROLLING_WINDOW);
 
     Ok(PortfolioReport {
         summary,
         correlation,
         overlaps,
         interpretation,
+        series,
     })
 }
 
