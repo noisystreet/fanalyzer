@@ -1,5 +1,11 @@
 pub mod reports;
 
+pub mod portfolio;
+
+pub use portfolio::{
+    CorrelationMatrix, InsightLevel, OverlapPair, PortfolioInsight, PortfolioInterpretation,
+    PortfolioMember, PortfolioReport, PortfolioSummary,
+};
 pub use reports::{
     FundBrief, FundOverview, FundRankRow, IndustryAllocation, IndustryRow, StockHoldingRow,
     StockHoldings,

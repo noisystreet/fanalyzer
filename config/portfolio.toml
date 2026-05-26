@@ -1,0 +1,12 @@
+# 示例组合：两只基金等权
+# 用法: cargo run -- portfolio --portfolio-file config/portfolio.toml
+
+name = "demo-equal-weight"
+
+[[holdings]]
+code = "000001"
+weight = 0.5
+
+[[holdings]]
+code = "110011"
+weight = 0.5

@@ -7,6 +7,7 @@ pub mod context;
 mod export;
 mod fund_service;
 mod mappers;
+mod portfolio;
 mod queries;
 mod screen;
 
@@ -15,9 +16,10 @@ pub use brief::{gather_brief, run_brief, BriefRequest};
 pub use compare::{gather_compare_analyses, run_compare, sort_compare_analyses, CompareRequest};
 pub use context::{require_online, CommandContext, FundRepository, Session};
 pub use export::{run_export, ExportRequest};
+pub use portfolio::{gather_portfolio_report, run_portfolio, PortfolioRequest};
 pub use queries::{
-    load_fund_overview, run_fetch, run_holdings, run_info, run_rank, run_sectors, FetchRequest,
-    HoldingsRequest, InfoRequest, RankRequest, SectorsRequest,
+    load_fund_holdings, load_fund_overview, run_fetch, run_holdings, run_info, run_rank,
+    run_sectors, FetchRequest, HoldingsRequest, InfoRequest, RankRequest, SectorsRequest,
 };
 pub use screen::{run_screen, ScreenRequest};
 

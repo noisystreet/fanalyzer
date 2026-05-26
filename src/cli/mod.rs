@@ -2,6 +2,7 @@
 
 mod dispatch;
 mod dispatch_query;
+mod dispatch_query_handlers;
 mod dispatch_query_info;
 mod dispatch_workflow;
 
@@ -85,6 +86,40 @@ pub enum Commands {
         #[arg(short, long, help = "导出对比结果路径")]
         output: Option<PathBuf>,
         #[arg(short, long, default_value = "csv", help = "导出格式 csv 或 json")]
+        format: String,
+    },
+    /// 组合分析：加权收益、相关矩阵、重仓重叠（权重见 config/portfolio.toml）
+    Portfolio {
+        #[arg(
+            long = "portfolio-file",
+            default_value = "config/portfolio.toml",
+            value_name = "PATH",
+            help = "组合权重 TOML 路径"
+        )]
+        portfolio_file: PathBuf,
+        #[arg(
+            short,
+            long,
+            default_value_t = 90,
+            help = "分析窗口（日历天）；可被 --period 覆盖"
+        )]
+        days: u32,
+        #[arg(long, help = "预设窗口：7d/1m/3m/6m/1y/ytd 或 rank 的 sc")]
+        period: Option<String>,
+        #[arg(
+            long,
+            default_value_t = 10,
+            help = "重仓重叠分析取前 N 大重仓（1～50，需联网）"
+        )]
+        holdings_top: u32,
+        #[arg(short, long, help = "导出 JSON 报告路径")]
+        output: Option<PathBuf>,
+        #[arg(
+            short,
+            long,
+            default_value = "json",
+            help = "导出格式（目前支持 json）"
+        )]
         format: String,
     },
     Export {
@@ -225,6 +260,13 @@ pub enum Commands {
         host: String,
         #[arg(short, long, default_value_t = 3000, help = "监听端口")]
         port: u16,
+        #[arg(
+            long = "portfolio-file",
+            default_value = "config/portfolio.toml",
+            value_name = "PATH",
+            help = "Web 组合分析默认权重文件"
+        )]
+        portfolio_file: PathBuf,
     },
 }
 
@@ -246,8 +288,12 @@ pub async fn run(mut cli: Cli, config: AppConfig) -> anyhow::Result<()> {
 
     match cmd {
         #[cfg(feature = "web")]
-        Commands::Serve { host, port } => {
-            return crate::web::run(&host, port, config, cli.watchlist_file).await;
+        Commands::Serve {
+            host,
+            port,
+            portfolio_file,
+        } => {
+            return crate::web::run(&host, port, config, cli.watchlist_file, portfolio_file).await;
         }
         #[cfg(not(feature = "web"))]
         Commands::Serve { .. } => {

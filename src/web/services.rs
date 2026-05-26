@@ -2,10 +2,12 @@
 
 use super::state::AppState;
 use crate::application::{
-    analyze_fund, gather_brief, gather_compare_analyses, load_fund_overview, sort_compare_analyses,
+    analyze_fund, gather_brief, gather_compare_analyses, gather_portfolio_report,
+    load_fund_overview, sort_compare_analyses,
 };
 use crate::domain::resolve_analysis_days;
-use crate::models::{FundAnalysis, FundBrief, FundOverview};
+use crate::models::{FundAnalysis, FundBrief, FundOverview, PortfolioReport};
+use crate::portfolio::PortfolioDefinition;
 use chrono::Local;
 
 pub async fn analyze_one(
@@ -59,6 +61,17 @@ pub async fn compare_funds(
     let mut analyses = gather_compare_analyses(&ctx.session, codes, window, false).await;
     sort_compare_analyses(&mut analyses, sort)?;
     Ok(analyses)
+}
+
+pub async fn analyze_portfolio(
+    state: &AppState,
+    def: &PortfolioDefinition,
+    days: u32,
+    period: Option<&str>,
+    holdings_top: u32,
+) -> anyhow::Result<PortfolioReport> {
+    let ctx = state.command_context();
+    gather_portfolio_report(&ctx, def, days, period, holdings_top).await
 }
 
 pub fn parse_code_list(raw: &str) -> Vec<String> {

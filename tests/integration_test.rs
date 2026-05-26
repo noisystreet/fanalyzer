@@ -63,6 +63,15 @@ fn test_cli_screen_help() {
         .success();
 }
 
+#[test]
+fn test_cli_portfolio_help() {
+    Command::cargo_bin("fanalyzer")
+        .unwrap()
+        .args(["portfolio", "--help"])
+        .assert()
+        .success();
+}
+
 #[cfg(feature = "web")]
 #[test]
 fn test_cli_serve_help() {

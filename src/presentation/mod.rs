@@ -3,6 +3,7 @@
 mod brief;
 mod comparison;
 mod fetch;
+mod portfolio;
 mod query_output;
 mod screen_output;
 
@@ -10,6 +11,7 @@ use crate::models::FundAnalysis;
 pub use brief::{print_brief_separator, render_brief_terminal, write_brief_markdown};
 pub use comparison::{export_comparison_csv, export_comparison_json, render_comparison};
 pub use fetch::print_fetch_result;
+pub use portfolio::{export_portfolio_json, print_portfolio_report, render_portfolio};
 pub use query_output::{print_fund_overview, print_holdings, print_industry, print_ranking_table};
 pub use screen_output::{
     print_deep_limit_hint, print_filter_hint, print_insufficient_candidates, print_rank_prefilter,

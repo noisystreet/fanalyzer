@@ -6,6 +6,7 @@ pub mod config;
 pub mod domain;
 pub mod models;
 pub mod nav_cache;
+pub mod portfolio;
 pub mod presentation;
 /// 兼容层：新代码请使用 `domain` / `application`。
 pub mod services;

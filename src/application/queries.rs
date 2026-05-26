@@ -85,6 +85,22 @@ pub async fn load_fund_overview(
     Ok(map_profile(&profile))
 }
 
+pub async fn load_fund_holdings(
+    session: &super::context::Session<'_>,
+    code: &str,
+    top: u32,
+) -> anyhow::Result<crate::models::StockHoldings> {
+    let (resolved_code, _name) = resolve_fund_identifier(session, code, false).await?;
+    let top = top.clamp(1, 50);
+    tracing::info!(code = %resolved_code, top = top, "Fetching stock holdings");
+    let report = session
+        .client
+        .fetch_fund_stock_holdings(&resolved_code, top)
+        .await
+        .map_err(|e| anyhow::anyhow!("重仓股接口失败：{e}"))?;
+    Ok(map_holdings(&report))
+}
+
 pub async fn run_info(ctx: &CommandContext<'_>, req: InfoRequest) -> anyhow::Result<()> {
     require_online(ctx.offline, "info")?;
     let ids = resolve_fund_ids(

@@ -56,7 +56,7 @@ funds = ["000001", "110011", "某基金简称"]
 
 | 参数 | 说明 |
 |------|------|
-| `--offline` | 仅使用本地已缓存的净值数据。**不可**与 `fetch`、`info`、`rank`、`brief`、`screen` 等需联网子命令共用；`analyze` / `compare` / `export` 在已有缓存时可用。 |
+| `--offline` | 仅使用本地已缓存的净值数据。**不可**与 `fetch`、`info`、`rank`、`brief`、`screen` 等需联网子命令共用；`analyze` / `compare` / `portfolio` / `export` 在已有缓存时可用。 |
 | `--watchlist-file <PATH>` | 自选文件路径，默认 `config/watchlist.toml`。 |
 
 ## 子命令总览
@@ -66,6 +66,7 @@ funds = ["000001", "110011", "某基金简称"]
 | `fetch` | 是 | 支持 | 拉取净值历史并打印 |
 | `analyze` | 否（`--offline` 时仅缓存） | 支持 | 收益、风险、经理与费率等分析 |
 | `compare` | 否（`--offline` 时仅缓存） | 支持 | 多基金对比 |
+| `portfolio` | 否（`--offline` 时仅缓存；重叠需联网） | 不适用 | 组合加权分析、相关矩阵、重仓重叠 |
 | `export` | 否（`--offline` 时仅缓存） | 支持（须 `--output-dir`） | 导出净值 CSV/JSON |
 | `info` | 是 | 支持 | 基金概况与招募说明书摘要类字段 |
 | `sectors` | 是 | 支持 | 季报「行业配置」（证监会行业分类），用于板块/行业集中度浏览 |
@@ -139,6 +140,54 @@ cargo run -- compare --watchlist --period 3m --output ./cmp.json --format json
 | `-f` / `--format` | 导出格式，`csv`（默认）或 `json` |
 
 对比时 **每只基金独立解析契约基准** 计算 Alpha/Beta；表格含 Sortino、Calmar 列。
+
+---
+
+## `portfolio` — 组合分析
+
+按权重配置计算组合层风险收益、成分相关矩阵与重仓重叠度。
+
+```bash
+cargo run -- portfolio --portfolio-file config/portfolio.toml --period 1y
+cargo run -- portfolio --days 90 --holdings-top 10
+cargo run -- portfolio --period 6m --output ./portfolio.json
+cargo run -- portfolio --offline --days 90   # 跳过重仓重叠，仅用净值缓存
+```
+
+### 组合配置文件 `config/portfolio.toml`
+
+```toml
+name = "demo-equal-weight"
+
+[[holdings]]
+code = "000001"
+weight = 0.5
+
+[[holdings]]
+code = "110011"
+weight = 0.5
+```
+
+- `code`：6 位基金代码或名称（与 `--code` 解析规则一致）
+- `weight`：目标权重；合计不为 1.0 时在 weight > 0 前提下自动归一化
+- 至少 2 只有效持仓
+
+| 参数 | 说明 |
+|------|------|
+| `--portfolio-file` | 组合 TOML 路径，默认 `config/portfolio.toml` |
+| `-d` / `--days` | 分析窗口（日历天），默认 `90` |
+| `--period` | 同 `analyze` |
+| `--holdings-top` | 重仓重叠分析取前 N 大重仓，默认 `10`（需联网） |
+| `-o` / `--output` | 导出 JSON 报告 |
+| `-f` / `--format` | 目前支持 `json` |
+
+**输出说明：**
+
+- **组合指标**：按成分日收益加权合成组合曲线，再算总收益、年化、波动、回撤、夏普
+- **成分贡献**：静态近似 `weight × 单基总收益`
+- **相关矩阵**：成分日收益 Pearson 相关（日期取交集）
+- **重仓重叠**：对共同持仓取 `min(占净值%)` 之和；`--offline` 时跳过
+- **分析解读**：基于规则引擎自动生成要点（风险、集中度、相关性、重叠等），**不构成投资建议**
 
 ---
 
@@ -360,12 +409,14 @@ cargo run --features web -- serve --host 0.0.0.0 --port 8080
 |------|------|
 | `--host` | 监听地址，默认 `127.0.0.1` |
 | `-p` / `--port` | 端口，默认 `3000` |
+| `--portfolio-file` | Web 组合页**首次打开**时的预填来源（默认 `config/portfolio.toml`）；分析以页面表单为准 |
 
 浏览器访问：
 
 - `/` — 首页
 - `/analyze?code=000001&days=90` — 单基金分析
 - `/compare?codes=000001,110011&days=90&sort=sharpe` — 多基金对比
+- `/portfolio?run=1&days=90` — 组合分析（在页面编辑自选组合与权重）
 - `/info?code=000001` — 基金概况（F10）
 - `/brief?code=000001&days=90&industry_top=5&holdings_top=10` — 选基综合简报
 

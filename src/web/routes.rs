@@ -1,6 +1,8 @@
 //! Axum 路由与 SSR 渲染。
 
-use super::components::{AnalyzePage, BriefPage, ComparePage, DisclaimerPage, HomePage, InfoPage};
+use super::components::{
+    AnalyzePage, BriefPage, ComparePage, DisclaimerPage, HomePage, InfoPage, PortfolioPage,
+};
 use super::services;
 use super::state::AppState;
 use axum::{
@@ -39,6 +41,17 @@ struct BriefParams {
     period: Option<String>,
     industry_top: Option<u32>,
     holdings_top: Option<u32>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct PortfolioParams {
+    name: Option<String>,
+    holdings: Option<String>,
+    days: Option<u32>,
+    period: Option<String>,
+    holdings_top: Option<u32>,
+    /// 表单提交时为 "1"
+    run: Option<String>,
 }
 
 fn render<V>(view: V) -> Html<String>
@@ -174,11 +187,64 @@ async fn disclaimer() -> Html<String> {
     render(view! { <DisclaimerPage /> })
 }
 
+async fn portfolio(
+    State(state): State<AppState>,
+    Query(q): Query<PortfolioParams>,
+) -> Html<String> {
+    let days = q.days.unwrap_or(90);
+    let period = q.period.unwrap_or_default();
+    let holdings_top = q.holdings_top.unwrap_or(10).clamp(1, 50);
+    let period_opt = (!period.is_empty()).then_some(period.as_str());
+    let should_run = q.run.as_deref() == Some("1");
+
+    let (default_name, default_holdings) = crate::portfolio::default_editor_content(
+        &state.inner.portfolio_path,
+        &state.inner.watchlist_path,
+    );
+    let portfolio_name = q
+        .name
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or(default_name);
+    let holdings_text = q
+        .holdings
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or(default_holdings);
+
+    let (report, error) = if should_run {
+        match crate::portfolio::portfolio_from_text(Some(&portfolio_name), &holdings_text) {
+            Ok(def) => {
+                match services::analyze_portfolio(&state, &def, days, period_opt, holdings_top)
+                    .await
+                {
+                    Ok(r) => (Some(r), None),
+                    Err(e) => (None, Some(e.to_string())),
+                }
+            }
+            Err(e) => (None, Some(e.to_string())),
+        }
+    } else {
+        (None, None)
+    };
+
+    render(view! {
+        <PortfolioPage
+            portfolio_name=portfolio_name
+            holdings_text=holdings_text
+            days=days
+            period=period
+            holdings_top=holdings_top
+            report=report
+            error=error
+        />
+    })
+}
+
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/", get(home))
         .route("/analyze", get(analyze))
         .route("/compare", get(compare))
+        .route("/portfolio", get(portfolio))
         .route("/info", get(info))
         .route("/brief", get(brief))
         .route("/disclaimer", get(disclaimer))

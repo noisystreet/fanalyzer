@@ -248,7 +248,8 @@ h3 {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   padding: 0.65rem 0.75rem;
   border: 1px solid var(--border-strong);
@@ -259,8 +260,70 @@ select {
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
+textarea {
+  min-height: 8rem;
+  resize: vertical;
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, monospace;
+  line-height: 1.5;
+}
+
+.insights-headline {
+  margin: 0 0 var(--space-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.insights-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.insight {
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--border-strong);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.insight-positive {
+  background: #f0fdf4;
+  border-left-color: #16a34a;
+}
+
+.insight-info {
+  background: #f8fafc;
+  border-left-color: #64748b;
+}
+
+.insight-caution {
+  background: #fffbeb;
+  border-left-color: #d97706;
+}
+
+.insight-tag {
+  display: inline-block;
+  min-width: 2.5rem;
+  margin-right: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+}
+
+.form-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+}
+
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);

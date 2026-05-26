@@ -106,7 +106,7 @@ Web 路由经 `web/services.rs` 构造 `CommandContext`，复用同一套 `appli
 | 类别 | 子命令 |
 |------|--------|
 | 数据 | `fetch`, `export` |
-| 分析 | `analyze`, `compare` |
+| 分析 | `analyze`, `compare`, `portfolio` |
 | 查询 | `info`, `rank`, `sectors`, `holdings` |
 | 工作流 | `brief`, `screen` |
 | Web | `serve`（需 `--features web`） |
@@ -120,9 +120,12 @@ Web 路由经 `web/services.rs` 构造 `CommandContext`，复用同一套 `appli
 | `/compare` | `compare` |
 | `/info` | `info` |
 | `/brief` | `brief` |
+| `/portfolio` | `portfolio` |
 | `/disclaimer` | 免责声明 |
 
 尚未覆盖：`screen`、`rank`、`export`、`fetch`（后续按需补齐）。
+
+Web 组合页在表单中编辑自选组合（每行「代码 权重」）；首次打开预填 `portfolio.toml` 或自选等权。CLI 仍使用 `--portfolio-file`。
 
 分析口径：优先 `acc_nav`；Alpha/Beta 按 F10 契约基准推断指数；支持 `--period` 与 Sortino/Calmar。
 
@@ -141,8 +144,9 @@ Web 路由经 `web/services.rs` 构造 `CommandContext`，复用同一套 `appli
 1. **存储统一** — `storage/` 模块合并 name_cache + nav_cache，可选 TTL
 2. **API trait** — `FundDataSource` async trait，便于 mock 与第二数据源
 3. **配置化筛选** — `screen` 规则 TOML 模板
-4. **组合分析** — 相关性、重仓重叠（v0.5）
+4. **组合分析** — 相关性、重仓重叠（v0.2 ✅ portfolio 子命令）
 5. **Web 功能追平** — screen、rank、导出等页面
+6. **滚动指标与图表** — 滚动 Sharpe/Beta、净值/回撤曲线（v0.3）
 
 ## Open Decisions
 

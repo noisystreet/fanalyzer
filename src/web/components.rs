@@ -1,5 +1,10 @@
 //! Leptos 布局与页面组件（纯 SSR）。
 
+#[path = "portfolio_components.rs"]
+mod portfolio_components;
+
+pub use portfolio_components::PortfolioPage;
+
 use crate::models::{FundAnalysis, FundBrief, FundOverview, IndustryAllocation, StockHoldings};
 use leptos::prelude::*;
 
@@ -20,6 +25,7 @@ pub fn Layout(title: String, children: Children) -> impl IntoView {
                         <a href="/">"首页"</a>
                         <a href="/analyze">"分析"</a>
                         <a href="/compare">"对比"</a>
+                        <a href="/portfolio">"组合"</a>
                         <a href="/info">"概况"</a>
                         <a href="/brief">"简报"</a>
                     </nav>
@@ -41,11 +47,11 @@ pub fn ErrorAlert(message: String) -> impl IntoView {
     }
 }
 
-fn pct(v: f64) -> String {
+pub(crate) fn pct(v: f64) -> String {
     format!("{:.2}%", v * 100.0)
 }
 
-fn num(v: f64) -> String {
+pub(crate) fn num(v: f64) -> String {
     format!("{:.2}", v)
 }
 
@@ -142,6 +148,10 @@ pub fn HomePage() -> impl IntoView {
                         <h3>"多基金对比"</h3>
                         <p class="muted">"并排比较夏普、回撤、年化等核心指标。"</p>
                     </a>
+                    <a class="feature-card" href="/portfolio">
+                        <h3>"组合分析"</h3>
+                        <p class="muted">"页面编辑自选组合与权重，查看收益、相关性与重仓重叠。"</p>
+                    </a>
                     <a class="feature-card" href="/info">
                         <h3>"基金概况"</h3>
                         <p class="muted">"F10 基本信息、经理任期与费率。"</p>
@@ -157,6 +167,7 @@ pub fn HomePage() -> impl IntoView {
                 <ul>
                     <li>"分析页：输入 6 位代码或基金名称，选择分析窗口。"</li>
                     <li>"对比页：逗号分隔多只基金，至少 2 只。"</li>
+                    <li>"组合页：编辑自选组合（每行 code weight），分析加权收益与相关矩阵。"</li>
                     <li>"概况页：F10 基金基本信息、经理与费率。"</li>
                     <li>"简报页：分析 + 行业配置 + 重仓股（季报口径）。"</li>
                     <li>"需联网访问东方财富接口；与 CLI 共用本地缓存。"</li>

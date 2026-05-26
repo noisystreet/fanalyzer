@@ -22,6 +22,7 @@ pub async fn run(
     port: u16,
     config: AppConfig,
     watchlist_path: PathBuf,
+    portfolio_path: PathBuf,
 ) -> anyhow::Result<()> {
     let opts = EastMoneyClientOptions {
         timeout_secs: config.api.timeout_secs.max(1),
@@ -32,7 +33,13 @@ pub async fn run(
     let cache_root = config.cache_root();
     let name_cache = Arc::new(Mutex::new(FundCache::with_root(cache_root.clone())));
     let nav_store = NavCache::with_root(cache_root);
-    let state = AppState::new(client, name_cache, nav_store, watchlist_path);
+    let state = AppState::new(
+        client,
+        name_cache,
+        nav_store,
+        watchlist_path,
+        portfolio_path,
+    );
 
     let app = routes::router(state).layer(TraceLayer::new_for_http());
     let addr: SocketAddr = format!("{host}:{port}").parse()?;

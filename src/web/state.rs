@@ -19,6 +19,7 @@ pub struct AppStateInner {
     pub name_cache: Arc<Mutex<FundCache>>,
     pub nav_store: NavCache,
     pub watchlist_path: PathBuf,
+    pub portfolio_path: PathBuf,
 }
 
 impl AppState {
@@ -27,6 +28,7 @@ impl AppState {
         name_cache: Arc<Mutex<FundCache>>,
         nav_store: NavCache,
         watchlist_path: PathBuf,
+        portfolio_path: PathBuf,
     ) -> Self {
         Self {
             inner: Arc::new(AppStateInner {
@@ -34,6 +36,7 @@ impl AppState {
                 name_cache,
                 nav_store,
                 watchlist_path,
+                portfolio_path,
             }),
         }
     }
