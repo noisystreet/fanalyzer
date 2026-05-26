@@ -8,11 +8,18 @@ use super::returns::{daily_returns, nav_price};
 use super::BenchmarkData;
 
 /// 默认滚动窗口（交易日，约 3 个月）。
-pub const DEFAULT_ROLLING_WINDOW: usize = 60;
+pub const DEFAULT_ROLLING_WINDOW: u32 = 60;
 /// 滚动计算所需最少样本。
 const MIN_ROLLING_SAMPLES: usize = 10;
+/// 滚动窗口上限（交易日）。
+pub const MAX_ROLLING_WINDOW: u32 = 252;
 const RISK_FREE_RATE: f64 = 0.03;
 const TRADING_DAYS: f64 = 252.0;
+
+/// 将请求的滚动窗口规范到 [10, 252]。
+pub fn normalize_rolling_window(requested: u32) -> usize {
+    requested.clamp(MIN_ROLLING_SAMPLES as u32, MAX_ROLLING_WINDOW) as usize
+}
 
 /// 归一化净值曲线（起点 = 1.0）。
 pub fn normalized_nav_curve(navs: &[FundNav]) -> Vec<SeriesPoint> {
@@ -342,7 +349,8 @@ mod tests {
     #[test]
     fn rolling_volatility_produces_points() {
         let navs = make_upward_navs(65);
-        let series = build_fund_analysis_series(&navs, None, DEFAULT_ROLLING_WINDOW).unwrap();
+        let series =
+            build_fund_analysis_series(&navs, None, DEFAULT_ROLLING_WINDOW as usize).unwrap();
         assert!(!series.rolling_volatility.is_empty());
         assert_eq!(series.rolling_window, 60);
     }
@@ -355,8 +363,15 @@ mod tests {
             })
             .collect();
         let daily = vec![0.001; 65];
-        let s = build_portfolio_series(&dates, &daily, DEFAULT_ROLLING_WINDOW).unwrap();
+        let s = build_portfolio_series(&dates, &daily, DEFAULT_ROLLING_WINDOW as usize).unwrap();
         assert!(!s.nav_normalized.is_empty());
         assert!(!s.rolling_sharpe.is_empty());
+    }
+
+    #[test]
+    fn normalize_rolling_window_clamps() {
+        assert_eq!(normalize_rolling_window(5), 10);
+        assert_eq!(normalize_rolling_window(60), 60);
+        assert_eq!(normalize_rolling_window(500), 252);
     }
 }

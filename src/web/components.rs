@@ -186,6 +186,7 @@ pub fn AnalyzePage(
     code: String,
     days: u32,
     period: String,
+    rolling_window: u32,
     report: Option<FundAnalysisReport>,
     error: Option<String>,
 ) -> impl IntoView {
@@ -206,6 +207,9 @@ pub fn AnalyzePage(
                         </label>
                         <label class="field">"period（可选）"
                             <input name="period" type="text" placeholder="1y / 3m / ytd" value=period />
+                        </label>
+                        <label class="field">"滚动窗口（交易日）"
+                            <input name="rolling_window" type="number" min="10" max="252" value=rolling_window.to_string() />
                         </label>
                     </div>
                     <div class="form-actions">
@@ -543,6 +547,7 @@ mod tests {
                 code=String::new()
                 days=90
                 period=String::new()
+                rolling_window=60
                 report=None
                 error=None
             />

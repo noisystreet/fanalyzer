@@ -5,9 +5,10 @@ use super::fund_service::{analyze_fund, fetch_nav_series, resolve_fund_identifie
 use super::queries::load_fund_holdings;
 use crate::domain::{
     align_daily_returns, build_portfolio_series, correlation_matrix, daily_returns,
-    metrics_from_daily_returns, weighted_holdings_overlap, weighted_portfolio_returns,
-    DEFAULT_ROLLING_WINDOW,
+    metrics_from_daily_returns, normalize_rolling_window, weighted_holdings_overlap,
+    weighted_portfolio_returns, EqualWeightComparison,
 };
+use crate::insight_config::load_portfolio_insights;
 use crate::models::{
     CorrelationMatrix, OverlapPair, PortfolioMember, PortfolioReport, PortfolioSummary,
     StockHoldings,
@@ -15,12 +16,16 @@ use crate::models::{
 use crate::portfolio::PortfolioDefinition;
 use chrono::Local;
 use std::collections::HashMap;
+use std::path::Path;
+
+const DEFAULT_INSIGHTS_PATH: &str = "config/portfolio_insights.toml";
 
 pub struct PortfolioRequest {
     pub portfolio_path: std::path::PathBuf,
     pub days: u32,
     pub period: Option<String>,
     pub holdings_top: u32,
+    pub rolling_window: u32,
     pub output: Option<std::path::PathBuf>,
     pub format: String,
 }
@@ -32,26 +37,45 @@ pub async fn gather_portfolio_report(
     days: u32,
     period: Option<&str>,
     holdings_top: u32,
+    rolling_window: u32,
 ) -> anyhow::Result<PortfolioReport> {
     let today = Local::now().date_naive();
     let window = crate::domain::resolve_analysis_days(period, days, today)?;
+    let rolling = normalize_rolling_window(rolling_window);
     tracing::info!(
         name = %def.name,
         holdings = def.holdings.len(),
         days = window,
+        rolling_window = rolling,
         "Analyzing portfolio"
     );
 
     let members = resolve_members(&ctx.session, def, ctx.offline).await?;
-    let return_series = fetch_return_series(&ctx.session, &members, window, ctx.offline).await?;
-    build_report(def, &members, &return_series, window, ctx, holdings_top).await
+    let return_series =
+        fetch_return_series(&ctx.session, &members, window, ctx.offline, rolling_window).await?;
+    build_report(
+        def,
+        &members,
+        &return_series,
+        window,
+        ctx,
+        holdings_top,
+        rolling,
+    )
+    .await
 }
 
 pub async fn run_portfolio(ctx: &CommandContext<'_>, req: PortfolioRequest) -> anyhow::Result<()> {
     let def = crate::portfolio::load_portfolio(&req.portfolio_path)?;
-    let report =
-        gather_portfolio_report(ctx, &def, req.days, req.period.as_deref(), req.holdings_top)
-            .await?;
+    let report = gather_portfolio_report(
+        ctx,
+        &def,
+        req.days,
+        req.period.as_deref(),
+        req.holdings_top,
+        req.rolling_window,
+    )
+    .await?;
     crate::presentation::render_portfolio(&report, req.output.as_deref(), &req.format)
 }
 
@@ -92,6 +116,7 @@ async fn fetch_return_series(
     members: &[ResolvedMember],
     days: u32,
     offline: bool,
+    rolling_window: u32,
 ) -> anyhow::Result<Vec<MemberReturns>> {
     let mut out = Vec::with_capacity(members.len());
     for m in members {
@@ -100,7 +125,7 @@ async fn fetch_return_series(
             anyhow::bail!("`{}` 净值数据为空，无法完成组合分析", m.code);
         }
         let returns = daily_returns(&navs);
-        let analysis = analyze_fund(session, &m.code, days, offline)
+        let analysis = analyze_fund(session, &m.code, days, offline, rolling_window)
             .await?
             .map(|r| r.snapshot);
         let label = format!("{} {}", m.code, m.name);
@@ -123,6 +148,7 @@ async fn build_report(
     window_days: u32,
     ctx: &CommandContext<'_>,
     holdings_top: u32,
+    rolling_window: usize,
 ) -> anyhow::Result<PortfolioReport> {
     let labeled: Vec<(String, Vec<(chrono::NaiveDate, f64)>)> = series
         .iter()
@@ -141,15 +167,28 @@ async fn build_report(
     let portfolio_daily = weighted_portfolio_returns(&weights, &aligned);
     let metrics = metrics_from_daily_returns(&portfolio_daily, calendar_days);
 
+    let n = series.len();
+    let equal_weights = vec![1.0 / n as f64; n];
+    let equal_daily = weighted_portfolio_returns(&equal_weights, &aligned);
+    let equal_metrics = metrics_from_daily_returns(&equal_daily, calendar_days);
+    let equal_weight = EqualWeightComparison {
+        total_return: equal_metrics.total_return,
+        sharpe_ratio: equal_metrics.sharpe_ratio,
+        max_drawdown: equal_metrics.max_drawdown,
+    };
+
     let summary = build_summary(def, series, window_days, dates.len() as u32, &metrics);
     let correlation = build_correlation(series, &aligned);
     let overlaps = build_overlaps(ctx, members, holdings_top).await;
+    let thresholds = load_portfolio_insights(Path::new(DEFAULT_INSIGHTS_PATH));
     let interpretation = Some(crate::domain::interpret_portfolio(
         &summary,
         &correlation,
         &overlaps,
+        &thresholds,
+        Some(equal_weight),
     ));
-    let series = build_portfolio_series(&dates, &portfolio_daily, DEFAULT_ROLLING_WINDOW);
+    let series = build_portfolio_series(&dates, &portfolio_daily, rolling_window);
 
     Ok(PortfolioReport {
         summary,
@@ -262,6 +301,7 @@ async fn fetch_all_holdings(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::DEFAULT_ROLLING_WINDOW;
 
     #[test]
     fn build_summary_contribution() {
@@ -297,5 +337,10 @@ mod tests {
         let s = build_summary(&def, &series, 90, 60, &metrics);
         assert_eq!(s.members.len(), 2);
         assert!((s.total_return - 0.1).abs() < 1e-9);
+    }
+
+    #[test]
+    fn default_rolling_window_constant() {
+        assert_eq!(DEFAULT_ROLLING_WINDOW, 60);
     }
 }

@@ -72,6 +72,12 @@ pub enum Commands {
             help = "导出格式（目前支持 json）"
         )]
         format: String,
+        #[arg(
+            long = "rolling-window",
+            default_value_t = 60,
+            help = "滚动指标窗口（交易日，10～252）"
+        )]
+        rolling_window: u32,
     },
     Compare {
         #[arg(short, long, help = "逗号分隔的基金代码或名称", value_delimiter = ',')]
@@ -130,6 +136,12 @@ pub enum Commands {
             help = "导出格式（目前支持 json）"
         )]
         format: String,
+        #[arg(
+            long = "rolling-window",
+            default_value_t = 60,
+            help = "滚动指标窗口（交易日，10～252）"
+        )]
+        rolling_window: u32,
     },
     Export {
         #[arg(short, long, help = "基金代码或名称")]

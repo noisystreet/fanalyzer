@@ -1,32 +1,37 @@
 //! 组合分析结果规则解读（纯函数，无 IO）。
 
+use crate::insight_config::PortfolioInsightThresholds;
 use crate::models::{
     CorrelationMatrix, InsightLevel, OverlapPair, PortfolioInsight, PortfolioInterpretation,
     PortfolioMember, PortfolioSummary,
 };
 
-const HIGH_CORRELATION: f64 = 0.85;
-const ELEVATED_CORRELATION: f64 = 0.70;
-const HIGH_OVERLAP_PCT: f64 = 15.0;
-const ELEVATED_OVERLAP_PCT: f64 = 8.0;
-const CONCENTRATED_WEIGHT: f64 = 0.40;
-const DRAWDOWN_CAUTION: f64 = 0.20;
-const SHARPE_GOOD: f64 = 1.0;
-const SHARPE_WEAK: f64 = 0.5;
+/// 等权组合指标快照（与当前权重配置对比）。
+#[derive(Debug, Clone, Copy)]
+pub struct EqualWeightComparison {
+    pub total_return: f64,
+    pub sharpe_ratio: f64,
+    pub max_drawdown: f64,
+}
 
 /// 根据组合报告生成规则化解读文本。
 pub fn interpret_portfolio(
     summary: &PortfolioSummary,
     correlation: &CorrelationMatrix,
     overlaps: &[OverlapPair],
+    thresholds: &PortfolioInsightThresholds,
+    equal_weight: Option<EqualWeightComparison>,
 ) -> PortfolioInterpretation {
     let mut insights = Vec::new();
-    insights.extend(assess_overall_risk(summary));
-    insights.extend(assess_concentration(&summary.members));
+    insights.extend(assess_overall_risk(summary, thresholds));
+    insights.extend(assess_concentration(&summary.members, thresholds));
     insights.extend(assess_contributions(&summary.members));
-    insights.extend(assess_correlations(correlation));
-    insights.extend(assess_overlaps(overlaps));
-    insights.extend(assess_data_quality(summary));
+    insights.extend(assess_correlations(correlation, thresholds));
+    insights.extend(assess_overlaps(overlaps, thresholds));
+    insights.extend(assess_data_quality(summary, thresholds));
+    if let Some(eq) = equal_weight {
+        insights.extend(assess_equal_weight(summary, eq, thresholds));
+    }
 
     let headline = build_headline(summary, &insights);
     PortfolioInterpretation { headline, insights }
@@ -60,9 +65,12 @@ fn build_headline(summary: &PortfolioSummary, insights: &[PortfolioInsight]) -> 
     }
 }
 
-fn assess_overall_risk(summary: &PortfolioSummary) -> Vec<PortfolioInsight> {
+fn assess_overall_risk(
+    summary: &PortfolioSummary,
+    t: &PortfolioInsightThresholds,
+) -> Vec<PortfolioInsight> {
     let mut out = Vec::new();
-    if summary.max_drawdown >= DRAWDOWN_CAUTION {
+    if summary.max_drawdown >= t.drawdown_caution {
         out.push(insight(
             InsightLevel::Caution,
             "risk",
@@ -82,13 +90,13 @@ fn assess_overall_risk(summary: &PortfolioSummary) -> Vec<PortfolioInsight> {
         ));
     }
 
-    if summary.sharpe_ratio >= SHARPE_GOOD {
+    if summary.sharpe_ratio >= t.sharpe_good {
         out.push(insight(
             InsightLevel::Positive,
             "return",
             format!("夏普比率 {:.2}，风险调整后收益较好", summary.sharpe_ratio),
         ));
-    } else if summary.sharpe_ratio < SHARPE_WEAK && summary.sharpe_ratio.is_finite() {
+    } else if summary.sharpe_ratio < t.sharpe_weak && summary.sharpe_ratio.is_finite() {
         out.push(insight(
             InsightLevel::Caution,
             "return",
@@ -111,10 +119,13 @@ fn assess_overall_risk(summary: &PortfolioSummary) -> Vec<PortfolioInsight> {
     out
 }
 
-fn assess_concentration(members: &[PortfolioMember]) -> Vec<PortfolioInsight> {
+fn assess_concentration(
+    members: &[PortfolioMember],
+    t: &PortfolioInsightThresholds,
+) -> Vec<PortfolioInsight> {
     let mut out = Vec::new();
     for m in members {
-        if m.weight >= CONCENTRATED_WEIGHT {
+        if m.weight >= t.concentrated_weight {
             out.push(insight(
                 InsightLevel::Caution,
                 "concentration",
@@ -179,7 +190,10 @@ fn assess_contributions(members: &[PortfolioMember]) -> Vec<PortfolioInsight> {
     out
 }
 
-fn assess_correlations(matrix: &CorrelationMatrix) -> Vec<PortfolioInsight> {
+fn assess_correlations(
+    matrix: &CorrelationMatrix,
+    t: &PortfolioInsightThresholds,
+) -> Vec<PortfolioInsight> {
     let mut out = Vec::new();
     let n = matrix.labels.len();
     let mut high_pairs = Vec::new();
@@ -188,12 +202,12 @@ fn assess_correlations(matrix: &CorrelationMatrix) -> Vec<PortfolioInsight> {
     for i in 0..n {
         for j in (i + 1)..n {
             let c = matrix.values[i][j];
-            if c >= HIGH_CORRELATION {
+            if c >= t.high_correlation {
                 high_pairs.push(format!(
                     "{}↔{}({:.2})",
                     matrix.labels[i], matrix.labels[j], c
                 ));
-            } else if c >= ELEVATED_CORRELATION {
+            } else if c >= t.elevated_correlation {
                 elevated += 1;
             }
         }
@@ -205,7 +219,7 @@ fn assess_correlations(matrix: &CorrelationMatrix) -> Vec<PortfolioInsight> {
             "diversification",
             format!(
                 "以下基金日收益高度相关（≥{:.2}），分散效果有限：{}",
-                HIGH_CORRELATION,
+                t.high_correlation,
                 high_pairs.join("；")
             ),
         ));
@@ -215,7 +229,7 @@ fn assess_correlations(matrix: &CorrelationMatrix) -> Vec<PortfolioInsight> {
             "diversification",
             format!(
                 "有 {} 对基金中等相关（{:.2}～{:.2}），属常见水平",
-                elevated, ELEVATED_CORRELATION, HIGH_CORRELATION
+                elevated, t.elevated_correlation, t.high_correlation
             ),
         ));
     } else if n >= 2 {
@@ -228,7 +242,10 @@ fn assess_correlations(matrix: &CorrelationMatrix) -> Vec<PortfolioInsight> {
     out
 }
 
-fn assess_overlaps(overlaps: &[OverlapPair]) -> Vec<PortfolioInsight> {
+fn assess_overlaps(
+    overlaps: &[OverlapPair],
+    t: &PortfolioInsightThresholds,
+) -> Vec<PortfolioInsight> {
     let mut out = Vec::new();
     if overlaps.is_empty() {
         out.push(insight(
@@ -241,12 +258,12 @@ fn assess_overlaps(overlaps: &[OverlapPair]) -> Vec<PortfolioInsight> {
 
     let mut high = Vec::new();
     for p in overlaps {
-        if p.overlap_pct >= HIGH_OVERLAP_PCT {
+        if p.overlap_pct >= t.high_overlap_pct {
             high.push(format!(
                 "{}↔{}({:.1}%)",
                 p.fund_a_code, p.fund_b_code, p.overlap_pct
             ));
-        } else if p.overlap_pct >= ELEVATED_OVERLAP_PCT {
+        } else if p.overlap_pct >= t.elevated_overlap_pct {
             out.push(insight(
                 InsightLevel::Info,
                 "overlap",
@@ -264,7 +281,7 @@ fn assess_overlaps(overlaps: &[OverlapPair]) -> Vec<PortfolioInsight> {
             "overlap",
             format!(
                 "以下基金对前十大重仓高度重叠（≥{:.0}%）：{}",
-                HIGH_OVERLAP_PCT,
+                t.high_overlap_pct,
                 high.join("；")
             ),
         ));
@@ -278,11 +295,14 @@ fn assess_overlaps(overlaps: &[OverlapPair]) -> Vec<PortfolioInsight> {
     out
 }
 
-fn assess_data_quality(summary: &PortfolioSummary) -> Vec<PortfolioInsight> {
+fn assess_data_quality(
+    summary: &PortfolioSummary,
+    t: &PortfolioInsightThresholds,
+) -> Vec<PortfolioInsight> {
     let mut out = Vec::new();
     if summary.period_days > 0 {
         let ratio = summary.aligned_days as f64 / summary.period_days as f64;
-        if ratio < 0.5 {
+        if ratio < t.aligned_days_ratio_caution {
             out.push(insight(
                 InsightLevel::Caution,
                 "data",
@@ -292,6 +312,65 @@ fn assess_data_quality(summary: &PortfolioSummary) -> Vec<PortfolioInsight> {
                 ),
             ));
         }
+    }
+    out
+}
+
+fn assess_equal_weight(
+    current: &PortfolioSummary,
+    equal: EqualWeightComparison,
+    t: &PortfolioInsightThresholds,
+) -> Vec<PortfolioInsight> {
+    let mut out = Vec::new();
+    let sharpe_delta = current.sharpe_ratio - equal.sharpe_ratio;
+    let return_delta = current.total_return - equal.total_return;
+
+    if sharpe_delta.abs() < t.equal_weight_sharpe_delta {
+        out.push(insight(
+            InsightLevel::Info,
+            "equal_weight",
+            format!(
+                "当前权重与等权组合夏普接近（{:.2} vs {:.2}），倾斜配置未显著改变风险收益特征",
+                current.sharpe_ratio, equal.sharpe_ratio
+            ),
+        ));
+        return out;
+    }
+
+    if sharpe_delta > t.equal_weight_sharpe_delta {
+        out.push(insight(
+            InsightLevel::Positive,
+            "equal_weight",
+            format!(
+                "当前权重夏普 {:.2} 高于等权 {:.2}（总收益差 {:.1} 个百分点），倾斜配置带来更好风险补偿",
+                current.sharpe_ratio,
+                equal.sharpe_ratio,
+                return_delta * 100.0
+            ),
+        ));
+    } else {
+        out.push(insight(
+            InsightLevel::Caution,
+            "equal_weight",
+            format!(
+                "等权夏普 {:.2} 高于当前 {:.2}（总收益差 {:.1} 个百分点），可考虑是否过度集中",
+                equal.sharpe_ratio,
+                current.sharpe_ratio,
+                -return_delta * 100.0
+            ),
+        ));
+    }
+
+    if equal.max_drawdown < current.max_drawdown - 0.02 {
+        out.push(insight(
+            InsightLevel::Info,
+            "equal_weight",
+            format!(
+                "等权最大回撤 {:.1}% 低于当前 {:.1}%",
+                equal.max_drawdown * 100.0,
+                current.max_drawdown * 100.0
+            ),
+        ));
     }
     out
 }
@@ -307,6 +386,7 @@ fn insight(level: InsightLevel, category: &str, message: String) -> PortfolioIns
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::insight_config::PortfolioInsightThresholds;
     use crate::models::{CorrelationMatrix, PortfolioSummary};
 
     fn sample_summary() -> PortfolioSummary {
@@ -344,13 +424,18 @@ mod tests {
         }
     }
 
+    fn default_thresholds() -> PortfolioInsightThresholds {
+        PortfolioInsightThresholds::default()
+    }
+
     #[test]
     fn interpret_flags_concentration_and_draggers() {
         let corr = CorrelationMatrix {
             labels: vec!["000001".into(), "110011".into()],
             values: vec![vec![1.0, 0.5], vec![0.5, 1.0]],
         };
-        let interp = interpret_portfolio(&sample_summary(), &corr, &[]);
+        let interp =
+            interpret_portfolio(&sample_summary(), &corr, &[], &default_thresholds(), None);
         assert!(interp
             .insights
             .iter()
@@ -368,10 +453,52 @@ mod tests {
             labels: vec!["000001".into(), "110011".into()],
             values: vec![vec![1.0, 0.9], vec![0.9, 1.0]],
         };
-        let interp = interpret_portfolio(&summary, &corr, &[]);
+        let interp = interpret_portfolio(&summary, &corr, &[], &default_thresholds(), None);
         assert!(interp
             .insights
             .iter()
             .any(|i| i.category == "diversification" && i.level == InsightLevel::Caution));
+    }
+
+    #[test]
+    fn interpret_equal_weight_worse_than_current() {
+        let summary = sample_summary();
+        let corr = CorrelationMatrix {
+            labels: vec!["000001".into(), "110011".into()],
+            values: vec![vec![1.0, 0.5], vec![0.5, 1.0]],
+        };
+        let eq = EqualWeightComparison {
+            total_return: 0.05,
+            sharpe_ratio: 0.8,
+            max_drawdown: 0.12,
+        };
+        let interp = interpret_portfolio(&summary, &corr, &[], &default_thresholds(), Some(eq));
+        assert!(interp
+            .insights
+            .iter()
+            .any(|i| i.category == "equal_weight" && i.level == InsightLevel::Positive));
+    }
+
+    #[test]
+    fn interpret_equal_weight_better_suggests_caution() {
+        let summary = PortfolioSummary {
+            sharpe_ratio: 0.6,
+            total_return: 0.04,
+            ..sample_summary()
+        };
+        let corr = CorrelationMatrix {
+            labels: vec!["000001".into(), "110011".into()],
+            values: vec![vec![1.0, 0.5], vec![0.5, 1.0]],
+        };
+        let eq = EqualWeightComparison {
+            total_return: 0.08,
+            sharpe_ratio: 1.1,
+            max_drawdown: 0.08,
+        };
+        let interp = interpret_portfolio(&summary, &corr, &[], &default_thresholds(), Some(eq));
+        assert!(interp
+            .insights
+            .iter()
+            .any(|i| i.category == "equal_weight" && i.level == InsightLevel::Caution));
     }
 }

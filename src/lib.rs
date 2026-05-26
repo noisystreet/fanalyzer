@@ -4,6 +4,7 @@ pub mod cache;
 pub mod cli;
 pub mod config;
 pub mod domain;
+pub mod insight_config;
 pub mod models;
 pub mod nav_cache;
 pub mod portfolio;

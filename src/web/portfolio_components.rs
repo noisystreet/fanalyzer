@@ -1,6 +1,7 @@
 //! 组合分析 Web 组件。
 
 use super::super::chart_components::PortfolioCharts;
+use super::super::portfolio_draft::portfolio_draft_script;
 use super::{num, pct, ErrorAlert, Layout};
 use crate::models::{CorrelationMatrix, OverlapPair, PortfolioInterpretation, PortfolioReport};
 use leptos::prelude::*;
@@ -173,9 +174,11 @@ pub fn PortfolioPage(
     days: u32,
     period: String,
     holdings_top: u32,
+    rolling_window: u32,
     report: Option<PortfolioReport>,
     error: Option<String>,
 ) -> impl IntoView {
+    let draft_script = portfolio_draft_script();
     view! {
         <Layout title="组合分析".into()>
             <section class="card">
@@ -183,7 +186,7 @@ pub fn PortfolioPage(
                     <h1>"组合分析"</h1>
                     <p class="muted">"在下方编辑自选组合（基金代码或名称 + 权重），提交后按此配置分析。"</p>
                 </div>
-                <form class="query-form" method="get" action="/portfolio">
+                <form class="query-form portfolio-form" method="get" action="/portfolio">
                     <input type="hidden" name="run" value="1"/>
                     <div class="form-grid">
                         <label class="field field-wide">"组合名称"
@@ -205,9 +208,13 @@ pub fn PortfolioPage(
                         <label class="field">"重仓重叠 Top N"
                             <input name="holdings_top" type="number" min="1" max="50" value=holdings_top.to_string() />
                         </label>
+                        <label class="field">"滚动窗口（交易日）"
+                            <input name="rolling_window" type="number" min="10" max="252" value=rolling_window.to_string() />
+                        </label>
                     </div>
-                    <p class="muted form-hint">"支持空格/逗号分隔；# 开头为注释。权重合计不为 1 时将自动归一化。首次打开会预填 portfolio.toml 或自选等权。"</p>
+                    <p class="muted form-hint">"支持空格/逗号分隔；# 开头为注释。权重合计不为 1 时将自动归一化。编辑内容会自动暂存到浏览器；首次打开会预填 portfolio.toml 或自选等权。"</p>
                     <div class="form-actions">
+                        <a class="btn btn-secondary" href="/portfolio?import=watchlist">"从自选导入等权"</a>
                         <button type="submit" class="btn btn-primary">"分析组合"</button>
                     </div>
                 </form>
@@ -231,6 +238,7 @@ pub fn PortfolioPage(
             {report.filter(|r| !r.overlaps.is_empty()).map(|r| view! {
                 <OverlapTable pairs=r.overlaps.clone() />
             })}
+            <script inner_html=draft_script></script>
         </Layout>
     }
 }
@@ -248,6 +256,7 @@ mod tests {
                 days=90
                 period=String::new()
                 holdings_top=10
+                rolling_window=60
                 report=None
                 error=None
             />
@@ -257,5 +266,8 @@ mod tests {
         assert!(html.contains("/portfolio"));
         assert!(html.contains("textarea"));
         assert!(html.contains("name=\"holdings\""));
+        assert!(html.contains("从自选导入等权"));
+        assert!(html.contains("rolling_window"));
+        assert!(html.contains("fanalyzer.portfolio.draft"));
     }
 }

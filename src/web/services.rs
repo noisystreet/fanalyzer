@@ -15,11 +15,12 @@ pub async fn analyze_one(
     code: &str,
     days: u32,
     period: Option<&str>,
+    rolling_window: u32,
 ) -> anyhow::Result<Option<FundAnalysisReport>> {
     let today = Local::now().date_naive();
     let window = resolve_analysis_days(period, days, today)?;
     let ctx = state.command_context();
-    analyze_fund(&ctx.session, code.trim(), window, false).await
+    analyze_fund(&ctx.session, code.trim(), window, false, rolling_window).await
 }
 
 pub async fn fetch_overview(state: &AppState, code: &str) -> anyhow::Result<FundOverview> {
@@ -69,9 +70,10 @@ pub async fn analyze_portfolio(
     days: u32,
     period: Option<&str>,
     holdings_top: u32,
+    rolling_window: u32,
 ) -> anyhow::Result<PortfolioReport> {
     let ctx = state.command_context();
-    gather_portfolio_report(&ctx, def, days, period, holdings_top).await
+    gather_portfolio_report(&ctx, def, days, period, holdings_top, rolling_window).await
 }
 
 pub fn parse_code_list(raw: &str) -> Vec<String> {

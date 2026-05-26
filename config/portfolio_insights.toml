@@ -1,0 +1,21 @@
+# 组合解读规则阈值（可选；缺失时使用代码内默认值）
+
+[thresholds]
+# 日收益 Pearson 相关：≥ 视为高度相关（分散效果有限）
+high_correlation = 0.85
+# 中等相关区间下限
+elevated_correlation = 0.70
+# 前十大重仓加权重叠（%）
+high_overlap_pct = 15.0
+elevated_overlap_pct = 8.0
+# 单只权重 ≥ 视为集中度过高
+concentrated_weight = 0.40
+# 组合最大回撤 ≥ 触发警示
+drawdown_caution = 0.20
+# 夏普比率评价
+sharpe_good = 1.0
+sharpe_weak = 0.5
+# 对齐交易日 / 窗口日历天 < 该比例时提示样本不足
+aligned_days_ratio_caution = 0.50
+# 与等权组合夏普差值 |Δ| ≥ 时输出权重 vs 等权解读
+equal_weight_sharpe_delta = 0.05

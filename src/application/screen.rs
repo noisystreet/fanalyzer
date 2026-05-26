@@ -71,7 +71,15 @@ async fn deep_analyze_candidates(
 ) -> Vec<FundAnalysis> {
     let mut passed = Vec::new();
     for (i, row) in candidates.iter().take(to_analyze).enumerate() {
-        match analyze_fund(session, &row.code, days, false).await {
+        match analyze_fund(
+            session,
+            &row.code,
+            days,
+            false,
+            crate::domain::DEFAULT_ROLLING_WINDOW,
+        )
+        .await
+        {
             Ok(Some(r)) if passes_screen(&r.snapshot, filters) => passed.push(r.snapshot),
             Ok(Some(_)) | Ok(None) => {}
             Err(e) => tracing::warn!(code = %row.code, error = %e, "分析失败，跳过"),

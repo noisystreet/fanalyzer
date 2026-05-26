@@ -3,6 +3,7 @@
 mod chart_components;
 mod charts;
 mod components;
+mod portfolio_draft;
 mod routes;
 mod services;
 mod state;

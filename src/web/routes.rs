@@ -19,6 +19,7 @@ struct AnalyzeParams {
     code: Option<String>,
     days: Option<u32>,
     period: Option<String>,
+    rolling_window: Option<u32>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -50,8 +51,11 @@ struct PortfolioParams {
     days: Option<u32>,
     period: Option<String>,
     holdings_top: Option<u32>,
+    rolling_window: Option<u32>,
     /// 表单提交时为 "1"
     run: Option<String>,
+    /// `watchlist` 时从自选等权导入
+    import: Option<String>,
 }
 
 fn render<V>(view: V) -> Html<String>
@@ -69,12 +73,13 @@ async fn analyze(State(state): State<AppState>, Query(q): Query<AnalyzeParams>) 
     let code = q.code.unwrap_or_default();
     let days = q.days.unwrap_or(90);
     let period = q.period.unwrap_or_default();
+    let rolling_window = q.rolling_window.unwrap_or(60);
     let period_opt = (!period.is_empty()).then_some(period.as_str());
 
     let (report, error) = if code.trim().is_empty() {
         (None, None)
     } else {
-        match services::analyze_one(&state, &code, days, period_opt).await {
+        match services::analyze_one(&state, &code, days, period_opt, rolling_window).await {
             Ok(Some(r)) => (Some(r), None),
             Ok(None) => (None, Some("净值数据不足，无法完成分析".into())),
             Err(e) => (None, Some(e.to_string())),
@@ -86,6 +91,7 @@ async fn analyze(State(state): State<AppState>, Query(q): Query<AnalyzeParams>) 
             code=code
             days=days
             period=period
+            rolling_window=rolling_window
             report=report
             error=error
         />
@@ -194,6 +200,7 @@ async fn portfolio(
     let days = q.days.unwrap_or(90);
     let period = q.period.unwrap_or_default();
     let holdings_top = q.holdings_top.unwrap_or(10).clamp(1, 50);
+    let rolling_window = q.rolling_window.unwrap_or(60);
     let period_opt = (!period.is_empty()).then_some(period.as_str());
     let should_run = q.run.as_deref() == Some("1");
 
@@ -201,20 +208,40 @@ async fn portfolio(
         &state.inner.portfolio_path,
         &state.inner.watchlist_path,
     );
-    let portfolio_name = q
-        .name
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or(default_name);
-    let holdings_text = q
-        .holdings
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or(default_holdings);
+
+    let mut import_error: Option<String> = None;
+    let (portfolio_name, holdings_text) = if q.import.as_deref() == Some("watchlist") {
+        match crate::portfolio::watchlist_equal_weight_content(&state.inner.watchlist_path) {
+            Ok(pair) => pair,
+            Err(e) => {
+                import_error = Some(e.to_string());
+                (default_name, default_holdings)
+            }
+        }
+    } else {
+        let portfolio_name = q
+            .name
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or(default_name);
+        let holdings_text = q
+            .holdings
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or(default_holdings);
+        (portfolio_name, holdings_text)
+    };
 
     let (report, error) = if should_run {
         match crate::portfolio::portfolio_from_text(Some(&portfolio_name), &holdings_text) {
             Ok(def) => {
-                match services::analyze_portfolio(&state, &def, days, period_opt, holdings_top)
-                    .await
+                match services::analyze_portfolio(
+                    &state,
+                    &def,
+                    days,
+                    period_opt,
+                    holdings_top,
+                    rolling_window,
+                )
+                .await
                 {
                     Ok(r) => (Some(r), None),
                     Err(e) => (None, Some(e.to_string())),
@@ -226,6 +253,13 @@ async fn portfolio(
         (None, None)
     };
 
+    let error = match (error, import_error) {
+        (Some(a), Some(b)) => Some(format!("{a}\n{b}")),
+        (Some(a), None) => Some(a),
+        (None, Some(b)) => Some(b),
+        (None, None) => None,
+    };
+
     render(view! {
         <PortfolioPage
             portfolio_name=portfolio_name
@@ -233,6 +267,7 @@ async fn portfolio(
             days=days
             period=period
             holdings_top=holdings_top
+            rolling_window=rolling_window
             report=report
             error=error
         />

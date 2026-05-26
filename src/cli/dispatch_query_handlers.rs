@@ -42,6 +42,7 @@ async fn dispatch_fund(ctx: &CommandContext<'_>, cmd: Commands) -> anyhow::Resul
             period,
             output,
             format,
+            rolling_window,
         } => {
             run_analyze(
                 ctx,
@@ -50,6 +51,7 @@ async fn dispatch_fund(ctx: &CommandContext<'_>, cmd: Commands) -> anyhow::Resul
                     pick_watchlist,
                     days,
                     period,
+                    rolling_window,
                     output,
                     format,
                 },
@@ -92,6 +94,7 @@ async fn dispatch_portfolio_export(ctx: &CommandContext<'_>, cmd: Commands) -> a
             holdings_top,
             output,
             format,
+            rolling_window,
         } => {
             run_portfolio(
                 ctx,
@@ -100,6 +103,7 @@ async fn dispatch_portfolio_export(ctx: &CommandContext<'_>, cmd: Commands) -> a
                     days,
                     period,
                     holdings_top,
+                    rolling_window,
                     output,
                     format,
                 },

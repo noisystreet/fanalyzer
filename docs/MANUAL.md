@@ -112,6 +112,7 @@ cargo run -- analyze --watchlist --days 60
 | `--period` | 预设窗口：`7d`/`1m`/`3m`/`6m`/`1y`/`ytd`，或 rank 的 `sc`（如 `1nzf`、`zzf`） |
 | `-o` / `--output` | 导出 JSON 报告（含标量指标与时间序列） |
 | `-f` / `--format` | 导出格式，目前支持 `json` |
+| `--rolling-window` | 滚动指标窗口（交易日，10～252），默认 `60` |
 
 **分析口径（重要）：**
 
@@ -184,6 +185,7 @@ weight = 0.5
 | `--holdings-top` | 重仓重叠分析取前 N 大重仓，默认 `10`（需联网） |
 | `-o` / `--output` | 导出 JSON 报告 |
 | `-f` / `--format` | 目前支持 `json` |
+| `--rolling-window` | 滚动指标窗口（交易日，10～252），默认 `60` |
 
 **输出说明：**
 
@@ -192,7 +194,11 @@ weight = 0.5
 - **成分贡献**：静态近似 `weight × 单基总收益`
 - **相关矩阵**：成分日收益 Pearson 相关（日期取交集）
 - **重仓重叠**：对共同持仓取 `min(占净值%)` 之和；`--offline` 时跳过
-- **分析解读**：基于规则引擎自动生成要点（风险、集中度、相关性、重叠等），**不构成投资建议**
+- **分析解读**：基于规则引擎自动生成要点（风险、集中度、相关性、重叠、**等权对比**等），阈值见 `config/portfolio_insights.toml`，**不构成投资建议**
+
+### 解读阈值 `config/portfolio_insights.toml`
+
+可调整相关/重叠/集中度/夏普/等权对比等触发阈值；文件缺失时使用内置默认值。
 
 ---
 
@@ -421,7 +427,7 @@ cargo run --features web -- serve --host 0.0.0.0 --port 8080
 - `/` — 首页
 - `/analyze?code=000001&days=90` — 单基金分析（含净值/回撤/滚动指标 SVG 图表）
 - `/compare?codes=000001,110011&days=90&sort=sharpe` — 多基金对比
-- `/portfolio?run=1&days=90` — 组合分析（含组合净值与滚动指标图表）
+- `/portfolio?run=1&days=90` — 组合分析（含组合净值与滚动指标图表；支持「从自选导入等权」、浏览器 localStorage 暂存草稿）
 - `/info?code=000001` — 基金概况（F10）
 - `/brief?code=000001&days=90&industry_top=5&holdings_top=10` — 选基综合简报
 

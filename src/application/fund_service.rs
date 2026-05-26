@@ -2,8 +2,8 @@
 
 use super::context::Session;
 use crate::domain::{
-    build_fund_analysis_series, resolve_benchmark, BenchmarkData, FundAnalyzer, FundMetaInfo,
-    IndexBenchmark, DEFAULT_ROLLING_WINDOW, HS300,
+    build_fund_analysis_series, normalize_rolling_window, resolve_benchmark, BenchmarkData,
+    FundAnalyzer, FundMetaInfo, IndexBenchmark, HS300,
 };
 use crate::models::FundAnalysisReport;
 use crate::nav_cache::filter_covering_calendar_days;
@@ -195,6 +195,7 @@ pub async fn analyze_fund(
     identifier: &str,
     days: u32,
     offline: bool,
+    rolling_window: u32,
 ) -> anyhow::Result<Option<FundAnalysisReport>> {
     let (resolved_code, name) = resolve_fund_identifier(session, identifier, offline).await?;
     let benchmark = if offline {
@@ -216,7 +217,8 @@ pub async fn analyze_fund(
             Some(a) => a,
             None => return Ok(None),
         };
-    let series = build_fund_analysis_series(&navs, benchmark.as_ref(), DEFAULT_ROLLING_WINDOW);
+    let rolling = normalize_rolling_window(rolling_window);
+    let series = build_fund_analysis_series(&navs, benchmark.as_ref(), rolling);
     let benchmark_label = benchmark.map(|b| b.label);
     Ok(Some(FundAnalysisReport {
         snapshot,

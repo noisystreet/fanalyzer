@@ -12,6 +12,7 @@ pub struct AnalyzeRequest {
     pub pick_watchlist: bool,
     pub days: u32,
     pub period: Option<String>,
+    pub rolling_window: u32,
     pub output: Option<PathBuf>,
     pub format: String,
 }
@@ -27,7 +28,9 @@ pub async fn run_analyze(ctx: &CommandContext<'_>, req: AnalyzeRequest) -> anyho
     )?;
     for id in ids {
         tracing::info!(code = %id, days = days, "Analyzing fund");
-        match fund_service::analyze_fund(&ctx.session, &id, days, ctx.offline).await {
+        match fund_service::analyze_fund(&ctx.session, &id, days, ctx.offline, req.rolling_window)
+            .await
+        {
             Ok(Some(report)) => {
                 print_analysis(&report.snapshot);
                 render_analysis(&report, req.output.as_deref(), &req.format)?;
@@ -40,4 +43,14 @@ pub async fn run_analyze(ctx: &CommandContext<'_>, req: AnalyzeRequest) -> anyho
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::domain::DEFAULT_ROLLING_WINDOW;
+
+    #[test]
+    fn default_rolling_window_matches_domain() {
+        assert_eq!(DEFAULT_ROLLING_WINDOW, 60);
+    }
 }

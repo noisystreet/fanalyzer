@@ -120,6 +120,23 @@ pub fn format_holdings_text(holdings: &[(String, f64)]) -> String {
         .join("\n")
 }
 
+/// 从自选列表生成等权组合编辑内容（Web「从自选导入」）。
+pub fn watchlist_equal_weight_content(watchlist_path: &Path) -> anyhow::Result<(String, String)> {
+    let funds = crate::watchlist::load_watchlist(watchlist_path)?;
+    if funds.len() < 2 {
+        anyhow::bail!(
+            "自选至少需要 2 只有效基金才能导入组合（当前 {} 只）",
+            funds.len()
+        );
+    }
+    let w = 1.0 / funds.len() as f64;
+    let holdings: Vec<(String, f64)> = funds.into_iter().map(|c| (c, w)).collect();
+    Ok((
+        "watchlist-equal".to_string(),
+        format_holdings_text(&holdings),
+    ))
+}
+
 /// Web 组合页默认编辑内容：优先 portfolio 文件，其次自选等权，最后示例。
 pub fn default_editor_content(portfolio_path: &Path, watchlist_path: &Path) -> (String, String) {
     if let Ok(def) = load_portfolio(portfolio_path) {
@@ -200,5 +217,15 @@ weight = 1.0
         let text = format_holdings_text(&holdings);
         let p = portfolio_from_text(None, &text).unwrap();
         assert_eq!(p.holdings.len(), 2);
+    }
+
+    #[test]
+    fn watchlist_equal_weight_content_formats() {
+        let mut f = tempfile::NamedTempFile::new().unwrap();
+        writeln!(f, r#"funds = ["000001", "110011", "000003"]"#).unwrap();
+        let (name, text) = watchlist_equal_weight_content(f.path()).unwrap();
+        assert_eq!(name, "watchlist-equal");
+        assert!(text.contains("000001"));
+        assert!(text.contains("0.3333"));
     }
 }

@@ -375,6 +375,21 @@ button:active,
   padding: 0.7rem 1.5rem;
 }
 
+.btn-secondary {
+  background: #fff;
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+}
+
+.btn-secondary:hover {
+  background: #f8fafc;
+  color: var(--accent);
+}
+
+.form-actions .btn-secondary {
+  margin-right: 0.5rem;
+}
+
 .alert {
   padding: 0.875rem 1rem;
   border-radius: var(--radius-sm);
