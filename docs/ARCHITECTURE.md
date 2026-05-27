@@ -134,7 +134,8 @@ Web 组合页在表单中编辑自选组合（每行「代码 权重」）；首
 - **domain/**：单元测试（analyzer、period、sort、screen_filter）
 - **application/**：golden 信封测试（`analyze` / `compare` / `portfolio` / `brief`），共享 `test_support` + `MockFundDataSource`
 - **api/**：HTML/JS 解析 fixture 位于 `tests/fixtures/api/`，单元测试从文件加载以防回归
-- **tests/schema_contract_test.rs**：离线 CLI 输出用 `jsonschema` 校验 `schemas/responses/*.success.json`
+- **tests/schema_contract_test.rs**：离线 CLI 输出用 `jsonschema` 校验 `schemas/responses/*.success.json` 与 `envelope.failure.json`
+- **tests/mcp_schema_contract_test.rs**：MCP `tools/call` 工具结果校验同一套 response schema（离线 `--config` + 缓存 fixture）
 - **tests/integration_test.rs**：CLI/MCP 行为与 `--config` 路径
 - CI 默认构建 + `--features web` 分别跑 clippy / test
 - 外部 HTTP：`FundDataSource` trait + 离线缓存 fixture，核心路径 CI 无需联网

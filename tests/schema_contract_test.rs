@@ -2,194 +2,101 @@
 
 mod test_fixtures;
 
-use assert_cmd::Command;
-use jsonschema::validator_for;
-use serde_json::Value;
-use std::fs;
-use std::path::{Path, PathBuf};
-use test_fixtures::{linear_nav_series, write_config_with_cache_root, write_offline_cache};
+use test_fixtures::{
+    parse_stdout_json, run_json_cli, run_json_cli_expect_failure, setup_offline_two_fund_env,
+    validate_envelope, validate_success_command, OfflineContractEnv,
+};
 
-fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-}
-
-fn validate_envelope(instance: &Value, schema_rel: &str) {
-    let schema_path = repo_root().join(schema_rel);
-    let schema_text = fs::read_to_string(&schema_path)
-        .unwrap_or_else(|e| panic!("read schema {}: {e}", schema_path.display()));
-    let schema: Value = serde_json::from_str(&schema_text).expect("schema json");
-    let validator = validator_for(&schema).expect("compile schema");
-    let errors: Vec<String> = validator
-        .iter_errors(instance)
-        .map(|e| format!("{e}"))
-        .collect();
-    assert!(
-        errors.is_empty(),
-        "schema {} validation failed:\n{}",
-        schema_rel,
-        errors.join("\n")
-    );
-}
-
-fn parse_stdout_json(raw: &[u8]) -> Value {
-    let text = String::from_utf8(raw.to_vec()).expect("utf8 stdout");
-    serde_json::from_str(text.trim()).expect("stdout json envelope")
-}
-
-fn offline_env(temp: &Path) -> (PathBuf, PathBuf) {
-    let cache_root = temp.join("cache");
-    let code = "000001";
-    write_offline_cache(
-        &cache_root,
-        code,
-        "契约测试基金",
-        &linear_nav_series(code, 91),
-    );
-    let config_path = write_config_with_cache_root(temp, &cache_root);
-    (config_path, cache_root)
+fn run_offline_json(env: &OfflineContractEnv, tail: &[&str]) -> serde_json::Value {
+    let mut args = test_fixtures::offline_json_prefix(env);
+    args.extend(tail.iter().map(|s| (*s).to_string()));
+    let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+    parse_stdout_json(&run_json_cli(&refs).stdout)
 }
 
 #[test]
 fn analyze_cli_output_matches_success_schema() {
     let temp = tempfile::tempdir().unwrap();
-    let (config_path, _) = offline_env(temp.path());
-    let raw = Command::cargo_bin("fanalyzer")
-        .unwrap()
-        .current_dir(repo_root())
-        .args([
-            "--config",
-            config_path.to_str().unwrap(),
-            "--offline",
-            "json",
-            "analyze",
-            "000001",
-            "--days",
-            "30",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    validate_envelope(
-        &parse_stdout_json(&raw),
-        "schemas/responses/analyze.success.json",
-    );
+    let env = setup_offline_two_fund_env(temp.path());
+    let envelope = run_offline_json(&env, &["analyze", "000001", "--days", "30"]);
+    validate_success_command(&envelope, "analyze");
 }
 
 #[test]
 fn compare_cli_output_matches_success_schema() {
     let temp = tempfile::tempdir().unwrap();
-    let cache_root = temp.path().join("cache");
-    write_offline_cache(
-        &cache_root,
-        "000001",
-        "基金A",
-        &linear_nav_series("000001", 91),
+    let env = setup_offline_two_fund_env(temp.path());
+    let envelope = run_offline_json(
+        &env,
+        &["compare", "--codes", "000001,110011", "--days", "30"],
     );
-    write_offline_cache(
-        &cache_root,
-        "110011",
-        "基金B",
-        &linear_nav_series("110011", 91),
-    );
-    let config_path = write_config_with_cache_root(temp.path(), &cache_root);
-    let raw = Command::cargo_bin("fanalyzer")
-        .unwrap()
-        .current_dir(repo_root())
-        .args([
-            "--config",
-            config_path.to_str().unwrap(),
-            "--offline",
-            "json",
-            "compare",
-            "--codes",
-            "000001,110011",
-            "--days",
-            "30",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    validate_envelope(
-        &parse_stdout_json(&raw),
-        "schemas/responses/compare.success.json",
-    );
+    validate_success_command(&envelope, "compare");
 }
 
 #[test]
 fn portfolio_cli_output_matches_success_schema() {
     let temp = tempfile::tempdir().unwrap();
-    let cache_root = temp.path().join("cache");
-    write_offline_cache(
-        &cache_root,
-        "000001",
-        "基金A",
-        &linear_nav_series("000001", 91),
-    );
-    write_offline_cache(
-        &cache_root,
-        "110011",
-        "基金B",
-        &linear_nav_series("110011", 91),
-    );
-    let config_path = write_config_with_cache_root(temp.path(), &cache_root);
-    let portfolio_path = temp.path().join("portfolio.toml");
-    fs::write(
-        &portfolio_path,
-        r#"
-name = "schema-test"
-
-[[holdings]]
-code = "000001"
-weight = 0.5
-
-[[holdings]]
-code = "110011"
-weight = 0.5
-"#,
-    )
-    .unwrap();
-    let raw = Command::cargo_bin("fanalyzer")
-        .unwrap()
-        .current_dir(repo_root())
-        .args([
-            "--config",
-            config_path.to_str().unwrap(),
-            "--offline",
-            "json",
+    let env = setup_offline_two_fund_env(temp.path());
+    let envelope = run_offline_json(
+        &env,
+        &[
             "portfolio",
             "--portfolio-file",
-            portfolio_path.to_str().unwrap(),
+            env.portfolio_path.to_str().unwrap(),
             "--days",
             "30",
-        ])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    validate_envelope(
-        &parse_stdout_json(&raw),
-        "schemas/responses/portfolio.success.json",
+        ],
     );
+    validate_success_command(&envelope, "portfolio");
+}
+
+#[test]
+fn export_cli_output_matches_success_schema() {
+    let temp = tempfile::tempdir().unwrap();
+    let env = setup_offline_two_fund_env(temp.path());
+    let envelope = run_offline_json(&env, &["export", "000001", "--days", "30"]);
+    validate_success_command(&envelope, "export");
+}
+
+#[test]
+fn portfolio_config_cli_output_matches_success_schema() {
+    let temp = tempfile::tempdir().unwrap();
+    let env = setup_offline_two_fund_env(temp.path());
+    let envelope = run_offline_json(
+        &env,
+        &[
+            "portfolio-config",
+            "--portfolio-file",
+            env.portfolio_path.to_str().unwrap(),
+        ],
+    );
+    validate_success_command(&envelope, "portfolio_config");
 }
 
 #[test]
 fn watchlist_cli_output_matches_success_schema() {
-    let raw = Command::cargo_bin("fanalyzer")
-        .unwrap()
-        .current_dir(repo_root())
-        .args(["json", "watchlist", "list"])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    validate_envelope(
-        &parse_stdout_json(&raw),
-        "schemas/responses/watchlist.success.json",
-    );
+    let temp = tempfile::tempdir().unwrap();
+    let env = setup_offline_two_fund_env(temp.path());
+    let mut args = test_fixtures::offline_json_prefix(&env);
+    args.extend([
+        "--watchlist-file".into(),
+        env.watchlist_path.to_string_lossy().into_owned(),
+        "watchlist".into(),
+        "list".into(),
+    ]);
+    let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+    let envelope = parse_stdout_json(&run_json_cli(&refs).stdout);
+    validate_success_command(&envelope, "watchlist");
+}
+
+#[test]
+fn compare_failure_cli_output_matches_failure_schema() {
+    let temp = tempfile::tempdir().unwrap();
+    let env = setup_offline_two_fund_env(temp.path());
+    let mut args = test_fixtures::offline_json_prefix(&env);
+    args.extend(["compare".into(), "--codes".into(), "000001".into()]);
+    let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+    let envelope = parse_stdout_json(&run_json_cli_expect_failure(&refs).stdout);
+    validate_envelope(&envelope, "schemas/envelope.failure.json");
+    assert_eq!(envelope["ok"], false);
 }
