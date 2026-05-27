@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 
+use crate::application::{PortfolioConfigPayload, WatchlistItem};
 use crate::models::{FundAnalysis, FundAnalysisReport, FundBrief, FundOverview, PortfolioReport};
 use crate::presentation::{
     AnalysisMeta, BatchMeta, BatchPayload, ExportMeta, ExportPayload, FetchPayload, HoldingsItem,
@@ -133,6 +134,28 @@ pub struct ScreenSuccessEnvelope {
     pub data: ScreenPayload,
 }
 
+#[derive(JsonSchema)]
+#[schemars(title = "WatchlistSuccessEnvelope")]
+pub struct WatchlistSuccessEnvelope {
+    pub v: u32,
+    pub command: String,
+    pub ok: bool,
+    pub meta: Option<BatchMeta>,
+    pub warnings: Vec<String>,
+    pub data: BatchPayload<WatchlistItem>,
+}
+
+#[derive(JsonSchema)]
+#[schemars(title = "PortfolioConfigSuccessEnvelope")]
+pub struct PortfolioConfigSuccessEnvelope {
+    pub v: u32,
+    pub command: String,
+    pub ok: bool,
+    pub meta: Option<crate::presentation::BaseMeta>,
+    pub warnings: Vec<String>,
+    pub data: PortfolioConfigPayload,
+}
+
 /// 供 index 注册的成功信封清单。
 pub const SUCCESS_ENVELOPES: &[(&str, &str)] = &[
     ("analyze", "responses/analyze.success.json"),
@@ -146,4 +169,9 @@ pub const SUCCESS_ENVELOPES: &[(&str, &str)] = &[
     ("rank", "responses/rank.success.json"),
     ("brief", "responses/brief.success.json"),
     ("screen", "responses/screen.success.json"),
+    ("watchlist", "responses/watchlist.success.json"),
+    (
+        "portfolio_config",
+        "responses/portfolio_config.success.json",
+    ),
 ];

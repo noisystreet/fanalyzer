@@ -1,9 +1,13 @@
 //! Agent / MCP JSON Schema 生成（Clap 工具入参 + schemars 响应模型）。
 
+mod agent_tools;
 mod export;
 mod responses;
 mod tools;
 
+pub use agent_tools::{
+    agent_tools_json, embed_output_schemas, generate_agent_tools, write_agent_tools,
+};
 pub use export::export_all;
 pub use tools::{generate_tools, tools_json, write_tools};
 

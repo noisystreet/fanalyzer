@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 const SCHEMA_VERSION: &str = "1";
-const TOOL_PREFIX: &str = "fanalyzer_";
+pub const TOOL_PREFIX: &str = "fanalyzer_";
 
 /// MCP / OpenAI function calling 工具描述。
 #[derive(Debug, serde::Serialize)]

@@ -1,0 +1,4125 @@
+{
+  "generator": "fanalyzer schema export",
+  "tools": [
+    {
+      "description": "单基金命令的代码参数",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] fetch ...`",
+        "properties": {
+          "code": {
+            "description": "基金代码或名称",
+            "type": "string"
+          },
+          "limit": {
+            "default": "20",
+            "description": "拉取记录条数",
+            "type": "integer"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "watchlist": {
+            "description": "使用自选文件中的所有基金",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_fetch",
+      "outputSchema": {
+        "$defs": {
+          "BatchMeta": {
+            "description": "批量查询 meta。",
+            "properties": {
+              "generated_at": {
+                "type": "string"
+              },
+              "offline": {
+                "type": "boolean"
+              },
+              "requested": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "succeeded": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "offline",
+              "generated_at",
+              "requested",
+              "succeeded"
+            ],
+            "type": "object"
+          },
+          "BatchPayload": {
+            "description": "多基金/多条目结果（含可选 partial errors）。",
+            "properties": {
+              "errors": {
+                "items": {
+                  "$ref": "#/$defs/ItemError"
+                },
+                "type": "array"
+              },
+              "items": {
+                "items": {
+                  "$ref": "#/$defs/FetchPayload"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "items"
+            ],
+            "type": "object"
+          },
+          "FetchPayload": {
+            "description": "净值拉取结果。",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "fetched": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "nav": {
+                "items": {
+                  "$ref": "#/$defs/FundNav"
+                },
+                "type": "array"
+              },
+              "total": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "code",
+              "name",
+              "total",
+              "fetched",
+              "nav"
+            ],
+            "type": "object"
+          },
+          "FundNav": {
+            "properties": {
+              "acc_nav": {
+                "format": "double",
+                "type": "number"
+              },
+              "code": {
+                "type": "string"
+              },
+              "daily_return": {
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "date": {
+                "format": "date",
+                "type": "string"
+              },
+              "nav": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "code",
+              "date",
+              "nav",
+              "acc_nav"
+            ],
+            "type": "object"
+          },
+          "ItemError": {
+            "description": "批量条目失败信息。",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "error_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/$defs/BatchPayload"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BatchMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "v": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "v",
+          "command",
+          "ok",
+          "warnings",
+          "data"
+        ],
+        "title": "FetchSuccessEnvelope",
+        "type": "object"
+      }
+    },
+    {
+      "description": "单基金命令的代码参数",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] analyze ...`",
+        "properties": {
+          "code": {
+            "description": "基金代码或名称",
+            "type": "string"
+          },
+          "days": {
+            "default": "30",
+            "description": "分析窗口（日历天）；可被 --period 覆盖",
+            "type": "integer"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "period": {
+            "description": "预设窗口：7d/1m/3m/6m/1y/ytd 或 rank 的 sc（1nzf/zzf 等）",
+            "type": "string"
+          },
+          "rolling-window": {
+            "default": "60",
+            "description": "滚动指标窗口（交易日，10～252）",
+            "type": "integer"
+          },
+          "watchlist": {
+            "description": "分析自选文件中所有基金",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_analyze",
+      "outputSchema": {
+        "$defs": {
+          "AnalysisMeta": {
+            "description": "分析类命令 meta。",
+            "properties": {
+              "days": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "generated_at": {
+                "type": "string"
+              },
+              "offline": {
+                "type": "boolean"
+              },
+              "period": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "requested": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "rolling_window": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "succeeded": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "offline",
+              "generated_at",
+              "days",
+              "requested",
+              "succeeded"
+            ],
+            "type": "object"
+          },
+          "BatchPayload": {
+            "description": "多基金/多条目结果（含可选 partial errors）。",
+            "properties": {
+              "errors": {
+                "items": {
+                  "$ref": "#/$defs/ItemError"
+                },
+                "type": "array"
+              },
+              "items": {
+                "items": {
+                  "$ref": "#/$defs/FundAnalysisReport"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "items"
+            ],
+            "type": "object"
+          },
+          "FundAnalysis": {
+            "properties": {
+              "alpha": {
+                "format": "double",
+                "type": "number"
+              },
+              "annualized_return": {
+                "format": "double",
+                "type": "number"
+              },
+              "avg_nav": {
+                "format": "double",
+                "type": "number"
+              },
+              "beta": {
+                "format": "double",
+                "type": "number"
+              },
+              "calmar_ratio": {
+                "format": "double",
+                "type": "number"
+              },
+              "code": {
+                "type": "string"
+              },
+              "custody_fee": {
+                "format": "double",
+                "type": "number"
+              },
+              "management_fee": {
+                "format": "double",
+                "type": "number"
+              },
+              "manager_name": {
+                "type": "string"
+              },
+              "manager_tenure_days": {
+                "format": "int32",
+                "type": "integer"
+              },
+              "manager_total_return": {
+                "format": "double",
+                "type": "number"
+              },
+              "max_drawdown": {
+                "format": "double",
+                "type": "number"
+              },
+              "max_nav": {
+                "format": "double",
+                "type": "number"
+              },
+              "min_nav": {
+                "format": "double",
+                "type": "number"
+              },
+              "name": {
+                "type": "string"
+              },
+              "period_days": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "sharpe_ratio": {
+                "format": "double",
+                "type": "number"
+              },
+              "sortino_ratio": {
+                "format": "double",
+                "type": "number"
+              },
+              "total_return": {
+                "format": "double",
+                "type": "number"
+              },
+              "volatility": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "code",
+              "name",
+              "period_days",
+              "avg_nav",
+              "max_nav",
+              "min_nav",
+              "total_return",
+              "annualized_return",
+              "volatility",
+              "max_drawdown",
+              "sharpe_ratio",
+              "sortino_ratio",
+              "calmar_ratio",
+              "alpha",
+              "beta",
+              "manager_name",
+              "manager_tenure_days",
+              "manager_total_return",
+              "management_fee",
+              "custody_fee"
+            ],
+            "type": "object"
+          },
+          "FundAnalysisReport": {
+            "description": "单基金完整分析报告（标量快照 + 可选时间序列）。",
+            "properties": {
+              "benchmark_label": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "series": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/FundAnalysisSeries"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "snapshot": {
+                "$ref": "#/$defs/FundAnalysis"
+              }
+            },
+            "required": [
+              "snapshot"
+            ],
+            "type": "object"
+          },
+          "FundAnalysisSeries": {
+            "description": "单基金滚动指标与净值/回撤曲线。",
+            "properties": {
+              "drawdown": {
+                "items": {
+                  "$ref": "#/$defs/SeriesPoint"
+                },
+                "type": "array"
+              },
+              "nav_normalized": {
+                "items": {
+                  "$ref": "#/$defs/SeriesPoint"
+                },
+                "type": "array"
+              },
+              "rolling_beta": {
+                "items": {
+                  "$ref": "#/$defs/SeriesPoint"
+                },
+                "type": "array"
+              },
+              "rolling_sharpe": {
+                "items": {
+                  "$ref": "#/$defs/SeriesPoint"
+                },
+                "type": "array"
+              },
+              "rolling_volatility": {
+                "items": {
+                  "$ref": "#/$defs/SeriesPoint"
+                },
+                "type": "array"
+              },
+              "rolling_window": {
+                "description": "滚动窗口（交易日）",
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "rolling_window",
+              "nav_normalized",
+              "drawdown",
+              "rolling_sharpe",
+              "rolling_beta",
+              "rolling_volatility"
+            ],
+            "type": "object"
+          },
+          "ItemError": {
+            "description": "批量条目失败信息。",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "error_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "type": "object"
+          },
+          "SeriesPoint": {
+            "description": "单个时间序列数据点。",
+            "properties": {
+              "date": {
+                "format": "date",
+                "type": "string"
+              },
+              "value": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "date",
+              "value"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "description": "json analyze 成功响应",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/$defs/BatchPayload"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/AnalysisMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "v": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "v",
+          "command",
+          "ok",
+          "warnings",
+          "data"
+        ],
+        "title": "AnalyzeSuccessEnvelope",
+        "type": "object"
+      }
+    },
+    {
+      "description": "结构化 JSON 输出",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] compare ...`",
+        "properties": {
+          "codes": {
+            "description": "逗号分隔的基金代码或名称",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "days": {
+            "default": "30",
+            "description": "分析窗口（日历天）；可被 --period 覆盖",
+            "type": "integer"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "period": {
+            "description": "预设窗口：7d/1m/3m/6m/1y/ytd 或 rank 的 sc",
+            "type": "string"
+          },
+          "sort": {
+            "description": "结果排序：sharpe/sortino/calmar/total-return/max-drawdown/alpha/volatility",
+            "type": "string"
+          },
+          "watchlist": {
+            "description": "对比自选文件中所有基金",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_compare",
+      "outputSchema": {
+        "$defs": {
+          "AnalysisMeta": {
+            "description": "分析类命令 meta。",
+            "properties": {
+              "days": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "generated_at": {
+                "type": "string"
+              },
+              "offline": {
+                "type": "boolean"
+              },
+              "period": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "requested": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "rolling_window": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "succeeded": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "offline",
+              "generated_at",
+              "days",
+              "requested",
+              "succeeded"
+            ],
+            "type": "object"
+          },
+          "BatchPayload": {
+            "description": "多基金/多条目结果（含可选 partial errors）。",
+            "properties": {
+              "errors": {
+                "items": {
+                  "$ref": "#/$defs/ItemError"
+                },
+                "type": "array"
+              },
+              "items": {
+                "items": {
+                  "$ref": "#/$defs/FundAnalysis"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "items"
+            ],
+            "type": "object"
+          },
+          "FundAnalysis": {
+            "properties": {
+              "alpha": {
+                "format": "double",
+                "type": "number"
+              },
+              "annualized_return": {
+                "format": "double",
+                "type": "number"
+              },
+              "avg_nav": {
+                "format": "double",
+                "type": "number"
+              },
+              "beta": {
+                "format": "double",
+                "type": "number"
+              },
+              "calmar_ratio": {
+                "format": "double",
+                "type": "number"
+              },
+              "code": {
+                "type": "string"
+              },
+              "custody_fee": {
+                "format": "double",
+                "type": "number"
+              },
+              "management_fee": {
+                "format": "double",
+                "type": "number"
+              },
+              "manager_name": {
+                "type": "string"
+              },
+              "manager_tenure_days": {
+                "format": "int32",
+                "type": "integer"
+              },
+              "manager_total_return": {
+                "format": "double",
+                "type": "number"
+              },
+              "max_drawdown": {
+                "format": "double",
+                "type": "number"
+              },
+              "max_nav": {
+                "format": "double",
+                "type": "number"
+              },
+              "min_nav": {
+                "format": "double",
+                "type": "number"
+              },
+              "name": {
+                "type": "string"
+              },
+              "period_days": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "sharpe_ratio": {
+                "format": "double",
+                "type": "number"
+              },
+              "sortino_ratio": {
+                "format": "double",
+                "type": "number"
+              },
+              "total_return": {
+                "format": "double",
+                "type": "number"
+              },
+              "volatility": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "code",
+              "name",
+              "period_days",
+              "avg_nav",
+              "max_nav",
+              "min_nav",
+              "total_return",
+              "annualized_return",
+              "volatility",
+              "max_drawdown",
+              "sharpe_ratio",
+              "sortino_ratio",
+              "calmar_ratio",
+              "alpha",
+              "beta",
+              "manager_name",
+              "manager_tenure_days",
+              "manager_total_return",
+              "management_fee",
+              "custody_fee"
+            ],
+            "type": "object"
+          },
+          "ItemError": {
+            "description": "批量条目失败信息。",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "error_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/$defs/BatchPayload"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/AnalysisMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "v": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "v",
+          "command",
+          "ok",
+          "warnings",
+          "data"
+        ],
+        "title": "CompareSuccessEnvelope",
+        "type": "object"
+      }
+    },
+    {
+      "description": "结构化 JSON 输出",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] portfolio ...`",
+        "properties": {
+          "days": {
+            "default": "90",
+            "description": "分析窗口（日历天）；可被 --period 覆盖",
+            "type": "integer"
+          },
+          "holdings-top": {
+            "default": "10",
+            "description": "重仓重叠分析取前 N 大重仓（1～50，需联网）",
+            "type": "integer"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "period": {
+            "description": "预设窗口：7d/1m/3m/6m/1y/ytd 或 rank 的 sc",
+            "type": "string"
+          },
+          "portfolio-file": {
+            "default": "config/portfolio.toml",
+            "description": "组合权重 TOML 路径",
+            "type": "string"
+          },
+          "rolling-window": {
+            "default": "60",
+            "description": "滚动指标窗口（交易日，10～252）",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_portfolio",
+      "outputSchema": {
+        "$defs": {
+          "CorrelationMatrix": {
+            "properties": {
+              "labels": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "values": {
+                "items": {
+                  "items": {
+                    "format": "double",
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "labels",
+              "values"
+            ],
+            "type": "object"
+          },
+          "InsightLevel": {
+            "description": "解读条目严重程度。",
+            "enum": [
+              "positive",
+              "info",
+              "caution"
+            ],
+            "type": "string"
+          },
+          "OverlapPair": {
+            "properties": {
+              "fund_a_code": {
+                "type": "string"
+              },
+              "fund_a_name": {
+                "type": "string"
+              },
+              "fund_b_code": {
+                "type": "string"
+              },
+              "fund_b_name": {
+                "type": "string"
+              },
+              "overlap_pct": {
+                "description": "加权重叠（占净值百分比，0～100）",
+                "format": "double",
+                "type": "number"
+              },
+              "shared_count": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "fund_a_code",
+              "fund_a_name",
+              "fund_b_code",
+              "fund_b_name",
+              "overlap_pct",
+              "shared_count"
+            ],
+            "type": "object"
+          },
+          "PortfolioInsight": {
+            "description": "单条解读。",
+            "properties": {
+              "category": {
+                "type": "string"
+              },
+              "level": {
+                "$ref": "#/$defs/InsightLevel"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "level",
+              "category",
+              "message"
+            ],
+            "type": "object"
+          },
+          "PortfolioInterpretation": {
+            "description": "组合解读汇总。",
+            "properties": {
+              "headline": {
+                "type": "string"
+              },
+              "insights": {
+                "items": {
+                  "$ref": "#/$defs/PortfolioInsight"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "headline",
+              "insights"
+            ],
+            "type": "object"
+          },
+          "PortfolioMember": {
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "max_drawdown": {
+                "format": "double",
+                "type": "number"
+              },
+              "name": {
+                "type": "string"
+              },
+              "return_contribution": {
+                "description": "静态贡献近似：`weight × total_return`",
+                "format": "double",
+                "type": "number"
+              },
+              "sharpe_ratio": {
+                "format": "double",
+                "type": "number"
+              },
+              "total_return": {
+                "format": "double",
+                "type": "number"
+              },
+              "volatility": {
+                "format": "double",
+                "type": "number"
+              },
+              "weight": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "code",
+              "name",
+              "weight",
+              "total_return",
+              "volatility",
+              "max_drawdown",
+              "sharpe_ratio",
+              "return_contribution"
+            ],
+            "type": "object"
+          },
+          "PortfolioMeta": {
+            "description": "组合 meta。",
+            "properties": {
+              "days": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "generated_at": {
+                "type": "string"
+              },
+              "holdings": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "offline": {
+                "type": "boolean"
+              },
+              "period": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "rolling_window": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "offline",
+              "generated_at",
+              "days",
+              "rolling_window",
+              "holdings"
+            ],
+            "type": "object"
+          },
+          "PortfolioReport": {
+            "properties": {
+              "correlation": {
+                "$ref": "#/$defs/CorrelationMatrix"
+              },
+              "interpretation": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/PortfolioInterpretation"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "规则引擎生成的解读（可选，由 application 填充）"
+              },
+              "overlaps": {
+                "items": {
+                  "$ref": "#/$defs/OverlapPair"
+                },
+                "type": "array"
+              },
+              "series": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/PortfolioTimeSeries"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "组合净值与滚动指标时间序列"
+              },
+              "summary": {
+                "$ref": "#/$defs/PortfolioSummary"
+              }
+            },
+            "required": [
+              "summary",
+              "correlation",
+              "overlaps"
+            ],
+            "type": "object"
+          },
+          "PortfolioSummary": {
+            "properties": {
+              "aligned_days": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "annualized_return": {
+                "format": "double",
+                "type": "number"
+              },
+              "max_drawdown": {
+                "format": "double",
+                "type": "number"
+              },
+              "members": {
+                "items": {
+                  "$ref": "#/$defs/PortfolioMember"
+                },
+                "type": "array"
+              },
+              "name": {
+                "type": "string"
+              },
+              "period_days": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "sharpe_ratio": {
+                "format": "double",
+                "type": "number"
+              },
+              "total_return": {
+                "format": "double",
+                "type": "number"
+              },
+              "volatility": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "name",
+              "period_days",
+              "aligned_days",
+              "total_return",
+              "annualized_return",
+              "volatility",
+              "max_drawdown",
+              "sharpe_ratio",
+              "members"
+            ],
+            "type": "object"
+          },
+          "PortfolioTimeSeries": {
+            "description": "组合层时间序列（加权净值与滚动指标）。",
+            "properties": {
+              "drawdown": {
+                "items": {
+                  "$ref": "#/$defs/SeriesPoint"
+                },
+                "type": "array"
+              },
+              "nav_normalized": {
+                "items": {
+                  "$ref": "#/$defs/SeriesPoint"
+                },
+                "type": "array"
+              },
+              "rolling_sharpe": {
+                "items": {
+                  "$ref": "#/$defs/SeriesPoint"
+                },
+                "type": "array"
+              },
+              "rolling_volatility": {
+                "items": {
+                  "$ref": "#/$defs/SeriesPoint"
+                },
+                "type": "array"
+              },
+              "rolling_window": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "rolling_window",
+              "nav_normalized",
+              "drawdown",
+              "rolling_sharpe",
+              "rolling_volatility"
+            ],
+            "type": "object"
+          },
+          "SeriesPoint": {
+            "description": "单个时间序列数据点。",
+            "properties": {
+              "date": {
+                "format": "date",
+                "type": "string"
+              },
+              "value": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "date",
+              "value"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/$defs/PortfolioReport"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PortfolioMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "v": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "v",
+          "command",
+          "ok",
+          "warnings",
+          "data"
+        ],
+        "title": "PortfolioSuccessEnvelope",
+        "type": "object"
+      }
+    },
+    {
+      "description": "单基金命令的代码参数",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] export ...`",
+        "properties": {
+          "code": {
+            "description": "基金代码或名称",
+            "type": "string"
+          },
+          "days": {
+            "default": "30",
+            "description": "日历天窗口",
+            "type": "integer"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "watchlist": {
+            "description": "导出自选文件中所有基金",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_export",
+      "outputSchema": {
+        "$defs": {
+          "BatchPayload": {
+            "description": "多基金/多条目结果（含可选 partial errors）。",
+            "properties": {
+              "errors": {
+                "items": {
+                  "$ref": "#/$defs/ItemError"
+                },
+                "type": "array"
+              },
+              "items": {
+                "items": {
+                  "$ref": "#/$defs/ExportPayload"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "items"
+            ],
+            "type": "object"
+          },
+          "ExportMeta": {
+            "description": "导出 meta。",
+            "properties": {
+              "days": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "generated_at": {
+                "type": "string"
+              },
+              "offline": {
+                "type": "boolean"
+              },
+              "requested": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "succeeded": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "offline",
+              "generated_at",
+              "days",
+              "requested",
+              "succeeded"
+            ],
+            "type": "object"
+          },
+          "ExportPayload": {
+            "description": "净值导出条目。",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "days": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "nav": {
+                "items": {
+                  "$ref": "#/$defs/FundNav"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "code",
+              "name",
+              "days",
+              "nav"
+            ],
+            "type": "object"
+          },
+          "FundNav": {
+            "properties": {
+              "acc_nav": {
+                "format": "double",
+                "type": "number"
+              },
+              "code": {
+                "type": "string"
+              },
+              "daily_return": {
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "date": {
+                "format": "date",
+                "type": "string"
+              },
+              "nav": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "code",
+              "date",
+              "nav",
+              "acc_nav"
+            ],
+            "type": "object"
+          },
+          "ItemError": {
+            "description": "批量条目失败信息。",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "error_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/$defs/BatchPayload"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExportMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "v": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "v",
+          "command",
+          "ok",
+          "warnings",
+          "data"
+        ],
+        "title": "ExportSuccessEnvelope",
+        "type": "object"
+      }
+    },
+    {
+      "description": "单基金命令的代码参数",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] info ...`",
+        "properties": {
+          "code": {
+            "description": "基金代码或名称",
+            "type": "string"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "watchlist": {
+            "description": "输出自选文件中所有基金的概况",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_info",
+      "outputSchema": {
+        "$defs": {
+          "BatchMeta": {
+            "description": "批量查询 meta。",
+            "properties": {
+              "generated_at": {
+                "type": "string"
+              },
+              "offline": {
+                "type": "boolean"
+              },
+              "requested": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "succeeded": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "offline",
+              "generated_at",
+              "requested",
+              "succeeded"
+            ],
+            "type": "object"
+          },
+          "BatchPayload": {
+            "description": "多基金/多条目结果（含可选 partial errors）。",
+            "properties": {
+              "errors": {
+                "items": {
+                  "$ref": "#/$defs/ItemError"
+                },
+                "type": "array"
+              },
+              "items": {
+                "items": {
+                  "$ref": "#/$defs/FundOverview"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "items"
+            ],
+            "type": "object"
+          },
+          "FundOverview": {
+            "description": "基金概况（F10 / info 命令）。",
+            "properties": {
+              "asset_size": {
+                "type": "string"
+              },
+              "benchmark": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              },
+              "company": {
+                "type": "string"
+              },
+              "custody_fee": {
+                "format": "double",
+                "type": "number"
+              },
+              "establishment_date": {
+                "type": "string"
+              },
+              "full_name": {
+                "type": "string"
+              },
+              "fund_type": {
+                "type": "string"
+              },
+              "investment_scope": {
+                "type": "string"
+              },
+              "investment_target": {
+                "type": "string"
+              },
+              "management_fee": {
+                "format": "double",
+                "type": "number"
+              },
+              "manager_name": {
+                "type": "string"
+              },
+              "manager_tenure_days": {
+                "format": "int32",
+                "type": "integer"
+              },
+              "manager_total_return": {
+                "format": "double",
+                "type": "number"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "name",
+              "full_name",
+              "fund_type",
+              "establishment_date",
+              "asset_size",
+              "company",
+              "manager_name",
+              "manager_tenure_days",
+              "manager_total_return",
+              "management_fee",
+              "custody_fee",
+              "investment_target",
+              "investment_scope",
+              "benchmark"
+            ],
+            "type": "object"
+          },
+          "ItemError": {
+            "description": "批量条目失败信息。",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "error_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/$defs/BatchPayload"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BatchMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "v": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "v",
+          "command",
+          "ok",
+          "warnings",
+          "data"
+        ],
+        "title": "InfoSuccessEnvelope",
+        "type": "object"
+      }
+    },
+    {
+      "description": "单基金命令的代码参数",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] sectors ...`",
+        "properties": {
+          "code": {
+            "description": "基金代码或名称",
+            "type": "string"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "watchlist": {
+            "description": "输出自选文件中所有基金的行业配置",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_sectors",
+      "outputSchema": {
+        "$defs": {
+          "BatchMeta": {
+            "description": "批量查询 meta。",
+            "properties": {
+              "generated_at": {
+                "type": "string"
+              },
+              "offline": {
+                "type": "boolean"
+              },
+              "requested": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "succeeded": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "offline",
+              "generated_at",
+              "requested",
+              "succeeded"
+            ],
+            "type": "object"
+          },
+          "BatchPayload": {
+            "description": "多基金/多条目结果（含可选 partial errors）。",
+            "properties": {
+              "errors": {
+                "items": {
+                  "$ref": "#/$defs/ItemError"
+                },
+                "type": "array"
+              },
+              "items": {
+                "items": {
+                  "$ref": "#/$defs/SectorItem"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "items"
+            ],
+            "type": "object"
+          },
+          "IndustryAllocation": {
+            "description": "行业配置报告。",
+            "properties": {
+              "as_of": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "rows": {
+                "items": {
+                  "$ref": "#/$defs/IndustryRow"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "rows"
+            ],
+            "type": "object"
+          },
+          "IndustryRow": {
+            "description": "行业配置一行。",
+            "properties": {
+              "industry": {
+                "type": "string"
+              },
+              "market_value_wan": {
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "pct_nav": {
+                "format": "double",
+                "type": "number"
+              },
+              "rank": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "rank",
+              "industry",
+              "pct_nav"
+            ],
+            "type": "object"
+          },
+          "ItemError": {
+            "description": "批量条目失败信息。",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "error_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "type": "object"
+          },
+          "SectorItem": {
+            "description": "行业配置条目。",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "industry": {
+                "$ref": "#/$defs/IndustryAllocation"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "name",
+              "industry"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/$defs/BatchPayload"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BatchMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "v": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "v",
+          "command",
+          "ok",
+          "warnings",
+          "data"
+        ],
+        "title": "SectorsSuccessEnvelope",
+        "type": "object"
+      }
+    },
+    {
+      "description": "单基金命令的代码参数",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] holdings ...`",
+        "properties": {
+          "code": {
+            "description": "基金代码或名称",
+            "type": "string"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "top": {
+            "default": "10",
+            "description": "展示条数对应接口 topline，1～50",
+            "type": "integer"
+          },
+          "watchlist": {
+            "description": "输出自选文件中所有基金的重仓股",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_holdings",
+      "outputSchema": {
+        "$defs": {
+          "BatchMeta": {
+            "description": "批量查询 meta。",
+            "properties": {
+              "generated_at": {
+                "type": "string"
+              },
+              "offline": {
+                "type": "boolean"
+              },
+              "requested": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "succeeded": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "offline",
+              "generated_at",
+              "requested",
+              "succeeded"
+            ],
+            "type": "object"
+          },
+          "BatchPayload": {
+            "description": "多基金/多条目结果（含可选 partial errors）。",
+            "properties": {
+              "errors": {
+                "items": {
+                  "$ref": "#/$defs/ItemError"
+                },
+                "type": "array"
+              },
+              "items": {
+                "items": {
+                  "$ref": "#/$defs/HoldingsItem"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "items"
+            ],
+            "type": "object"
+          },
+          "HoldingsItem": {
+            "description": "重仓股条目。",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "holdings": {
+                "$ref": "#/$defs/StockHoldings"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "name",
+              "holdings"
+            ],
+            "type": "object"
+          },
+          "ItemError": {
+            "description": "批量条目失败信息。",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "error_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "type": "object"
+          },
+          "StockHoldingRow": {
+            "description": "重仓股一行。",
+            "properties": {
+              "market_value_wan": {
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "pct_nav": {
+                "format": "double",
+                "type": "number"
+              },
+              "rank": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "shares_wan": {
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "stock_code": {
+                "type": "string"
+              },
+              "stock_name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "rank",
+              "stock_code",
+              "stock_name",
+              "pct_nav"
+            ],
+            "type": "object"
+          },
+          "StockHoldings": {
+            "description": "重仓股报告。",
+            "properties": {
+              "as_of": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "rows": {
+                "items": {
+                  "$ref": "#/$defs/StockHoldingRow"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "rows"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/$defs/BatchPayload"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BatchMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "v": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "v",
+          "command",
+          "ok",
+          "warnings",
+          "data"
+        ],
+        "title": "HoldingsSuccessEnvelope",
+        "type": "object"
+      }
+    },
+    {
+      "description": "结构化 JSON 输出",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] rank ...`",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "sort": {
+            "default": "1n",
+            "description": "rankhandler 的排序字段 sc（默认 1n）；st 固定 desc",
+            "type": "string"
+          },
+          "top": {
+            "default": "100",
+            "description": "取前 N 名（≤500）",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "name": "fanalyzer_rank",
+      "outputSchema": {
+        "$defs": {
+          "FundRankRow": {
+            "description": "排行表一行（展示用）。",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "pct_1y": {
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "pct_3m": {
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "pct_6m": {
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "pct_month": {
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "pct_this_year": {
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "pct_week": {
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "code",
+              "name"
+            ],
+            "type": "object"
+          },
+          "RankMeta": {
+            "description": "排行 meta。",
+            "properties": {
+              "generated_at": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "offline": {
+                "type": "boolean"
+              },
+              "sort": {
+                "type": "string"
+              },
+              "top": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "offline",
+              "generated_at",
+              "kind",
+              "sort",
+              "top"
+            ],
+            "type": "object"
+          },
+          "RankPayload": {
+            "description": "排行结果。",
+            "properties": {
+              "kind": {
+                "type": "string"
+              },
+              "rows": {
+                "items": {
+                  "$ref": "#/$defs/FundRankRow"
+                },
+                "type": "array"
+              },
+              "sort": {
+                "type": "string"
+              },
+              "total_records": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "sort",
+              "total_records",
+              "rows"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/$defs/RankPayload"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RankMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "v": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "v",
+          "command",
+          "ok",
+          "warnings",
+          "data"
+        ],
+        "title": "RankSuccessEnvelope",
+        "type": "object"
+      }
+    },
+    {
+      "description": "单基金命令的代码参数",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] brief ...`",
+        "properties": {
+          "code": {
+            "description": "基金代码或名称",
+            "type": "string"
+          },
+          "days": {
+            "default": "90",
+            "description": "净值分析窗口（日历天）；可被 --period 覆盖",
+            "type": "integer"
+          },
+          "holdings-top": {
+            "default": "10",
+            "description": "重仓股展示条数（1～50）",
+            "type": "integer"
+          },
+          "industry-top": {
+            "default": "5",
+            "description": "行业配置展示前 N 项",
+            "type": "integer"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "period": {
+            "description": "预设窗口：7d/1m/3m/6m/1y/ytd 或 rank 的 sc",
+            "type": "string"
+          },
+          "watchlist": {
+            "description": "对自选列表逐只生成简报",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_brief",
+      "outputSchema": {
+        "$defs": {
+          "AnalysisMeta": {
+            "description": "分析类命令 meta。",
+            "properties": {
+              "days": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "generated_at": {
+                "type": "string"
+              },
+              "offline": {
+                "type": "boolean"
+              },
+              "period": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "requested": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "rolling_window": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "succeeded": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "offline",
+              "generated_at",
+              "days",
+              "requested",
+              "succeeded"
+            ],
+            "type": "object"
+          },
+          "BatchPayload": {
+            "description": "多基金/多条目结果（含可选 partial errors）。",
+            "properties": {
+              "errors": {
+                "items": {
+                  "$ref": "#/$defs/ItemError"
+                },
+                "type": "array"
+              },
+              "items": {
+                "items": {
+                  "$ref": "#/$defs/FundBrief"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "items"
+            ],
+            "type": "object"
+          },
+          "FundAnalysis": {
+            "properties": {
+              "alpha": {
+                "format": "double",
+                "type": "number"
+              },
+              "annualized_return": {
+                "format": "double",
+                "type": "number"
+              },
+              "avg_nav": {
+                "format": "double",
+                "type": "number"
+              },
+              "beta": {
+                "format": "double",
+                "type": "number"
+              },
+              "calmar_ratio": {
+                "format": "double",
+                "type": "number"
+              },
+              "code": {
+                "type": "string"
+              },
+              "custody_fee": {
+                "format": "double",
+                "type": "number"
+              },
+              "management_fee": {
+                "format": "double",
+                "type": "number"
+              },
+              "manager_name": {
+                "type": "string"
+              },
+              "manager_tenure_days": {
+                "format": "int32",
+                "type": "integer"
+              },
+              "manager_total_return": {
+                "format": "double",
+                "type": "number"
+              },
+              "max_drawdown": {
+                "format": "double",
+                "type": "number"
+              },
+              "max_nav": {
+                "format": "double",
+                "type": "number"
+              },
+              "min_nav": {
+                "format": "double",
+                "type": "number"
+              },
+              "name": {
+                "type": "string"
+              },
+              "period_days": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "sharpe_ratio": {
+                "format": "double",
+                "type": "number"
+              },
+              "sortino_ratio": {
+                "format": "double",
+                "type": "number"
+              },
+              "total_return": {
+                "format": "double",
+                "type": "number"
+              },
+              "volatility": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "code",
+              "name",
+              "period_days",
+              "avg_nav",
+              "max_nav",
+              "min_nav",
+              "total_return",
+              "annualized_return",
+              "volatility",
+              "max_drawdown",
+              "sharpe_ratio",
+              "sortino_ratio",
+              "calmar_ratio",
+              "alpha",
+              "beta",
+              "manager_name",
+              "manager_tenure_days",
+              "manager_total_return",
+              "management_fee",
+              "custody_fee"
+            ],
+            "type": "object"
+          },
+          "FundBrief": {
+            "description": "选基综合简报（终端与 Markdown 共用）。",
+            "properties": {
+              "analysis": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/FundAnalysis"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "asset_size": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              },
+              "company": {
+                "type": "string"
+              },
+              "days": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "fund_type": {
+                "type": "string"
+              },
+              "holdings": {
+                "$ref": "#/$defs/StockHoldings"
+              },
+              "holdings_top": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "industry": {
+                "$ref": "#/$defs/IndustryAllocation"
+              },
+              "industry_top": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "name",
+              "fund_type",
+              "company",
+              "asset_size",
+              "days",
+              "industry",
+              "holdings",
+              "industry_top",
+              "holdings_top"
+            ],
+            "type": "object"
+          },
+          "IndustryAllocation": {
+            "description": "行业配置报告。",
+            "properties": {
+              "as_of": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "rows": {
+                "items": {
+                  "$ref": "#/$defs/IndustryRow"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "rows"
+            ],
+            "type": "object"
+          },
+          "IndustryRow": {
+            "description": "行业配置一行。",
+            "properties": {
+              "industry": {
+                "type": "string"
+              },
+              "market_value_wan": {
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "pct_nav": {
+                "format": "double",
+                "type": "number"
+              },
+              "rank": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "rank",
+              "industry",
+              "pct_nav"
+            ],
+            "type": "object"
+          },
+          "ItemError": {
+            "description": "批量条目失败信息。",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "error_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "type": "object"
+          },
+          "StockHoldingRow": {
+            "description": "重仓股一行。",
+            "properties": {
+              "market_value_wan": {
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "pct_nav": {
+                "format": "double",
+                "type": "number"
+              },
+              "rank": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "shares_wan": {
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "stock_code": {
+                "type": "string"
+              },
+              "stock_name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "rank",
+              "stock_code",
+              "stock_name",
+              "pct_nav"
+            ],
+            "type": "object"
+          },
+          "StockHoldings": {
+            "description": "重仓股报告。",
+            "properties": {
+              "as_of": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "rows": {
+                "items": {
+                  "$ref": "#/$defs/StockHoldingRow"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "rows"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/$defs/BatchPayload"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/AnalysisMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "v": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "v",
+          "command",
+          "ok",
+          "warnings",
+          "data"
+        ],
+        "title": "BriefSuccessEnvelope",
+        "type": "object"
+      }
+    },
+    {
+      "description": "结构化 JSON 输出",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] screen ...`",
+        "properties": {
+          "days": {
+            "description": "deep 分析窗口（日历天）；省略时按 --sort 区间对齐",
+            "type": "integer"
+          },
+          "deep-limit": {
+            "default": "15",
+            "description": "deep 分析最多只数（默认 15，需 --full-scan 扫全池）",
+            "type": "integer"
+          },
+          "full-scan": {
+            "description": "对候选池全部做 deep 分析（较慢）",
+            "type": "boolean"
+          },
+          "kind": {
+            "description": "排行类型，同 rank --kind",
+            "type": "string"
+          },
+          "limit": {
+            "default": "10",
+            "description": "对比展示上限（2～30）",
+            "type": "integer"
+          },
+          "max-drawdown": {
+            "description": "最大回撤上限（百分点，如 25）",
+            "type": "number"
+          },
+          "max-mgmt-fee": {
+            "description": "管理费率上限（百分点，如 1.5）",
+            "type": "number"
+          },
+          "max-volatility": {
+            "description": "波动率上限（百分点）",
+            "type": "number"
+          },
+          "min-alpha": {
+            "description": "最低 Alpha（百分点）",
+            "type": "number"
+          },
+          "min-rank-return": {
+            "description": "排行区间收益下限（百分点，列与 --sort 一致）",
+            "type": "number"
+          },
+          "min-sharpe": {
+            "description": "最低夏普比率",
+            "type": "number"
+          },
+          "min-total-return": {
+            "description": "区间总收益下限（百分点）",
+            "type": "number"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "period": {
+            "description": "预设窗口：7d/1m/3m/6m/1y/ytd 或 rank 的 sc",
+            "type": "string"
+          },
+          "rank-top": {
+            "default": "30",
+            "description": "从排行前 N 只中扫描（5～100）",
+            "type": "integer"
+          },
+          "sort": {
+            "default": "1n",
+            "description": "排行排序 sc，同 rank --sort",
+            "type": "string"
+          },
+          "sort-by": {
+            "description": "通过筛选后按指标排序，默认 sharpe；可选 sortino/calmar/total-return 等",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "name": "fanalyzer_screen",
+      "outputSchema": {
+        "$defs": {
+          "FundAnalysis": {
+            "properties": {
+              "alpha": {
+                "format": "double",
+                "type": "number"
+              },
+              "annualized_return": {
+                "format": "double",
+                "type": "number"
+              },
+              "avg_nav": {
+                "format": "double",
+                "type": "number"
+              },
+              "beta": {
+                "format": "double",
+                "type": "number"
+              },
+              "calmar_ratio": {
+                "format": "double",
+                "type": "number"
+              },
+              "code": {
+                "type": "string"
+              },
+              "custody_fee": {
+                "format": "double",
+                "type": "number"
+              },
+              "management_fee": {
+                "format": "double",
+                "type": "number"
+              },
+              "manager_name": {
+                "type": "string"
+              },
+              "manager_tenure_days": {
+                "format": "int32",
+                "type": "integer"
+              },
+              "manager_total_return": {
+                "format": "double",
+                "type": "number"
+              },
+              "max_drawdown": {
+                "format": "double",
+                "type": "number"
+              },
+              "max_nav": {
+                "format": "double",
+                "type": "number"
+              },
+              "min_nav": {
+                "format": "double",
+                "type": "number"
+              },
+              "name": {
+                "type": "string"
+              },
+              "period_days": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "sharpe_ratio": {
+                "format": "double",
+                "type": "number"
+              },
+              "sortino_ratio": {
+                "format": "double",
+                "type": "number"
+              },
+              "total_return": {
+                "format": "double",
+                "type": "number"
+              },
+              "volatility": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "code",
+              "name",
+              "period_days",
+              "avg_nav",
+              "max_nav",
+              "min_nav",
+              "total_return",
+              "annualized_return",
+              "volatility",
+              "max_drawdown",
+              "sharpe_ratio",
+              "sortino_ratio",
+              "calmar_ratio",
+              "alpha",
+              "beta",
+              "manager_name",
+              "manager_tenure_days",
+              "manager_total_return",
+              "management_fee",
+              "custody_fee"
+            ],
+            "type": "object"
+          },
+          "ScreenMeta": {
+            "description": "筛选 meta。",
+            "properties": {
+              "analyzed": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "days": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "generated_at": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "offline": {
+                "type": "boolean"
+              },
+              "pool_size": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "sort": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "offline",
+              "generated_at",
+              "kind",
+              "sort",
+              "days",
+              "pool_size",
+              "analyzed"
+            ],
+            "type": "object"
+          },
+          "ScreenPayload": {
+            "description": "筛选结果。",
+            "properties": {
+              "analyzed": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "days": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "passed": {
+                "items": {
+                  "$ref": "#/$defs/FundAnalysis"
+                },
+                "type": "array"
+              },
+              "pool_size": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "sort": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "sort",
+              "days",
+              "pool_size",
+              "analyzed",
+              "passed"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/$defs/ScreenPayload"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ScreenMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "v": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "v",
+          "command",
+          "ok",
+          "warnings",
+          "data"
+        ],
+        "title": "ScreenSuccessEnvelope",
+        "type": "object"
+      }
+    },
+    {
+      "description": "自选列表管理",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] watchlist ...`",
+        "properties": {
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_watchlist",
+      "outputSchema": {
+        "$defs": {
+          "BatchMeta": {
+            "description": "批量查询 meta。",
+            "properties": {
+              "generated_at": {
+                "type": "string"
+              },
+              "offline": {
+                "type": "boolean"
+              },
+              "requested": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "succeeded": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "offline",
+              "generated_at",
+              "requested",
+              "succeeded"
+            ],
+            "type": "object"
+          },
+          "BatchPayload": {
+            "description": "多基金/多条目结果（含可选 partial errors）。",
+            "properties": {
+              "errors": {
+                "items": {
+                  "$ref": "#/$defs/ItemError"
+                },
+                "type": "array"
+              },
+              "items": {
+                "items": {
+                  "$ref": "#/$defs/WatchlistItem"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "items"
+            ],
+            "type": "object"
+          },
+          "ItemError": {
+            "description": "批量条目失败信息。",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "error_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "type": "object"
+          },
+          "WatchlistItem": {
+            "properties": {
+              "code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/$defs/BatchPayload"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BatchMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "v": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "v",
+          "command",
+          "ok",
+          "warnings",
+          "data"
+        ],
+        "title": "WatchlistSuccessEnvelope",
+        "type": "object"
+      }
+    },
+    {
+      "description": "读取组合权重配置",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] portfolio-config ...`",
+        "properties": {
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "portfolio-file": {
+            "default": "config/portfolio.toml",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_portfolio-config",
+      "outputSchema": "schemas/responses/portfolio-config.success.json"
+    },
+    {
+      "description": "单基金研究：概况 + 分析 + 行业 + 重仓（复合工具，减少 Agent 步数）",
+      "inputSchema": {
+        "description": "等价于依次调用 info、analyze、sectors、holdings",
+        "properties": {
+          "code": {
+            "description": "基金代码或名称",
+            "type": "string"
+          },
+          "days": {
+            "default": 90,
+            "description": "分析窗口（天）",
+            "type": "integer"
+          },
+          "offline": {
+            "description": "仅使用本地缓存",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "type": "object"
+      },
+      "name": "fanalyzer_research_fund"
+    },
+    {
+      "description": "对比自选列表中全部基金",
+      "inputSchema": {
+        "properties": {
+          "days": {
+            "default": 90,
+            "type": "integer"
+          },
+          "offline": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_compare_watchlist",
+      "outputSchema": {
+        "$defs": {
+          "AnalysisMeta": {
+            "description": "分析类命令 meta。",
+            "properties": {
+              "days": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "generated_at": {
+                "type": "string"
+              },
+              "offline": {
+                "type": "boolean"
+              },
+              "period": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "requested": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "rolling_window": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "succeeded": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "offline",
+              "generated_at",
+              "days",
+              "requested",
+              "succeeded"
+            ],
+            "type": "object"
+          },
+          "BatchPayload": {
+            "description": "多基金/多条目结果（含可选 partial errors）。",
+            "properties": {
+              "errors": {
+                "items": {
+                  "$ref": "#/$defs/ItemError"
+                },
+                "type": "array"
+              },
+              "items": {
+                "items": {
+                  "$ref": "#/$defs/FundAnalysis"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "items"
+            ],
+            "type": "object"
+          },
+          "FundAnalysis": {
+            "properties": {
+              "alpha": {
+                "format": "double",
+                "type": "number"
+              },
+              "annualized_return": {
+                "format": "double",
+                "type": "number"
+              },
+              "avg_nav": {
+                "format": "double",
+                "type": "number"
+              },
+              "beta": {
+                "format": "double",
+                "type": "number"
+              },
+              "calmar_ratio": {
+                "format": "double",
+                "type": "number"
+              },
+              "code": {
+                "type": "string"
+              },
+              "custody_fee": {
+                "format": "double",
+                "type": "number"
+              },
+              "management_fee": {
+                "format": "double",
+                "type": "number"
+              },
+              "manager_name": {
+                "type": "string"
+              },
+              "manager_tenure_days": {
+                "format": "int32",
+                "type": "integer"
+              },
+              "manager_total_return": {
+                "format": "double",
+                "type": "number"
+              },
+              "max_drawdown": {
+                "format": "double",
+                "type": "number"
+              },
+              "max_nav": {
+                "format": "double",
+                "type": "number"
+              },
+              "min_nav": {
+                "format": "double",
+                "type": "number"
+              },
+              "name": {
+                "type": "string"
+              },
+              "period_days": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "sharpe_ratio": {
+                "format": "double",
+                "type": "number"
+              },
+              "sortino_ratio": {
+                "format": "double",
+                "type": "number"
+              },
+              "total_return": {
+                "format": "double",
+                "type": "number"
+              },
+              "volatility": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "code",
+              "name",
+              "period_days",
+              "avg_nav",
+              "max_nav",
+              "min_nav",
+              "total_return",
+              "annualized_return",
+              "volatility",
+              "max_drawdown",
+              "sharpe_ratio",
+              "sortino_ratio",
+              "calmar_ratio",
+              "alpha",
+              "beta",
+              "manager_name",
+              "manager_tenure_days",
+              "manager_total_return",
+              "management_fee",
+              "custody_fee"
+            ],
+            "type": "object"
+          },
+          "ItemError": {
+            "description": "批量条目失败信息。",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "error_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/$defs/BatchPayload"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/AnalysisMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "v": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "v",
+          "command",
+          "ok",
+          "warnings",
+          "data"
+        ],
+        "title": "CompareSuccessEnvelope",
+        "type": "object"
+      }
+    },
+    {
+      "description": "列出当前自选基金",
+      "inputSchema": {
+        "properties": {},
+        "type": "object"
+      },
+      "name": "fanalyzer_watchlist_list",
+      "outputSchema": {
+        "$defs": {
+          "BatchMeta": {
+            "description": "批量查询 meta。",
+            "properties": {
+              "generated_at": {
+                "type": "string"
+              },
+              "offline": {
+                "type": "boolean"
+              },
+              "requested": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "succeeded": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "offline",
+              "generated_at",
+              "requested",
+              "succeeded"
+            ],
+            "type": "object"
+          },
+          "BatchPayload": {
+            "description": "多基金/多条目结果（含可选 partial errors）。",
+            "properties": {
+              "errors": {
+                "items": {
+                  "$ref": "#/$defs/ItemError"
+                },
+                "type": "array"
+              },
+              "items": {
+                "items": {
+                  "$ref": "#/$defs/WatchlistItem"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "items"
+            ],
+            "type": "object"
+          },
+          "ItemError": {
+            "description": "批量条目失败信息。",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "error_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "type": "object"
+          },
+          "WatchlistItem": {
+            "properties": {
+              "code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/$defs/BatchPayload"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BatchMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "v": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "v",
+          "command",
+          "ok",
+          "warnings",
+          "data"
+        ],
+        "title": "WatchlistSuccessEnvelope",
+        "type": "object"
+      }
+    },
+    {
+      "description": "向自选列表追加基金代码",
+      "inputSchema": {
+        "properties": {
+          "codes": {
+            "description": "基金代码列表",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "codes"
+        ],
+        "type": "object"
+      },
+      "name": "fanalyzer_watchlist_add",
+      "outputSchema": {
+        "$defs": {
+          "BatchMeta": {
+            "description": "批量查询 meta。",
+            "properties": {
+              "generated_at": {
+                "type": "string"
+              },
+              "offline": {
+                "type": "boolean"
+              },
+              "requested": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "succeeded": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "offline",
+              "generated_at",
+              "requested",
+              "succeeded"
+            ],
+            "type": "object"
+          },
+          "BatchPayload": {
+            "description": "多基金/多条目结果（含可选 partial errors）。",
+            "properties": {
+              "errors": {
+                "items": {
+                  "$ref": "#/$defs/ItemError"
+                },
+                "type": "array"
+              },
+              "items": {
+                "items": {
+                  "$ref": "#/$defs/WatchlistItem"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "items"
+            ],
+            "type": "object"
+          },
+          "ItemError": {
+            "description": "批量条目失败信息。",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "error_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "type": "object"
+          },
+          "WatchlistItem": {
+            "properties": {
+              "code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/$defs/BatchPayload"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BatchMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "v": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "v",
+          "command",
+          "ok",
+          "warnings",
+          "data"
+        ],
+        "title": "WatchlistSuccessEnvelope",
+        "type": "object"
+      }
+    },
+    {
+      "description": "从自选列表移除基金代码",
+      "inputSchema": {
+        "properties": {
+          "codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "codes"
+        ],
+        "type": "object"
+      },
+      "name": "fanalyzer_watchlist_remove",
+      "outputSchema": {
+        "$defs": {
+          "BatchMeta": {
+            "description": "批量查询 meta。",
+            "properties": {
+              "generated_at": {
+                "type": "string"
+              },
+              "offline": {
+                "type": "boolean"
+              },
+              "requested": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "succeeded": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "offline",
+              "generated_at",
+              "requested",
+              "succeeded"
+            ],
+            "type": "object"
+          },
+          "BatchPayload": {
+            "description": "多基金/多条目结果（含可选 partial errors）。",
+            "properties": {
+              "errors": {
+                "items": {
+                  "$ref": "#/$defs/ItemError"
+                },
+                "type": "array"
+              },
+              "items": {
+                "items": {
+                  "$ref": "#/$defs/WatchlistItem"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "items"
+            ],
+            "type": "object"
+          },
+          "ItemError": {
+            "description": "批量条目失败信息。",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "error_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "type": "object"
+          },
+          "WatchlistItem": {
+            "properties": {
+              "code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/$defs/BatchPayload"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BatchMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "v": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "v",
+          "command",
+          "ok",
+          "warnings",
+          "data"
+        ],
+        "title": "WatchlistSuccessEnvelope",
+        "type": "object"
+      }
+    },
+    {
+      "description": "读取组合权重配置",
+      "inputSchema": {
+        "properties": {
+          "portfolio-file": {
+            "default": "config/portfolio.toml",
+            "description": "组合 TOML 路径",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_portfolio_config",
+      "outputSchema": {
+        "$defs": {
+          "BaseMeta": {
+            "description": "信封 meta 公共字段。",
+            "properties": {
+              "generated_at": {
+                "type": "string"
+              },
+              "offline": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "offline",
+              "generated_at"
+            ],
+            "type": "object"
+          },
+          "PortfolioConfigPayload": {
+            "properties": {
+              "holdings": {
+                "items": {
+                  "$ref": "#/$defs/PortfolioHoldingItem"
+                },
+                "type": "array"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "holdings"
+            ],
+            "type": "object"
+          },
+          "PortfolioHoldingItem": {
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "weight": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "code",
+              "weight"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/$defs/PortfolioConfigPayload"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BaseMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "v": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "v",
+          "command",
+          "ok",
+          "warnings",
+          "data"
+        ],
+        "title": "PortfolioConfigSuccessEnvelope",
+        "type": "object"
+      }
+    }
+  ],
+  "v": "1"
+}

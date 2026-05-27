@@ -239,6 +239,36 @@ pub enum JsonCommands {
         #[arg(short, long, default_value = "json", help = "额外导出格式 json")]
         format: String,
     },
+    /// 自选列表管理
+    Watchlist {
+        #[command(subcommand)]
+        action: WatchlistAction,
+    },
+    /// 读取组合权重配置
+    PortfolioConfig {
+        #[arg(
+            long = "portfolio-file",
+            default_value = "config/portfolio.toml",
+            value_name = "PATH"
+        )]
+        portfolio_file: PathBuf,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum WatchlistAction {
+    /// 列出自选基金
+    List,
+    /// 追加基金代码
+    Add {
+        #[arg(required = true)]
+        codes: Vec<String>,
+    },
+    /// 移除基金代码
+    Remove {
+        #[arg(required = true)]
+        codes: Vec<String>,
+    },
 }
 
 // 字段逐一映射，属机械式 boilerplate。
@@ -401,6 +431,14 @@ impl From<JsonCommands> for Commands {
                 output,
                 format,
             ),
+            JsonCommands::Watchlist { action } => match action {
+                WatchlistAction::List => Commands::WatchlistList,
+                WatchlistAction::Add { codes } => Commands::WatchlistAdd { codes },
+                WatchlistAction::Remove { codes } => Commands::WatchlistRemove { codes },
+            },
+            JsonCommands::PortfolioConfig { portfolio_file } => {
+                Commands::PortfolioConfig { portfolio_file }
+            }
         }
     }
 }

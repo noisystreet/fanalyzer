@@ -33,6 +33,13 @@ pub async fn dispatch_with_command(
         }
         Commands::Json { .. } => unreachable!("json handled in cli::run"),
         Commands::Serve { .. } => unreachable!("serve handled in cli::run"),
+        Commands::Schema { .. } | Commands::Mcp { .. } => {
+            unreachable!("schema/mcp handled in cli::run")
+        }
+        Commands::WatchlistList
+        | Commands::WatchlistAdd { .. }
+        | Commands::WatchlistRemove { .. }
+        | Commands::PortfolioConfig { .. } => super::dispatch_agent::dispatch(&ctx, cmd).await,
         other => super::dispatch_query::dispatch_core(&ctx, other).await,
     }
 }

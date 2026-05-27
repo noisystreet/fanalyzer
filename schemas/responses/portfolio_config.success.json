@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PortfolioConfigSuccessEnvelope",
+  "type": "object",
+  "properties": {
+    "command": {
+      "type": "string"
+    },
+    "data": {
+      "$ref": "#/$defs/PortfolioConfigPayload"
+    },
+    "meta": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BaseMeta"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "v": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "v",
+    "command",
+    "ok",
+    "warnings",
+    "data"
+  ],
+  "$defs": {
+    "BaseMeta": {
+      "description": "信封 meta 公共字段。",
+      "type": "object",
+      "properties": {
+        "generated_at": {
+          "type": "string"
+        },
+        "offline": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "offline",
+        "generated_at"
+      ]
+    },
+    "PortfolioConfigPayload": {
+      "type": "object",
+      "properties": {
+        "holdings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PortfolioHoldingItem"
+          }
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "holdings"
+      ]
+    },
+    "PortfolioHoldingItem": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "weight": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "code",
+        "weight"
+      ]
+    }
+  }
+}

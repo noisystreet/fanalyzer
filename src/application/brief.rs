@@ -6,8 +6,8 @@ use super::mappers::{map_holdings, map_industry};
 use crate::domain::resolve_analysis_days;
 use crate::models::FundBrief;
 use crate::presentation::{
-    base_meta, emit, item_error_failed, print_brief_separator, render_brief_terminal,
-    write_brief_markdown, AnalysisMeta, BatchPayload,
+    base_meta, compact_brief_summary, emit, item_error_failed, print_brief_separator,
+    render_brief_terminal, write_brief_markdown, AnalysisMeta, BatchPayload,
 };
 use chrono::Local;
 
@@ -66,6 +66,11 @@ pub async fn run_brief(ctx: &CommandContext<'_>, req: BriefRequest) -> anyhow::R
         }
         if !errors.is_empty() {
             ctx.warn(format!("{} 只标的简报生成失败", errors.len()));
+        }
+        if ctx.summary_mode() {
+            for item in &mut items {
+                compact_brief_summary(item);
+            }
         }
         let meta = AnalysisMeta {
             base: base_meta(ctx),

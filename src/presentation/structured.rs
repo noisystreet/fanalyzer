@@ -17,6 +17,8 @@ pub const ENVELOPE_VERSION: u32 = 1;
 pub struct CodedError {
     pub code: &'static str,
     pub message: String,
+    pub retryable: Option<bool>,
+    pub hint: Option<String>,
 }
 
 impl CodedError {
@@ -24,6 +26,21 @@ impl CodedError {
         Self {
             code,
             message: message.into(),
+            retryable: None,
+            hint: None,
+        }
+    }
+
+    pub fn with_hint(
+        code: &'static str,
+        message: impl Into<String>,
+        hint: impl Into<String>,
+    ) -> Self {
+        Self {
+            code,
+            message: message.into(),
+            retryable: Some(true),
+            hint: Some(hint.into()),
         }
     }
 }
@@ -33,6 +50,10 @@ impl CodedError {
 pub struct StructuredError {
     pub code: String,
     pub message: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retryable: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hint: Option<String>,
 }
 
 /// 批量条目失败信息。
@@ -239,22 +260,46 @@ pub fn error_from_anyhow(err: &anyhow::Error) -> StructuredError {
         return StructuredError {
             code: coded.code.to_string(),
             message: coded.message.clone(),
+            retryable: coded.retryable,
+            hint: coded.hint.clone(),
         };
     }
     let message = err.to_string();
-    let code = if message.contains("至少需要 2 只") || message.contains("有效样本不足") {
-        "INSUFFICIENT_SAMPLES"
-    } else if message.contains("无有效") {
-        "INSUFFICIENT_DATA"
-    } else if message.contains("--offline") {
-        "OFFLINE_UNSUPPORTED"
-    } else {
-        "COMMAND_FAILED"
-    };
+    let (code, retryable, hint) = classify_error(&message);
     StructuredError {
         code: code.to_string(),
         message,
+        retryable: Some(retryable),
+        hint,
     }
+}
+
+fn classify_error(message: &str) -> (&'static str, bool, Option<String>) {
+    if message.contains("至少需要 2 只") || message.contains("有效样本不足") {
+        return (
+            "INSUFFICIENT_SAMPLES",
+            false,
+            Some("请增加 --codes 或使用 --watchlist；离线模式下需先有缓存".into()),
+        );
+    }
+    if message.contains("无有效") || message.contains("分析数据不足") {
+        return (
+            "INSUFFICIENT_DATA",
+            true,
+            Some("先运行 fetch 或 analyze 写入缓存后再试".into()),
+        );
+    }
+    if message.contains("--offline") || message.contains("需要访问网络") {
+        return (
+            "OFFLINE_UNSUPPORTED",
+            true,
+            Some("去掉 --offline 或先在线 fetch 所需基金".into()),
+        );
+    }
+    if message.contains("自选列表为空") || message.contains("请指定") {
+        return ("INVALID_ARGS", false, None);
+    }
+    ("COMMAND_FAILED", false, None)
 }
 
 fn meta_to_value<M: Serialize>(meta: Option<&M>) -> anyhow::Result<Option<serde_json::Value>> {
@@ -264,7 +309,13 @@ fn meta_to_value<M: Serialize>(meta: Option<&M>) -> anyhow::Result<Option<serde_
     }
 }
 
-fn write_json_stdout(json: &str) -> anyhow::Result<()> {
+fn write_json_output(ctx: Option<&CommandContext<'_>>, json: &str) -> anyhow::Result<()> {
+    if let Some(ctx) = ctx {
+        if ctx.capture_enabled() {
+            ctx.store_captured(json.to_string());
+            return Ok(());
+        }
+    }
     let mut out = io::stdout().lock();
     out.write_all(json.as_bytes())?;
     out.write_all(b"\n")?;
@@ -329,7 +380,7 @@ pub fn print_success_stdout<T: Serialize, M: Serialize>(
         &ctx.take_warnings(),
         ctx.json_compact(),
     )?;
-    write_json_stdout(&json)
+    write_json_output(Some(ctx), &json)
 }
 
 /// 向 stdout 打印失败 JSON 信封。
@@ -346,7 +397,22 @@ pub fn print_failure_stdout(
         &ctx.take_warnings(),
         ctx.json_compact(),
     )?;
-    write_json_stdout(&json)
+    write_json_output(Some(ctx), &json)
+}
+
+/// 捕获模式：返回失败 JSON 字符串（不写 stdout）。
+pub fn print_failure_capture(
+    ctx: &CommandContext<'_>,
+    command: &str,
+    error: &StructuredError,
+) -> anyhow::Result<String> {
+    serialize_failure(
+        command,
+        error,
+        Some(&base_meta(ctx)),
+        &ctx.take_warnings(),
+        ctx.json_compact(),
+    )
 }
 
 /// 顶层错误处理：`json` 子命令模式下将 anyhow 错误转为 stdout 失败信封。
@@ -404,6 +470,14 @@ pub fn compact_portfolio_report(report: &mut PortfolioReport) {
     report.series = None;
 }
 
+/// summary profile：精简简报中的行业/重仓明细。
+pub fn compact_brief_summary(brief: &mut crate::models::FundBrief) {
+    brief.industry.rows.truncate(3);
+    brief.holdings.rows.truncate(3);
+    brief.industry_top = brief.industry.rows.len();
+    brief.holdings_top = brief.holdings.rows.len();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -438,6 +512,8 @@ mod tests {
             error: StructuredError {
                 code: "INSUFFICIENT_SAMPLES".into(),
                 message: "有效样本不足".into(),
+                retryable: Some(false),
+                hint: None,
             },
         })
         .unwrap();
@@ -472,6 +548,15 @@ mod tests {
         let err: anyhow::Error = CodedError::new("CUSTOM", "custom failure").into();
         let structured = error_from_anyhow(&err);
         assert_eq!(structured.code, "CUSTOM");
+    }
+
+    #[test]
+    fn error_from_anyhow_includes_hint_for_insufficient_data() {
+        let err = anyhow::anyhow!("无有效净值数据");
+        let structured = error_from_anyhow(&err);
+        assert_eq!(structured.code, "INSUFFICIENT_DATA");
+        assert_eq!(structured.retryable, Some(true));
+        assert!(structured.hint.is_some());
     }
 
     #[test]

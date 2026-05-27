@@ -29,10 +29,9 @@ cargo run -- json --compact-series analyze 110011 --days 90
 
 Schema 索引见 [schemas/index.json](../schemas/index.json)（由 `fanalyzer schema export` 自动生成）。
 
-- **成功**：各命令见 `schemas/responses/<command>.success.json`
-- **失败**：`schemas/envelope.failure.json`
-- **MCP 工具入参**：`schemas/tools.v1.json`
-- **data 子结构**：`schemas/models/*.json`
+- **Agent 工具入参**：`schemas/tools.v1.agent.json`
+- **内联 outputSchema**：`schemas/tools.v1.agent.embedded.json`
+- **CLI 完整工具入参**：`schemas/tools.v1.json`
 
 ### 成功
 
@@ -138,17 +137,59 @@ fanalyzer json [--compact] [--compact-series] <子命令> [参数...]
 | `json` / `structured` | 进入结构化输出模式 |
 | `--compact` | 单行 minified JSON |
 | `--compact-series` | 省略 `series` 时间序列 |
+| `--profile` | 输出粒度：`summary` / `standard` / `full`（推荐 Agent 用 `summary` 或 `standard`） |
 | `--offline` | 全局：仅本地缓存（部分嵌套命令不可用） |
 
-嵌套子命令：`fetch`、`analyze`、`compare`、`portfolio`、`export`、`info`、`sectors`、`holdings`、`rank`、`brief`、`screen`。
+嵌套子命令：`fetch`、`analyze`、`compare`、`portfolio`、`export`、`info`、`sectors`、`holdings`、`rank`、`brief`、`screen`、`watchlist`、`portfolio-config`。
+
+## MCP Server（推荐）
+
+无需 Agent 拼 shell，直接通过 stdio MCP 调用：
+
+```bash
+cargo run -- mcp serve --profile standard
+```
+
+Cursor / Claude Desktop 配置示例：
+
+```json
+{
+  "mcpServers": {
+    "fanalyzer": {
+      "command": "/path/to/fanalyzer",
+      "args": ["mcp", "serve", "--profile", "summary"]
+    }
+  }
+}
+```
+
+MCP 工具列表来自 `schemas/tools.v1.agent.json`（已剥离 `compact` 等内部参数）。复合工具：
+
+| 工具 | 说明 |
+|------|------|
+| `fanalyzer_research_fund` | info + analyze + sectors + holdings |
+| `fanalyzer_compare_watchlist` | 对比自选全部基金 |
+| `fanalyzer_watchlist_*` | 自选增删查 |
 
 ## Agent 调用建议
 
-1. **始终解析 stdout JSON**，勿依赖 stderr 文本判断成败
+1. **始终解析 stdout JSON**（CLI）或 tool result text（MCP），勿依赖 stderr
 2. **检查 `warnings`**：部分成功时 Agent 应告知用户哪些标的被跳过
-3. **大上下文场景**加 `--compact-series`，必要时 `--compact`
+3. **大上下文**用 `--profile summary` 或 MCP `--profile summary`
 4. **对比前先 `analyze` 或 `fetch`** 写入缓存，再 `--offline` 复用
-5. Tool schema：入参见 `schemas/tools.v1.json`，响应见 `schemas/index.json` 中的 `success_envelopes`
+5. Tool schema：Agent 入参见 `schemas/tools.v1.agent.json`；内联 outputSchema 见 `tools.v1.agent.embedded.json`
+6. 失败时查看 `error.hint` 与 `error.retryable` 决定是否重试
+
+### 错误信封扩展字段
+
+```json
+"error": {
+  "code": "INSUFFICIENT_DATA",
+  "message": "...",
+  "retryable": true,
+  "hint": "先运行 fetch 或 analyze 写入缓存后再试"
+}
+```
 
 ## Schema 生成与校验
 

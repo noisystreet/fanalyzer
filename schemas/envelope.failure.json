@@ -40,8 +40,20 @@
         "code": {
           "type": "string"
         },
+        "hint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "message": {
           "type": "string"
+        },
+        "retryable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
         }
       },
       "required": [

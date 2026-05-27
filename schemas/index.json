@@ -1,4 +1,6 @@
 {
+  "agent_tools": "tools.v1.agent.json",
+  "agent_tools_embedded": "tools.v1.agent.embedded.json",
   "failure_envelope": "envelope.failure.json",
   "generator": "fanalyzer schema export",
   "models": {
@@ -18,16 +20,20 @@
     "holdings": "responses/holdings.success.json",
     "info": "responses/info.success.json",
     "portfolio": "responses/portfolio.success.json",
+    "portfolio_config": "responses/portfolio_config.success.json",
     "rank": "responses/rank.success.json",
     "screen": "responses/screen.success.json",
-    "sectors": "responses/sectors.success.json"
+    "sectors": "responses/sectors.success.json",
+    "watchlist": "responses/watchlist.success.json"
   },
   "tools": "tools.v1.json",
   "usage": {
+    "agent_tools": "Agent 专用入参 schema（剥离 compact 等内部参数）",
+    "agent_tools_embedded": "Agent 工具 + 内联 outputSchema",
     "failure_envelope": "命令失败时 stdout 信封",
     "models": "data 字段常用子结构",
     "responses": "各 json 子命令 stdout 成功信封",
-    "tools": "MCP / function-calling 入参 schema（自 Clap 生成）"
+    "tools": "CLI 完整 MCP 入参 schema（自 Clap 生成）"
   },
   "v": "1"
 }

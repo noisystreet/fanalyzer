@@ -8,6 +8,8 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+use super::output_profile::OutputProfile;
+
 /// HTTP 客户端与缓存句柄。
 pub struct Session<'a> {
     pub client: &'a EastMoneyClient,
@@ -21,6 +23,8 @@ pub struct StructuredOutput {
     pub enabled: bool,
     pub json_compact: bool,
     pub compact_series: bool,
+    pub profile: Option<OutputProfile>,
+    pub capture: bool,
 }
 
 impl StructuredOutput {
@@ -28,6 +32,8 @@ impl StructuredOutput {
         enabled: false,
         json_compact: false,
         compact_series: false,
+        profile: None,
+        capture: false,
     };
 
     pub fn new(enabled: bool, json_compact: bool, compact_series: bool) -> Self {
@@ -35,7 +41,54 @@ impl StructuredOutput {
             enabled,
             json_compact,
             compact_series,
+            profile: None,
+            capture: false,
         }
+    }
+
+    pub fn with_profile(
+        enabled: bool,
+        json_compact: bool,
+        compact_series: bool,
+        profile: Option<OutputProfile>,
+    ) -> Self {
+        Self {
+            enabled,
+            json_compact,
+            compact_series,
+            profile,
+            capture: false,
+        }
+    }
+
+    pub fn for_capture(profile: OutputProfile) -> Self {
+        Self {
+            enabled: true,
+            json_compact: profile.json_compact(),
+            compact_series: profile.compact_series(),
+            profile: Some(profile),
+            capture: true,
+        }
+    }
+
+    fn effective_profile(&self) -> Option<OutputProfile> {
+        self.profile
+    }
+
+    pub fn json_compact(&self) -> bool {
+        self.effective_profile()
+            .map(|p| p.json_compact())
+            .unwrap_or(self.json_compact)
+    }
+
+    pub fn compact_series(&self) -> bool {
+        self.effective_profile()
+            .map(|p| p.compact_series())
+            .unwrap_or(self.compact_series)
+    }
+
+    pub fn summary_mode(&self) -> bool {
+        self.effective_profile().is_some_and(|p| p.summary_mode())
     }
 }
 
@@ -46,6 +99,7 @@ pub struct CommandContext<'a> {
     pub watchlist_path: &'a Path,
     pub structured_output: StructuredOutput,
     warnings: RefCell<Vec<String>>,
+    captured: RefCell<Option<String>>,
 }
 
 impl<'a> CommandContext<'a> {
@@ -67,6 +121,7 @@ impl<'a> CommandContext<'a> {
             watchlist_path,
             structured_output,
             warnings: RefCell::new(Vec::new()),
+            captured: RefCell::new(None),
         }
     }
 
@@ -74,12 +129,28 @@ impl<'a> CommandContext<'a> {
         self.structured_output.enabled
     }
 
+    pub fn capture_enabled(&self) -> bool {
+        self.structured_output.capture
+    }
+
+    pub fn take_captured(&self) -> Option<String> {
+        self.captured.borrow_mut().take()
+    }
+
+    pub(crate) fn store_captured(&self, json: String) {
+        *self.captured.borrow_mut() = Some(json);
+    }
+
     pub fn json_compact(&self) -> bool {
-        self.structured_output.json_compact
+        self.structured_output.json_compact()
     }
 
     pub fn compact_series(&self) -> bool {
-        self.structured_output.compact_series
+        self.structured_output.compact_series()
+    }
+
+    pub fn summary_mode(&self) -> bool {
+        self.structured_output.summary_mode()
     }
 
     /// 记录结构化输出警告（同时写 stderr 日志）。

@@ -1,18 +1,20 @@
 //! CLI 入口：Clap 定义与启动 wiring。
 
 mod dispatch;
+mod dispatch_agent;
 mod dispatch_query;
 mod dispatch_query_handlers;
 mod dispatch_query_info;
 mod dispatch_workflow;
-mod fund_code_arg;
+pub mod fund_code_arg;
 mod json_commands;
+pub mod structured_runner;
 
 use fund_code_arg::FundCodeArg;
 use json_commands::JsonCommands;
 
 use crate::api::eastmoney::{into_anyhow, EastMoneyClient, EastMoneyClientOptions};
-use crate::application::{CommandContext, StructuredOutput};
+use crate::application::{CommandContext, OutputProfile, StructuredOutput};
 use crate::cache::FundCache;
 use crate::config::AppConfig;
 use crate::nav_cache::NavCache;
@@ -57,6 +59,9 @@ pub enum Commands {
         /// 省略时间序列曲线以节省 token
         #[arg(long = "compact-series")]
         compact_series: bool,
+        /// 输出 profile：summary（最省 token）/ standard / full
+        #[arg(long, value_name = "PROFILE")]
+        profile: Option<String>,
         #[command(subcommand)]
         command: JsonCommands,
     },
@@ -297,10 +302,36 @@ pub enum Commands {
         #[arg(short, long, default_value = "csv", help = "导出格式 csv 或 json")]
         format: String,
     },
+    /// 列出自选基金（结构化 JSON）
+    WatchlistList,
+    /// 向自选追加基金代码
+    WatchlistAdd {
+        #[arg(required = true)]
+        codes: Vec<String>,
+    },
+    /// 从自选移除基金代码
+    WatchlistRemove {
+        #[arg(required = true)]
+        codes: Vec<String>,
+    },
+    /// 读取组合权重配置（结构化 JSON）
+    PortfolioConfig {
+        #[arg(
+            long = "portfolio-file",
+            default_value = "config/portfolio.toml",
+            value_name = "PATH"
+        )]
+        portfolio_file: PathBuf,
+    },
     /// 导出 Agent JSON Schema（Clap 工具入参 + schemars 响应模型；无需联网）
     Schema {
         #[command(subcommand)]
         command: crate::schema::SchemaCommands,
+    },
+    /// MCP Server（stdio，供 Cursor / Claude Desktop 集成）
+    Mcp {
+        #[command(subcommand)]
+        command: crate::mcp::McpCommands,
     },
     /// 启动 Leptos SSR Web 界面（需编译 feature `web`）
     Serve {
@@ -334,7 +365,12 @@ impl Commands {
             Self::Rank { .. } => "rank",
             Self::Brief { .. } => "brief",
             Self::Screen { .. } => "screen",
+            Self::WatchlistList => "watchlist",
+            Self::WatchlistAdd { .. } => "watchlist",
+            Self::WatchlistRemove { .. } => "watchlist",
+            Self::PortfolioConfig { .. } => "portfolio_config",
             Self::Schema { .. } => "schema",
+            Self::Mcp { .. } => "mcp",
             Self::Serve { .. } => "serve",
         }
     }
@@ -409,15 +445,17 @@ pub async fn run(mut cli: Cli, config: AppConfig) -> anyhow::Result<()> {
             anyhow::bail!("Web 界面未编译进当前二进制；请使用: cargo run --features web -- serve");
         }
         Commands::Schema { command } => crate::schema::run(command).await,
+        Commands::Mcp { command } => crate::mcp::run(command, config).await,
         Commands::Json {
             compact,
             compact_series,
+            profile,
             command,
         } => {
             let inner: Commands = command.into();
             execute_command(
                 inner,
-                StructuredOutput::new(true, compact, compact_series),
+                json_structured_output(compact, compact_series, profile)?,
                 cli.offline,
                 &cli.watchlist_file,
                 &client,
@@ -438,5 +476,23 @@ pub async fn run(mut cli: Cli, config: AppConfig) -> anyhow::Result<()> {
             )
             .await
         }
+    }
+}
+
+fn json_structured_output(
+    compact: bool,
+    compact_series: bool,
+    profile: Option<String>,
+) -> anyhow::Result<StructuredOutput> {
+    if let Some(p) = profile {
+        let profile = OutputProfile::parse(&p)?;
+        Ok(StructuredOutput::with_profile(
+            true,
+            profile.json_compact(),
+            profile.compact_series(),
+            Some(profile),
+        ))
+    } else {
+        Ok(StructuredOutput::new(true, compact, compact_series))
     }
 }

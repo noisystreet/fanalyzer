@@ -152,6 +152,26 @@ fn test_cli_schema_tools_excludes_schema_command() {
     assert!(!text.contains("fanalyzer_schema"));
 }
 
+#[test]
+fn test_cli_mcp_serve_help() {
+    Command::cargo_bin("fanalyzer")
+        .unwrap()
+        .args(["mcp", "serve", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--profile"));
+}
+
+#[test]
+fn test_cli_json_profile_flag() {
+    Command::cargo_bin("fanalyzer")
+        .unwrap()
+        .args(["json", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--profile"));
+}
+
 #[cfg(feature = "web")]
 #[test]
 fn test_cli_serve_help() {
