@@ -112,10 +112,18 @@ pub async fn fetch_fund_stock_holdings_jjcc(
 mod tests {
     use super::*;
 
+    fn include_fixture(name: &str) -> String {
+        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/api")
+            .join(name);
+        std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("read fixture {}: {e}", path.display()))
+    }
+
     #[test]
     fn parse_sample_jjcc_row() {
-        let js = r#"var apidata={ content:"<div><h4><label class='right'>截止至：<font class='px12'>2026-03-31</font></label></h4><table><tbody><tr><td>1</td><td><a href='#'>300308</a></td><td class='tol'><a href='#'>中际旭创</a></td><td class='tor'><span></span></td><td class='tor'><span></span></td><td class='xglj'><a href='#'>变动</a></td><td class='tor'>4.31%</td><td class='tor'>20.00</td><td class='tor'>11,388.20</td></tr></tbody></table></div>",arryear:[2026],curyear:2026};"#;
-        let r = parse_jjcc_apidata(js).unwrap();
+        let js = include_fixture("jjcc_sample.js");
+        let r = parse_jjcc_apidata(&js).unwrap();
         assert_eq!(r.as_of.as_deref(), Some("2026-03-31"));
         assert_eq!(r.rows.len(), 1);
         assert_eq!(r.rows[0].stock_code, "300308");

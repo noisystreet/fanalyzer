@@ -30,6 +30,7 @@
     "v",
     "command",
     "ok",
+    "warnings",
     "error"
   ],
   "$defs": {

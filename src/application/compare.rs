@@ -192,4 +192,50 @@ mod tests {
         sort_compare_analyses(&mut analyses, None).unwrap();
         assert_eq!(analyses[0].code, "000001");
     }
+
+    #[tokio::test]
+    async fn compare_golden_envelope_offline_two_funds() {
+        use crate::application::output_profile::OutputProfile;
+        use crate::application::test_support::{
+            seed_offline_two_funds, strip_volatile_envelope_fields,
+        };
+        use crate::application::{CommandContext, FundDataSource, StructuredOutput};
+        use std::path::Path;
+        use tempfile::tempdir;
+
+        let dir = tempdir().unwrap();
+        let cache_root = dir.path().join("cache");
+        let (nav_store, name_cache) =
+            seed_offline_two_funds(&cache_root, &[("000001", "基金A"), ("110011", "基金B")]).await;
+        let client = crate::api::eastmoney::EastMoneyClient::default();
+        let ctx = CommandContext::new(
+            &client as &dyn FundDataSource,
+            &name_cache,
+            &nav_store,
+            true,
+            Path::new("config/watchlist.toml"),
+            StructuredOutput::for_capture(OutputProfile::Standard),
+        );
+        run_compare(
+            &ctx,
+            CompareRequest {
+                codes: vec!["000001".into(), "110011".into()],
+                pick_watchlist: false,
+                days: 90,
+                period: None,
+                sort: None,
+                output: None,
+                format: "json".into(),
+            },
+        )
+        .await
+        .unwrap();
+
+        let raw = ctx.take_captured().expect("captured json");
+        let stable = strip_volatile_envelope_fields(serde_json::from_str(&raw).unwrap());
+        assert_eq!(stable["ok"], true);
+        assert_eq!(stable["command"], "compare");
+        assert_eq!(stable["meta"]["succeeded"], 2);
+        assert_eq!(stable["data"]["items"].as_array().unwrap().len(), 2);
+    }
 }

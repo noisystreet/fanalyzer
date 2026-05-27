@@ -155,3 +155,59 @@ pub async fn gather_brief(
         holdings_top: holdings_top as usize,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::application::data_source::mock::MockFundDataSource;
+    use crate::application::output_profile::OutputProfile;
+    use crate::application::test_support::{linear_nav_series, strip_volatile_envelope_fields};
+    use crate::application::{CommandContext, FundDataSource, StructuredOutput};
+    use crate::cache::FundCache;
+    use crate::nav_cache::NavCache;
+    use std::path::Path;
+    use std::sync::Arc;
+    use tempfile::tempdir;
+    use tokio::sync::Mutex;
+
+    #[tokio::test]
+    async fn brief_golden_envelope_with_mock_session() {
+        let code = "000001";
+        let navs = linear_nav_series(code, 91);
+        let mock = MockFundDataSource::with_navs(code, "简报测试基金", navs);
+        let dir = tempdir().unwrap();
+        let cache_root = dir.path().join("cache");
+        let name_cache = Arc::new(Mutex::new(FundCache::with_root(cache_root.clone())));
+        let nav_store = NavCache::with_root(cache_root);
+        let ctx = CommandContext::new(
+            &mock as &dyn FundDataSource,
+            &name_cache,
+            &nav_store,
+            false,
+            Path::new("config/watchlist.toml"),
+            StructuredOutput::for_capture(OutputProfile::Standard),
+        );
+        run_brief(
+            &ctx,
+            BriefRequest {
+                code: Some(code.into()),
+                pick_watchlist: false,
+                days: 90,
+                period: None,
+                industry_top: 5,
+                holdings_top: 10,
+                output: None,
+            },
+        )
+        .await
+        .unwrap();
+
+        let raw = ctx.take_captured().expect("captured json");
+        let stable = strip_volatile_envelope_fields(serde_json::from_str(&raw).unwrap());
+        assert_eq!(stable["ok"], true);
+        assert_eq!(stable["command"], "brief");
+        assert_eq!(stable["data"]["items"][0]["code"], "000001");
+        assert_eq!(stable["data"]["items"][0]["name"], "简报测试基金");
+        assert!(stable["data"]["items"][0]["analysis"].is_object());
+    }
+}

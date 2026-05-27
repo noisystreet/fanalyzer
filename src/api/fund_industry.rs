@@ -103,10 +103,18 @@ pub async fn fetch_fund_industry_hypz(
 mod tests {
     use super::*;
 
+    fn include_fixture(name: &str) -> String {
+        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/api")
+            .join(name);
+        std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("read fixture {}: {e}", path.display()))
+    }
+
     #[test]
     fn parse_sample_hypz() {
-        let js = r#"var apidata={ content:"<div class='box'><h4><label class='right'>截止至：<font class='px12'>2026-03-31</font></label></h4><table class='hypz'><tbody><tr><td>1</td><td class='tol'>制造业</td><td><a href='#'>变动详情</a></td><td class='tor'>61.14%</td><td class='tor'>161,661.79</td><td></td></tr><tr><td>2</td><td class='tol'>信息传输</td><td><a href='#'>变动详情</a></td><td class='tor'>7.18%</td><td class='tor'>18,987.58</td><td></td></tr></tbody></table></div>",arryear:[2026],curyear:2026};"#;
-        let r = parse_hypz_apidata(js).unwrap();
+        let js = include_fixture("hypz_sample.js");
+        let r = parse_hypz_apidata(&js).unwrap();
         assert_eq!(r.as_of.as_deref(), Some("2026-03-31"));
         assert_eq!(r.rows.len(), 2);
         assert_eq!(r.rows[0].industry, "制造业");

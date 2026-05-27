@@ -145,10 +145,13 @@ pub mod mock {
         EastMoneyError::ParseFailed("mock: method not stubbed".into())
     }
 
-    /// 测试用内存数据源：按基金代码返回预设净值/名称。
+    /// 测试用内存数据源：按基金代码返回预设净值/名称及可选简报字段。
     pub struct MockFundDataSource {
         pub navs_by_code: HashMap<String, Vec<FundNav>>,
         pub names_by_code: HashMap<String, String>,
+        pub profiles_by_code: HashMap<String, FundProfile>,
+        pub industry_by_code: HashMap<String, FundIndustryReport>,
+        pub holdings_by_code: HashMap<String, FundStockHoldingsReport>,
     }
 
     impl MockFundDataSource {
@@ -160,6 +163,30 @@ pub mod mock {
             Self {
                 navs_by_code,
                 names_by_code,
+                profiles_by_code: HashMap::new(),
+                industry_by_code: HashMap::new(),
+                holdings_by_code: HashMap::new(),
+            }
+        }
+
+        fn minimal_profile(code: &str, name: &str) -> FundProfile {
+            FundProfile {
+                code: code.to_string(),
+                name: name.to_string(),
+                full_name: name.to_string(),
+                fund_type: "混合型".to_string(),
+                establishment_date: String::new(),
+                asset_size: "10.00亿".to_string(),
+                company: "测试基金公司".to_string(),
+                manager_name: String::new(),
+                manager_tenure_days: 0,
+                manager_total_return: 0.0,
+                management_fee: 0.0,
+                custody_fee: 0.0,
+                investment_target: String::new(),
+                investment_scope: String::new(),
+                investment_strategy: String::new(),
+                benchmark: String::new(),
             }
         }
     }
@@ -214,17 +241,25 @@ pub mod mock {
 
         async fn fetch_fund_industry_allocation(
             &self,
-            _: &str,
+            fund_code: &str,
         ) -> Result<FundIndustryReport, EastMoneyError> {
-            Err(not_implemented())
+            Ok(self
+                .industry_by_code
+                .get(fund_code)
+                .cloned()
+                .unwrap_or_default())
         }
 
         async fn fetch_fund_stock_holdings(
             &self,
-            _: &str,
+            fund_code: &str,
             _: u32,
         ) -> Result<FundStockHoldingsReport, EastMoneyError> {
-            Err(not_implemented())
+            Ok(self
+                .holdings_by_code
+                .get(fund_code)
+                .cloned()
+                .unwrap_or_default())
         }
 
         async fn search_fund(&self, _: &str) -> Result<Vec<(String, String)>, EastMoneyError> {
@@ -248,8 +283,16 @@ pub mod mock {
             Err(not_implemented())
         }
 
-        async fn fetch_fund_profile(&self, _: &str) -> Result<FundProfile, EastMoneyError> {
-            Err(not_implemented())
+        async fn fetch_fund_profile(&self, fund_code: &str) -> Result<FundProfile, EastMoneyError> {
+            if let Some(p) = self.profiles_by_code.get(fund_code) {
+                return Ok(p.clone());
+            }
+            let name = self
+                .names_by_code
+                .get(fund_code)
+                .cloned()
+                .unwrap_or_else(|| fund_code.to_string());
+            Ok(MockFundDataSource::minimal_profile(fund_code, &name))
         }
     }
 }

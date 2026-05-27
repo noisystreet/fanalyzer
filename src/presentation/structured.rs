@@ -84,7 +84,6 @@ pub struct StructuredEnvelope<T> {
     pub ok: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub meta: Option<serde_json::Value>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub warnings: Vec<String>,
     pub data: T,
 }
@@ -97,7 +96,6 @@ pub struct StructuredFailureEnvelope {
     pub ok: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub meta: Option<serde_json::Value>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub warnings: Vec<String>,
     pub error: StructuredError,
 }

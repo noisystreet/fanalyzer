@@ -94,45 +94,20 @@ pub async fn run_analyze(ctx: &CommandContext<'_>, req: AnalyzeRequest) -> anyho
 mod tests {
     use crate::application::data_source::mock::MockFundDataSource;
     use crate::application::output_profile::OutputProfile;
+    use crate::application::test_support::{linear_nav_series, strip_volatile_envelope_fields};
     use crate::application::{
         run_analyze, AnalyzeRequest, CommandContext, FundDataSource, StructuredOutput,
     };
     use crate::cache::FundCache;
     use crate::domain::DEFAULT_ROLLING_WINDOW;
-    use crate::models::{FundAnalysisReport, FundNav};
+    use crate::models::FundAnalysisReport;
     use crate::nav_cache::NavCache;
     use crate::presentation::BatchPayload;
-    use chrono::Local;
     use serde_json::Value;
     use std::path::Path;
     use std::sync::Arc;
     use tempfile::tempdir;
     use tokio::sync::Mutex;
-
-    fn linear_nav_series(code: &str, points: usize) -> Vec<FundNav> {
-        let today = Local::now().date_naive();
-        (0..points)
-            .map(|i| {
-                let date = today - chrono::Duration::days((points - 1 - i) as i64);
-                let nav = 1.0 + i as f64 * 0.001;
-                FundNav {
-                    code: code.to_string(),
-                    date,
-                    nav,
-                    acc_nav: nav,
-                    daily_return: None,
-                }
-            })
-            .collect()
-    }
-
-    fn strip_volatile_envelope_fields(mut v: Value) -> Value {
-        if let Some(meta) = v.get_mut("meta").and_then(|m| m.as_object_mut()) {
-            meta.remove("generated_at");
-            meta.remove("duration_ms");
-        }
-        v
-    }
 
     #[test]
     fn default_rolling_window_matches_domain() {

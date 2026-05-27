@@ -367,4 +367,73 @@ mod tests {
     fn default_rolling_window_constant() {
         assert_eq!(DEFAULT_ROLLING_WINDOW, 60);
     }
+
+    #[tokio::test]
+    async fn portfolio_golden_envelope_offline() {
+        use crate::application::output_profile::OutputProfile;
+        use crate::application::test_support::{
+            seed_offline_two_funds, strip_volatile_envelope_fields,
+        };
+        use crate::application::{CommandContext, FundDataSource, StructuredOutput};
+        use std::fs;
+        use std::path::Path;
+        use tempfile::tempdir;
+
+        let dir = tempdir().unwrap();
+        let cache_root = dir.path().join("cache");
+        let (nav_store, name_cache) =
+            seed_offline_two_funds(&cache_root, &[("000001", "基金A"), ("110011", "基金B")]).await;
+        let portfolio_path = dir.path().join("portfolio.toml");
+        fs::write(
+            &portfolio_path,
+            r#"
+name = "test-portfolio"
+
+[[holdings]]
+code = "000001"
+weight = 0.5
+
+[[holdings]]
+code = "110011"
+weight = 0.5
+"#,
+        )
+        .unwrap();
+
+        let client = crate::api::eastmoney::EastMoneyClient::default();
+        let ctx = CommandContext::new(
+            &client as &dyn FundDataSource,
+            &name_cache,
+            &nav_store,
+            true,
+            Path::new("config/watchlist.toml"),
+            StructuredOutput::for_capture(OutputProfile::Standard),
+        );
+        run_portfolio(
+            &ctx,
+            PortfolioRequest {
+                portfolio_path,
+                days: 90,
+                period: None,
+                holdings_top: 10,
+                rolling_window: DEFAULT_ROLLING_WINDOW,
+                output: None,
+                format: "json".into(),
+            },
+        )
+        .await
+        .unwrap();
+
+        let raw = ctx.take_captured().expect("captured json");
+        let stable = strip_volatile_envelope_fields(serde_json::from_str(&raw).unwrap());
+        assert_eq!(stable["ok"], true);
+        assert_eq!(stable["command"], "portfolio");
+        assert_eq!(
+            stable["data"]["summary"]["members"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+    }
 }

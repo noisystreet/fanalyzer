@@ -132,17 +132,17 @@ Web 组合页在表单中编辑自选组合（每行「代码 权重」）；首
 ## Testing Strategy
 
 - **domain/**：单元测试（analyzer、period、sort、screen_filter）
-- **application/compare.rs**：排序逻辑单元测试
-- **api/eastmoney_error.rs**：`into_anyhow` 测试
-- **presentation/comparison.rs**：导出 CSV 头测试
-- **tests/**：CLI `--help` 集成测试（含 `serve --help`，feature `web`）
+- **application/**：golden 信封测试（`analyze` / `compare` / `portfolio` / `brief`），共享 `test_support` + `MockFundDataSource`
+- **api/**：HTML/JS 解析 fixture 位于 `tests/fixtures/api/`，单元测试从文件加载以防回归
+- **tests/schema_contract_test.rs**：离线 CLI 输出用 `jsonschema` 校验 `schemas/responses/*.success.json`
+- **tests/integration_test.rs**：CLI/MCP 行为与 `--config` 路径
 - CI 默认构建 + `--features web` 分别跑 clippy / test
-- 外部 HTTP：后续可通过 `Session` trait 化 + mock 扩展
+- 外部 HTTP：`FundDataSource` trait + 离线缓存 fixture，核心路径 CI 无需联网
 
 ## Evolution Roadmap
 
 1. **存储统一** — `storage/` 模块合并 name_cache + nav_cache，可选 TTL
-2. **API trait** — `FundDataSource` async trait，便于 mock 与第二数据源
+2. **API trait** — `FundDataSource` async trait（✅ 已实现），便于 mock 与第二数据源
 3. **配置化筛选** — `screen` 规则 TOML 模板
 4. **组合分析** — 相关性、重仓重叠（v0.2 ✅ portfolio 子命令）
 5. **Web 功能追平** — screen、rank、导出等页面

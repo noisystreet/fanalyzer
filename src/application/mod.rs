@@ -15,6 +15,9 @@ mod queries;
 mod screen;
 mod watchlist_ops;
 
+#[cfg(test)]
+pub mod test_support;
+
 pub use analyze::{run_analyze, AnalyzeRequest};
 pub use brief::{gather_brief, run_brief, BriefRequest};
 pub use compare::{gather_compare_analyses, run_compare, sort_compare_analyses, CompareRequest};
