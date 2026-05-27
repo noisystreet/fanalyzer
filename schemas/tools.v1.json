@@ -18,6 +18,10 @@
             "description": "省略时间序列曲线以节省 token",
             "type": "boolean"
           },
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
+          },
           "limit": {
             "default": "20",
             "description": "拉取记录条数",
@@ -61,6 +65,10 @@
           "compact-series": {
             "description": "省略时间序列曲线以节省 token",
             "type": "boolean"
+          },
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
           },
           "days": {
             "default": "30",
@@ -127,6 +135,10 @@
             "description": "省略时间序列曲线以节省 token",
             "type": "boolean"
           },
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
+          },
           "days": {
             "default": "30",
             "description": "分析窗口（日历天）；可被 --period 覆盖",
@@ -183,6 +195,10 @@
           "compact-series": {
             "description": "省略时间序列曲线以节省 token",
             "type": "boolean"
+          },
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
           },
           "days": {
             "default": "90",
@@ -252,6 +268,10 @@
             "description": "省略时间序列曲线以节省 token",
             "type": "boolean"
           },
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
+          },
           "days": {
             "default": "30",
             "description": "日历天窗口",
@@ -309,6 +329,10 @@
             "description": "省略时间序列曲线以节省 token",
             "type": "boolean"
           },
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
+          },
           "offline": {
             "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
             "type": "boolean"
@@ -347,6 +371,10 @@
           "compact-series": {
             "description": "省略时间序列曲线以节省 token",
             "type": "boolean"
+          },
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
           },
           "offline": {
             "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
@@ -387,6 +415,10 @@
             "description": "省略时间序列曲线以节省 token",
             "type": "boolean"
           },
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
+          },
           "offline": {
             "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
             "type": "boolean"
@@ -426,6 +458,10 @@
           "compact-series": {
             "description": "省略时间序列曲线以节省 token",
             "type": "boolean"
+          },
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
           },
           "kind": {
             "type": "string"
@@ -477,6 +513,10 @@
           "compact-series": {
             "description": "省略时间序列曲线以节省 token",
             "type": "boolean"
+          },
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
           },
           "days": {
             "default": "90",
@@ -535,6 +575,10 @@
           "compact-series": {
             "description": "省略时间序列曲线以节省 token",
             "type": "boolean"
+          },
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
           },
           "days": {
             "description": "deep 分析窗口（日历天）；省略时按 --sort 区间对齐",
@@ -647,6 +691,10 @@
             "description": "省略时间序列曲线以节省 token",
             "type": "boolean"
           },
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
+          },
           "offline": {
             "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
             "type": "boolean"
@@ -677,6 +725,10 @@
           "compact-series": {
             "description": "省略时间序列曲线以节省 token",
             "type": "boolean"
+          },
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
           },
           "offline": {
             "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",

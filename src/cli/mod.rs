@@ -14,7 +14,7 @@ use fund_code_arg::FundCodeArg;
 use json_commands::JsonCommands;
 
 use crate::api::eastmoney::{into_anyhow, EastMoneyClient, EastMoneyClientOptions};
-use crate::application::{CommandContext, OutputProfile, StructuredOutput};
+use crate::application::{CommandContext, FundDataSource, OutputProfile, StructuredOutput};
 use crate::cache::FundCache;
 use crate::config::AppConfig;
 use crate::nav_cache::NavCache;
@@ -30,6 +30,9 @@ use tokio::sync::Mutex;
     about = "Fanalyzer — fund analysis CLI & Web UI"
 )]
 pub struct Cli {
+    /// 配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）
+    #[arg(long, global = true, env = "FANALYZER_CONFIG", value_name = "PATH")]
+    pub config: Option<PathBuf>,
     /// 仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）
     #[arg(long, global = true)]
     pub offline: bool,
@@ -328,7 +331,7 @@ pub enum Commands {
         #[command(subcommand)]
         command: crate::schema::SchemaCommands,
     },
-    /// MCP Server（stdio，供 Cursor / Claude Desktop 集成）
+    /// MCP Server（stdio，供 Cursor / Trae 等 Agent 客户端集成）
     Mcp {
         #[command(subcommand)]
         command: crate::mcp::McpCommands,
@@ -399,7 +402,7 @@ async fn execute_command(
     if structured_output.enabled {
         if let Err(e) = result {
             let err_ctx = CommandContext::new(
-                client,
+                client as &dyn FundDataSource,
                 name_cache,
                 nav_store,
                 offline,

@@ -1,4 +1,4 @@
-//! MCP Server（stdio，供 Cursor / Claude Desktop 集成）。
+//! MCP Server（stdio，供 Cursor / Trae 等 Agent 客户端集成）。
 
 mod executor;
 mod protocol;

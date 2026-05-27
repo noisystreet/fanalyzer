@@ -11,6 +11,8 @@ Fund analysis CLI & Web UI — 个人基金研究与选基工具（Rust）。
 - 基金数据获取（净值、排行、行业配置、重仓股等）
 - 收益分析（总收益、年化收益、最大回撤、波动率）
 - CLI 命令行交互
+- **MCP Server**（Cursor、Trae 等 Agent 直连）
+- 结构化 JSON 输出（`json` 子命令，供自动化脚本）
 - 结构化日志与可配置的数据源
 
 ## 文档索引
@@ -18,6 +20,7 @@ Fund analysis CLI & Web UI — 个人基金研究与选基工具（Rust）。
 | 文档 | 说明 |
 |------|------|
 | [docs/MANUAL.md](docs/MANUAL.md) | **CLI 使用手册**（子命令、自选、离线、排行等） |
+| [docs/AGENT.md](docs/AGENT.md) | **Agent / MCP 集成**（结构化 JSON、Schema、Cursor 配置） |
 | [docs/DISCLAIMER.md](docs/DISCLAIMER.md) | **免责声明与数据使用说明**（发布前必读） |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 架构总览 |
 | [docs/DATA_MODEL.md](docs/DATA_MODEL.md) | 数据模型 |
@@ -216,6 +219,203 @@ cargo run --features web -- serve
 
 ```bash
 cargo run --features web -- serve --host 0.0.0.0 --port 8080
+```
+
+## Agent 与 MCP 集成
+
+在 Cursor、Trae 等支持 MCP 的客户端中，可通过 **stdio MCP** 直接调用基金分析工具，无需 Agent 拼 shell。完整说明见 **[docs/AGENT.md](docs/AGENT.md)**；工具 Schema 见 `schemas/tools.v1.agent.json`。
+
+### 构建
+
+```bash
+cargo build
+# 推荐 release：cargo build --release
+```
+
+记下二进制绝对路径，例如：
+
+- 开发：`/path/to/fanalyzer/target/debug/fanalyzer`
+- 发布：`/path/to/fanalyzer/target/release/fanalyzer`
+
+修改代码或拉取更新后需 **重新 `cargo build`**，并在客户端中 **刷新或重启 MCP**。
+
+### 通用 MCP 配置
+
+各客户端 JSON 结构基本一致（`mcpServers` 键名可能略有差异）。将 `/path/to/fanalyzer` 替换为**本机仓库绝对路径**：
+
+```json
+{
+  "mcpServers": {
+    "fanalyzer": {
+      "command": "/path/to/fanalyzer/target/debug/fanalyzer",
+      "args": ["mcp", "serve", "--profile", "summary"],
+      "cwd": "/path/to/fanalyzer",
+      "env": { "RUST_LOG": "warn" }
+    }
+  }
+}
+```
+
+| 字段 | 说明 |
+|------|------|
+| `command` | `cargo build` 产物的**绝对路径**（release 可改为 `target/release/fanalyzer`） |
+| `args` | 固定 `mcp serve`；`--profile` 见下表 |
+| `cwd` | 建议设为项目根；也可用 `--config` / `FANALYZER_CONFIG` 指定配置，减少对 `cwd` 的依赖 |
+| `env` | 可选；`RUST_LOG=warn` 减少 stderr 日志 |
+
+**配置文件**（`config/default.toml`、缓存目录等）解析顺序：`--config` / `FANALYZER_CONFIG` → 当前目录 `config/default.toml` → 可执行文件相对路径 `../../config/default.toml`（适配 `target/debug/fanalyzer`）。
+
+```bash
+fanalyzer --config /path/to/config/default.toml mcp serve --profile summary
+```
+
+**`--profile` 选项**：
+
+| 值 | 说明 |
+|----|------|
+| `summary` | 最省 token（默认推荐 Agent 对话） |
+| `standard` | 省略时间序列，保留完整业务字段 |
+| `full` | 含 `series` 时间序列 |
+
+### Cursor
+
+**项目级**（推荐）：在仓库根目录自行创建 `.cursor/mcp.json`，内容见上方 [通用 MCP 配置](#通用-mcp-配置)。
+
+**全局**：Settings → MCP → Add server，填入相同 `command` / `args` / `cwd`。
+
+保存后在 MCP 面板 **Refresh** 或重启 Cursor；应能看到 `fanalyzer_analyze`、`fanalyzer_research_fund` 等工具。
+
+### Trae
+
+**项目级**（推荐）：在仓库根目录自行创建 `.trae/mcp.json`：
+
+```json
+{
+  "mcpServers": {
+    "fanalyzer": {
+      "command": "${workspaceFolder}/target/debug/fanalyzer",
+      "args": ["mcp", "serve", "--profile", "summary"],
+      "env": { "RUST_LOG": "warn" }
+    }
+  }
+}
+```
+
+Trae 支持 `${workspaceFolder}` 变量，会展开为当前项目根路径；MCP 进程工作目录通常即为项目根，`config/watchlist.toml` 等相对路径可正常读取。若不用变量，也可改用通用配置中的绝对路径 + `cwd`。
+
+也可在 **Settings → MCP** 中手动添加，或从其他 IDE 的 JSON 粘贴。修改后 **Reload Window**（`Ctrl/Cmd+Shift+P` → Developer: Reload Window）。
+
+在 Builder / Agent 对话中直接描述基金分析需求即可。
+
+### Claude Code
+
+**项目级**（推荐团队共享）：仓库根目录 `.claude/mcp.json`，格式与通用配置相同。
+
+**CLI 添加**（写入用户级配置）：
+
+```bash
+claude mcp add fanalyzer \
+  /path/to/fanalyzer/target/debug/fanalyzer \
+  --args mcp serve --profile summary \
+  --cwd /path/to/fanalyzer
+```
+
+（具体子命令以本机 `claude mcp --help` 为准。）在 Claude Code 会话中直接提问即可调用工具。
+
+### Windsurf（Cascade）
+
+**仅全局配置**（不支持项目级 MCP 文件）：
+
+`~/.codeium/windsurf/mcp_config.json`
+
+也可在 Cascade 面板 → **MCP** 图标 → 编辑配置。JSON 格式与通用配置相同。修改后 **重启 Windsurf**。
+
+> Windsurf 对所有 MCP 工具有数量上限（约 100 个）；fanalyzer 工具较多，若与其他 Server 同开导致工具被截断，可暂时禁用不用的 MCP。
+
+### Continue（VS Code / JetBrains）
+
+编辑 Continue 配置（**Continue: Open Config**）中的 `mcpServers`，例如：
+
+```yaml
+mcpServers:
+  - name: fanalyzer
+    command: /path/to/fanalyzer/target/debug/fanalyzer
+    args:
+      - mcp
+      - serve
+      - --profile
+      - summary
+    cwd: /path/to/fanalyzer
+    env:
+      RUST_LOG: warn
+```
+
+保存后重载窗口；在 Continue Chat 中提问即可。
+
+### 其他 Agent / 自动化
+
+| 方式 | 适用场景 |
+|------|----------|
+| **MCP stdio** | 任何支持 `command` + `args` 的 MCP 客户端，配置同通用 JSON |
+| **CLI JSON** | 不支持 MCP 的 Agent、n8n、GitHub Actions、自研脚本 |
+| **Function Calling** | 导入 `schemas/tools.v1.agent.json` 或 `tools.v1.agent.embedded.json`，自行 subprocess 调 `fanalyzer json ...` |
+
+CLI 示例：
+
+```bash
+/path/to/fanalyzer/target/debug/fanalyzer json --profile summary analyze 110011 --days 90 2>/dev/null | jq .
+```
+
+### 在 Agent 中使用（通用）
+
+在 **Agent / 对话模式** 下直接提问，例如：
+
+- 「用 fanalyzer 分析基金 110011，最近 90 天，总结夏普比率和最大回撤。」
+- 「用 fanalyzer_research_fund 研究 110011。」
+- 「列出当前自选基金，并把 110011 加进去。」
+
+Agent 会通过 MCP 调用工具；返回内容为 JSON 信封（`ok` / `data` / `error`），失败时可查看 `error.hint` 与 `error.retryable`。
+
+### 命令行自测
+
+确认 MCP 正常（应输出 `true`，而非 `NO_OUTPUT`）：
+
+```bash
+cd /path/to/fanalyzer
+cargo build
+
+printf '%s\n' \
+  '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"fanalyzer_analyze","arguments":{"code":"110011","days":90}}}' \
+| ./target/debug/fanalyzer mcp serve --profile summary 2>/dev/null \
+| jq -r '.result.content[0].text | fromjson | .ok'
+```
+
+列出已注册工具：
+
+```bash
+printf '%s\n' \
+  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}' \
+  '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
+| ./target/debug/fanalyzer mcp serve 2>/dev/null | tail -1 | jq '.result.tools[].name'
+```
+
+### 常用 MCP 工具
+
+| 工具 | 说明 |
+|------|------|
+| `fanalyzer_analyze` | 单基金分析 |
+| `fanalyzer_compare` | 多基金对比 |
+| `fanalyzer_research_fund` | 复合：info + analyze + sectors + holdings |
+| `fanalyzer_compare_watchlist` | 对比自选列表全部基金 |
+| `fanalyzer_watchlist_list` / `_add` / `_remove` | 自选增删查 |
+| `fanalyzer_screen` / `fanalyzer_rank` | 筛选 / 排行 |
+
+### 不用 MCP 的替代方式
+
+任意能执行 shell 的环境可使用结构化 CLI：
+
+```bash
+cargo run -- json --profile summary analyze 110011 --days 90 2>/dev/null | jq .
 ```
 
 ## 环境变量

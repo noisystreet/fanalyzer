@@ -1,7 +1,7 @@
 //! 结构化命令执行（捕获 JSON 信封，供 MCP 等调用）。
 
 use crate::api::eastmoney::EastMoneyClient;
-use crate::application::{CommandContext, OutputProfile, StructuredOutput};
+use crate::application::{CommandContext, FundDataSource, OutputProfile, StructuredOutput};
 use crate::cache::FundCache;
 use crate::nav_cache::NavCache;
 use crate::presentation::{error_from_anyhow, print_failure_capture, StructuredError};
@@ -38,7 +38,7 @@ pub async fn run_structured_command(
         Ok(captured) => captured.unwrap_or_else(|| missing_capture_json(cmd_name)),
         Err(e) => {
             let ctx = CommandContext::new(
-                client,
+                client as &dyn FundDataSource,
                 name_cache,
                 nav_store,
                 offline,

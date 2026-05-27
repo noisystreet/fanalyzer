@@ -92,9 +92,47 @@ pub async fn run_analyze(ctx: &CommandContext<'_>, req: AnalyzeRequest) -> anyho
 
 #[cfg(test)]
 mod tests {
+    use crate::application::data_source::mock::MockFundDataSource;
+    use crate::application::output_profile::OutputProfile;
+    use crate::application::{
+        run_analyze, AnalyzeRequest, CommandContext, FundDataSource, StructuredOutput,
+    };
+    use crate::cache::FundCache;
     use crate::domain::DEFAULT_ROLLING_WINDOW;
-    use crate::models::FundAnalysisReport;
+    use crate::models::{FundAnalysisReport, FundNav};
+    use crate::nav_cache::NavCache;
     use crate::presentation::BatchPayload;
+    use chrono::Local;
+    use serde_json::Value;
+    use std::path::Path;
+    use std::sync::Arc;
+    use tempfile::tempdir;
+    use tokio::sync::Mutex;
+
+    fn linear_nav_series(code: &str, points: usize) -> Vec<FundNav> {
+        let today = Local::now().date_naive();
+        (0..points)
+            .map(|i| {
+                let date = today - chrono::Duration::days((points - 1 - i) as i64);
+                let nav = 1.0 + i as f64 * 0.001;
+                FundNav {
+                    code: code.to_string(),
+                    date,
+                    nav,
+                    acc_nav: nav,
+                    daily_return: None,
+                }
+            })
+            .collect()
+    }
+
+    fn strip_volatile_envelope_fields(mut v: Value) -> Value {
+        if let Some(meta) = v.get_mut("meta").and_then(|m| m.as_object_mut()) {
+            meta.remove("generated_at");
+            meta.remove("duration_ms");
+        }
+        v
+    }
 
     #[test]
     fn default_rolling_window_matches_domain() {
@@ -135,5 +173,101 @@ mod tests {
         })
         .unwrap();
         assert!(json.contains("000001"));
+    }
+
+    #[tokio::test]
+    async fn analyze_golden_envelope_with_mock_session() {
+        let code = "000001";
+        let navs = linear_nav_series(code, 91);
+        let mock = MockFundDataSource::with_navs(code, "测试基金", navs);
+        let dir = tempdir().unwrap();
+        let cache_root = dir.path().join("cache");
+        let name_cache = Arc::new(Mutex::new(FundCache::with_root(cache_root.clone())));
+        let nav_store = NavCache::with_root(cache_root);
+        let ctx = CommandContext::new(
+            &mock as &dyn FundDataSource,
+            &name_cache,
+            &nav_store,
+            false,
+            Path::new("config/watchlist.toml"),
+            StructuredOutput::for_capture(OutputProfile::Standard),
+        );
+        run_analyze(
+            &ctx,
+            AnalyzeRequest {
+                code: Some(code.into()),
+                pick_watchlist: false,
+                days: 90,
+                period: None,
+                rolling_window: DEFAULT_ROLLING_WINDOW,
+                output: None,
+                format: "json".into(),
+            },
+        )
+        .await
+        .unwrap();
+
+        let raw = ctx.take_captured().expect("captured json");
+        let v: Value = serde_json::from_str(&raw).unwrap();
+        let stable = strip_volatile_envelope_fields(v);
+
+        assert_eq!(stable["ok"], true);
+        assert_eq!(stable["command"], "analyze");
+        assert_eq!(stable["meta"]["offline"], false);
+        assert_eq!(stable["meta"]["days"], 90);
+        assert_eq!(stable["meta"]["requested"], 1);
+        assert_eq!(stable["meta"]["succeeded"], 1);
+        assert_eq!(stable["data"]["items"][0]["snapshot"]["code"], "000001");
+        assert_eq!(stable["data"]["items"][0]["snapshot"]["name"], "测试基金");
+        let total_return = stable["data"]["items"][0]["snapshot"]["total_return"]
+            .as_f64()
+            .unwrap();
+        assert!((total_return - 0.09).abs() < 1e-6);
+    }
+
+    #[tokio::test]
+    async fn analyze_offline_golden_envelope_from_cache() {
+        let code = "000001";
+        let navs = linear_nav_series(code, 91);
+        let dir = tempdir().unwrap();
+        let cache_root = dir.path().join("cache");
+        let nav_store = NavCache::with_root(cache_root.clone());
+        nav_store.save_merged(code, &navs).unwrap();
+        let name_cache = Arc::new(Mutex::new(FundCache::with_root(cache_root.clone())));
+        name_cache.lock().await.set_mapping(code, "离线测试基金");
+
+        let client = crate::api::eastmoney::EastMoneyClient::default();
+        let ctx = CommandContext::new(
+            &client as &dyn FundDataSource,
+            &name_cache,
+            &nav_store,
+            true,
+            Path::new("config/watchlist.toml"),
+            StructuredOutput::for_capture(OutputProfile::Standard),
+        );
+        run_analyze(
+            &ctx,
+            AnalyzeRequest {
+                code: Some(code.into()),
+                pick_watchlist: false,
+                days: 90,
+                period: None,
+                rolling_window: DEFAULT_ROLLING_WINDOW,
+                output: None,
+                format: "json".into(),
+            },
+        )
+        .await
+        .unwrap();
+
+        let raw = ctx.take_captured().expect("captured json");
+        let v: Value = serde_json::from_str(&raw).unwrap();
+        let stable = strip_volatile_envelope_fields(v);
+        assert_eq!(stable["ok"], true);
+        assert_eq!(stable["meta"]["offline"], true);
+        assert_eq!(
+            stable["data"]["items"][0]["snapshot"]["name"],
+            "离线测试基金"
+        );
     }
 }

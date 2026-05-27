@@ -25,6 +25,8 @@ cargo run -- json --compact-series analyze 110011 --days 90
 | **stderr** | `tracing` 日志（`RUST_LOG=warn` 可减少噪音） |
 | **退出码** | `0` 成功；非 `0` 失败（失败时 stdout 仍有 JSON） |
 
+信封 `meta` 含 `generated_at`、`duration_ms`（命令耗时毫秒，便于 Agent 追踪）。
+
 ## 信封格式
 
 Schema 索引见 [schemas/index.json](../schemas/index.json)（由 `fanalyzer schema export` 自动生成）。
@@ -150,17 +152,37 @@ fanalyzer json [--compact] [--compact-series] <子命令> [参数...]
 cargo run -- mcp serve --profile standard
 ```
 
-Cursor / Claude Desktop 配置示例：
+完整 MCP 配置（Cursor、Trae、Claude Code、Windsurf 等）见 [README.md](../README.md#mcp-与-agent-集成) 的 **「MCP 与 Agent 集成」** 章节。
+
+通用 JSON 结构：
 
 ```json
 {
   "mcpServers": {
     "fanalyzer": {
-      "command": "/path/to/fanalyzer",
-      "args": ["mcp", "serve", "--profile", "summary"]
+      "command": "/path/to/fanalyzer/target/debug/fanalyzer",
+      "args": ["mcp", "serve", "--profile", "summary"],
+      "cwd": "/path/to/fanalyzer",
+      "env": { "RUST_LOG": "warn" }
     }
   }
 }
+```
+
+| 字段 | 说明 |
+|------|------|
+| `command` | 二进制绝对路径；Trae/Cursor 可用 `${workspaceFolder}/target/debug/fanalyzer` |
+| `args` | 推荐 `--profile summary`（最省 token） |
+| `cwd` | 可选；未设置时若找不到 `config/default.toml`，会尝试相对可执行文件目录解析（见下 `--config`） |
+| `env` | 可选；`RUST_LOG=warn` 减少 stderr |
+
+**配置文件解析**（与 MCP `cwd` 解耦）：
+
+```bash
+# 显式指定（或环境变量 FANALYZER_CONFIG）
+fanalyzer --config /path/to/config/default.toml mcp serve
+
+# 自动查找顺序：--config → ./config/default.toml → 可执行文件旁 ../config/default.toml
 ```
 
 MCP 工具列表来自 `schemas/tools.v1.agent.json`（已剥离 `compact` 等内部参数）。复合工具：

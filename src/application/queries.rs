@@ -119,7 +119,7 @@ async fn fetch_one(
     let (resolved_code, name) = resolve_fund_identifier(session, &code, false).await?;
     tracing::info!(code = %resolved_code, name = %name, limit = limit, "Fetching fund nav history");
     let (nav_list, total) = session
-        .client
+        .source
         .fetch_nav_history(&resolved_code, 1, limit)
         .await
         .map_err(|e| anyhow::anyhow!("拉取净值失败：{e}"))?;
@@ -143,7 +143,7 @@ pub async fn load_fund_overview(
     let (resolved_code, _name) = resolve_fund_identifier(session, code, false).await?;
     tracing::info!(code = %resolved_code, "Fetching fund info");
     let profile = session
-        .client
+        .source
         .fetch_fund_profile(&resolved_code)
         .await
         .map_err(|e| anyhow::anyhow!("获取基金概况失败：{e}"))?;
@@ -159,7 +159,7 @@ pub async fn load_fund_holdings(
     let top = top.clamp(1, 50);
     tracing::info!(code = %resolved_code, top = top, "Fetching stock holdings");
     let report = session
-        .client
+        .source
         .fetch_fund_stock_holdings(&resolved_code, top)
         .await
         .map_err(|e| anyhow::anyhow!("重仓股接口失败：{e}"))?;
@@ -219,7 +219,7 @@ pub async fn run_rank(ctx: &CommandContext<'_>, req: RankRequest) -> anyhow::Res
     tracing::info!(ft = ft, top = req.top, sort = %sc, "Fetching fund ranking");
     let page = ctx
         .session
-        .client
+        .source
         .fetch_fund_ranking_top(ft, sc, req.top)
         .await?;
     let rows = map_rank_rows(&page.rows);
@@ -278,7 +278,7 @@ async fn sectors_one(
     let (resolved_code, name) = resolve_fund_identifier(session, &code, false).await?;
     tracing::info!(code = %resolved_code, "Fetching industry allocation");
     let report = session
-        .client
+        .source
         .fetch_fund_industry_allocation(&resolved_code)
         .await
         .map_err(|e| anyhow::anyhow!("行业配置获取失败：{e}"))?;

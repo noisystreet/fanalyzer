@@ -121,7 +121,7 @@ pub async fn run_screen(ctx: &CommandContext<'_>, req: ScreenRequest) -> anyhow:
 
     let page = ctx
         .session
-        .client
+        .source
         .fetch_fund_ranking_top(ft, sc, pool)
         .await?;
     if !ctx.structured() {

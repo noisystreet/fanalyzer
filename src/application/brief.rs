@@ -111,7 +111,7 @@ pub async fn gather_brief(
     .await?
     .map(|r| r.snapshot);
 
-    let profile = session.client.fetch_fund_profile(&code).await.ok();
+    let profile = session.source.fetch_fund_profile(&code).await.ok();
     let fund_type = profile
         .as_ref()
         .map(|p| p.fund_type.clone())
@@ -131,12 +131,12 @@ pub async fn gather_brief(
         .unwrap_or(name);
 
     let industry_api = session
-        .client
+        .source
         .fetch_fund_industry_allocation(&code)
         .await
         .unwrap_or_default();
     let holdings_api = session
-        .client
+        .source
         .fetch_fund_stock_holdings(&code, holdings_top.clamp(1, 50))
         .await
         .unwrap_or_default();

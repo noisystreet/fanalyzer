@@ -1,18 +1,19 @@
 //! 单次命令运行的会话上下文（无 Clap 依赖）。
 
-use crate::api::eastmoney::EastMoneyClient;
+use super::data_source::FundDataSource;
 use crate::cache::FundCache;
 use crate::nav_cache::NavCache;
 use std::cell::RefCell;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::Mutex;
 
 use super::output_profile::OutputProfile;
 
 /// HTTP 客户端与缓存句柄。
 pub struct Session<'a> {
-    pub client: &'a EastMoneyClient,
+    pub source: &'a dyn FundDataSource,
     pub name_cache: &'a Arc<Mutex<FundCache>>,
     pub nav_store: &'a NavCache,
 }
@@ -100,11 +101,12 @@ pub struct CommandContext<'a> {
     pub structured_output: StructuredOutput,
     warnings: RefCell<Vec<String>>,
     captured: RefCell<Option<String>>,
+    started_at: Instant,
 }
 
 impl<'a> CommandContext<'a> {
     pub fn new(
-        client: &'a EastMoneyClient,
+        source: &'a dyn FundDataSource,
         name_cache: &'a Arc<Mutex<FundCache>>,
         nav_store: &'a NavCache,
         offline: bool,
@@ -113,7 +115,7 @@ impl<'a> CommandContext<'a> {
     ) -> Self {
         Self {
             session: Session {
-                client,
+                source,
                 name_cache,
                 nav_store,
             },
@@ -122,6 +124,7 @@ impl<'a> CommandContext<'a> {
             structured_output,
             warnings: RefCell::new(Vec::new()),
             captured: RefCell::new(None),
+            started_at: Instant::now(),
         }
     }
 
@@ -151,6 +154,11 @@ impl<'a> CommandContext<'a> {
 
     pub fn summary_mode(&self) -> bool {
         self.structured_output.summary_mode()
+    }
+
+    /// 自命令上下文创建以来的耗时（毫秒）。
+    pub fn elapsed_ms(&self) -> u64 {
+        self.started_at.elapsed().as_millis() as u64
     }
 
     /// 记录结构化输出警告（同时写 stderr 日志）。

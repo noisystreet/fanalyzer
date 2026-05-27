@@ -15,7 +15,7 @@ fn init_tracing() {
 async fn main() -> anyhow::Result<()> {
     init_tracing();
 
-    let config = AppConfig::load();
     let cli = Cli::parse();
+    let config = AppConfig::load(cli.config.as_deref());
     run(cli, config).await
 }

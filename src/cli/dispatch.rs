@@ -2,7 +2,7 @@
 
 use super::Commands;
 use crate::api::eastmoney::EastMoneyClient;
-use crate::application::{CommandContext, StructuredOutput};
+use crate::application::{CommandContext, FundDataSource, StructuredOutput};
 use crate::cache::FundCache;
 use crate::nav_cache::NavCache;
 use std::path::Path;
@@ -19,7 +19,7 @@ pub async fn dispatch_with_command(
     structured_output: StructuredOutput,
 ) -> anyhow::Result<Option<String>> {
     let ctx = CommandContext::new(
-        client,
+        client as &dyn FundDataSource,
         name_cache,
         nav_store,
         offline,

@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -90,16 +90,47 @@ impl AppConfig {
         Ok(config)
     }
 
-    pub fn load() -> Self {
-        let config_path = Path::new("config/default.toml");
-        if config_path.exists() {
-            match Self::load_from_file(config_path) {
+    /// 按优先级解析配置文件路径：`--config` / `FANALYZER_CONFIG` → CWD → 可执行文件相对路径。
+    pub fn discover_config_path(explicit: Option<&Path>) -> Option<PathBuf> {
+        if let Some(path) = explicit {
+            if path.exists() {
+                return Some(path.to_path_buf());
+            }
+            tracing::warn!(path = %path.display(), "Explicit config file not found");
+        }
+
+        let cwd_config = PathBuf::from("config/default.toml");
+        if cwd_config.exists() {
+            return Some(cwd_config);
+        }
+
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(exe_dir) = exe.parent() {
+                for rel in [
+                    "config/default.toml",
+                    "../config/default.toml",
+                    "../../config/default.toml",
+                ] {
+                    let candidate = exe_dir.join(rel);
+                    if candidate.exists() {
+                        return candidate.canonicalize().ok().or(Some(candidate));
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    pub fn load(explicit: Option<&Path>) -> Self {
+        if let Some(path) = Self::discover_config_path(explicit) {
+            match Self::load_from_file(&path) {
                 Ok(config) => {
-                    tracing::info!(path = %config_path.display(), "Loaded config from file");
+                    tracing::info!(path = %path.display(), "Loaded config from file");
                     return config;
                 }
                 Err(e) => {
-                    tracing::warn!(error = %e, "Failed to load config, using defaults");
+                    tracing::warn!(error = %e, path = %path.display(), "Failed to load config, using defaults");
                 }
             }
         }
@@ -110,6 +141,8 @@ impl AppConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use tempfile::tempdir;
 
     #[test]
     fn test_default_config() {
@@ -139,5 +172,52 @@ level = "info"
         let c: AppConfig = toml::from_str(s).unwrap();
         assert_eq!(c.api.proxy.as_deref(), Some("http://127.0.0.1:7890"));
         assert_eq!(c.api.user_agent.as_deref(), Some("CustomUA/1.0"));
+    }
+
+    #[test]
+    fn discover_prefers_explicit_config() {
+        let dir = tempdir().unwrap();
+        let cfg_path = dir.path().join("custom.toml");
+        fs::write(
+            &cfg_path,
+            r#"
+[api]
+base_url = "https://example.invalid"
+
+[log]
+level = "debug"
+"#,
+        )
+        .unwrap();
+        let found = AppConfig::discover_config_path(Some(&cfg_path)).unwrap();
+        assert_eq!(found, cfg_path);
+        let loaded = AppConfig::load(Some(&cfg_path));
+        assert_eq!(loaded.log.level, "debug");
+    }
+
+    #[test]
+    fn load_uses_cache_root_from_file() {
+        let dir = tempdir().unwrap();
+        let cfg_path = dir.path().join("cfg.toml");
+        let cache_root = dir.path().join("data-cache");
+        fs::write(
+            &cfg_path,
+            format!(
+                r#"
+[api]
+base_url = "https://example.invalid"
+
+[log]
+level = "info"
+
+[cache]
+root = "{}"
+"#,
+                cache_root.display()
+            ),
+        )
+        .unwrap();
+        let loaded = AppConfig::load(Some(&cfg_path));
+        assert_eq!(loaded.cache_root(), cache_root);
     }
 }

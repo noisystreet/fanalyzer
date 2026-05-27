@@ -46,6 +46,14 @@
       "description": "信封 meta 公共字段。",
       "type": "object",
       "properties": {
+        "duration_ms": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
         "generated_at": {
           "type": "string"
         },

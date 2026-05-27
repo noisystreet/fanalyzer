@@ -10,6 +10,10 @@
             "description": "基金代码或名称",
             "type": "string"
           },
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
+          },
           "limit": {
             "default": "20",
             "description": "拉取记录条数",
@@ -32,6 +36,14 @@
           "BatchMeta": {
             "description": "批量查询 meta。",
             "properties": {
+              "duration_ms": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
               "generated_at": {
                 "type": "string"
               },
@@ -222,6 +234,10 @@
             "description": "基金代码或名称",
             "type": "string"
           },
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
+          },
           "days": {
             "default": "30",
             "description": "分析窗口（日历天）；可被 --period 覆盖",
@@ -257,6 +273,14 @@
                 "format": "uint32",
                 "minimum": 0,
                 "type": "integer"
+              },
+              "duration_ms": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
               },
               "generated_at": {
                 "type": "string"
@@ -600,6 +624,10 @@
             },
             "type": "array"
           },
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
+          },
           "days": {
             "default": "30",
             "description": "分析窗口（日历天）；可被 --period 覆盖",
@@ -634,6 +662,14 @@
                 "format": "uint32",
                 "minimum": 0,
                 "type": "integer"
+              },
+              "duration_ms": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
               },
               "generated_at": {
                 "type": "string"
@@ -873,6 +909,10 @@
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] portfolio ...`",
         "properties": {
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
+          },
           "days": {
             "default": "90",
             "description": "分析窗口（日历天）；可被 --period 覆盖",
@@ -1068,6 +1108,14 @@
                 "format": "uint32",
                 "minimum": 0,
                 "type": "integer"
+              },
+              "duration_ms": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
               },
               "generated_at": {
                 "type": "string"
@@ -1314,6 +1362,10 @@
             "description": "基金代码或名称",
             "type": "string"
           },
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
+          },
           "days": {
             "default": "30",
             "description": "日历天窗口",
@@ -1361,6 +1413,14 @@
                 "format": "uint32",
                 "minimum": 0,
                 "type": "integer"
+              },
+              "duration_ms": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
               },
               "generated_at": {
                 "type": "string"
@@ -1526,6 +1586,10 @@
             "description": "基金代码或名称",
             "type": "string"
           },
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
+          },
           "offline": {
             "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
             "type": "boolean"
@@ -1543,6 +1607,14 @@
           "BatchMeta": {
             "description": "批量查询 meta。",
             "properties": {
+              "duration_ms": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
               "generated_at": {
                 "type": "string"
               },
@@ -1737,6 +1809,10 @@
             "description": "基金代码或名称",
             "type": "string"
           },
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
+          },
           "offline": {
             "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
             "type": "boolean"
@@ -1754,6 +1830,14 @@
           "BatchMeta": {
             "description": "批量查询 meta。",
             "properties": {
+              "duration_ms": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
               "generated_at": {
                 "type": "string"
               },
@@ -1947,6 +2031,10 @@
             "description": "基金代码或名称",
             "type": "string"
           },
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
+          },
           "offline": {
             "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
             "type": "boolean"
@@ -1969,6 +2057,14 @@
           "BatchMeta": {
             "description": "批量查询 meta。",
             "properties": {
+              "duration_ms": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
               "generated_at": {
                 "type": "string"
               },
@@ -2169,6 +2265,10 @@
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] rank ...`",
         "properties": {
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
+          },
           "kind": {
             "type": "string"
           },
@@ -2256,6 +2356,14 @@
           "RankMeta": {
             "description": "排行 meta。",
             "properties": {
+              "duration_ms": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
               "generated_at": {
                 "type": "string"
               },
@@ -2366,6 +2474,10 @@
             "description": "基金代码或名称",
             "type": "string"
           },
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
+          },
           "days": {
             "default": "90",
             "description": "净值分析窗口（日历天）；可被 --period 覆盖",
@@ -2406,6 +2518,14 @@
                 "format": "uint32",
                 "minimum": 0,
                 "type": "integer"
+              },
+              "duration_ms": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
               },
               "generated_at": {
                 "type": "string"
@@ -2822,6 +2942,10 @@
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] screen ...`",
         "properties": {
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
+          },
           "days": {
             "description": "deep 分析窗口（日历天）；省略时按 --sort 区间对齐",
             "type": "integer"
@@ -3021,6 +3145,14 @@
                 "minimum": 0,
                 "type": "integer"
               },
+              "duration_ms": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
               "generated_at": {
                 "type": "string"
               },
@@ -3141,6 +3273,10 @@
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] watchlist ...`",
         "properties": {
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
+          },
           "offline": {
             "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
             "type": "boolean"
@@ -3154,6 +3290,14 @@
           "BatchMeta": {
             "description": "批量查询 meta。",
             "properties": {
+              "duration_ms": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
               "generated_at": {
                 "type": "string"
               },
@@ -3283,6 +3427,10 @@
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] portfolio-config ...`",
         "properties": {
+          "config": {
+            "description": "配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）",
+            "type": "string"
+          },
           "offline": {
             "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
             "type": "boolean"
@@ -3347,6 +3495,14 @@
                 "format": "uint32",
                 "minimum": 0,
                 "type": "integer"
+              },
+              "duration_ms": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
               },
               "generated_at": {
                 "type": "string"
@@ -3593,6 +3749,14 @@
           "BatchMeta": {
             "description": "批量查询 meta。",
             "properties": {
+              "duration_ms": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
               "generated_at": {
                 "type": "string"
               },
@@ -3740,6 +3904,14 @@
           "BatchMeta": {
             "description": "批量查询 meta。",
             "properties": {
+              "duration_ms": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
               "generated_at": {
                 "type": "string"
               },
@@ -3886,6 +4058,14 @@
           "BatchMeta": {
             "description": "批量查询 meta。",
             "properties": {
+              "duration_ms": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
               "generated_at": {
                 "type": "string"
               },
@@ -4028,6 +4208,14 @@
           "BaseMeta": {
             "description": "信封 meta 公共字段。",
             "properties": {
+              "duration_ms": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
               "generated_at": {
                 "type": "string"
               },

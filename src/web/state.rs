@@ -1,7 +1,7 @@
 //! Web 服务共享状态。
 
 use crate::api::eastmoney::EastMoneyClient;
-use crate::application::{CommandContext, StructuredOutput};
+use crate::application::{CommandContext, FundDataSource, StructuredOutput};
 use crate::cache::FundCache;
 use crate::nav_cache::NavCache;
 use std::path::PathBuf;
@@ -43,7 +43,7 @@ impl AppState {
 
     pub fn command_context(&self) -> CommandContext<'_> {
         CommandContext::new(
-            &self.inner.client,
+            &self.inner.client as &dyn FundDataSource,
             &self.inner.name_cache,
             &self.inner.nav_store,
             false,

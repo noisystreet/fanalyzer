@@ -33,7 +33,7 @@ pub async fn fetch_nav_series(
         Ok(trimmed)
     } else {
         let navs = session
-            .client
+            .source
             .fetch_nav_history_by_days(resolved_code, days)
             .await?;
         if !navs.is_empty() && session.nav_store.save_merged(resolved_code, &navs).is_err() {
@@ -83,7 +83,7 @@ pub async fn resolve_fund_identifier(
         }
     }
 
-    match session.client.search_fund(identifier).await {
+    match session.source.search_fund(identifier).await {
         Ok(results) => {
             if let Some((code, name)) = results.first() {
                 let mut cache_guard = session.name_cache.lock().await;
@@ -103,7 +103,7 @@ pub async fn get_benchmark_data(
     index: &IndexBenchmark,
 ) -> Option<BenchmarkData> {
     match session
-        .client
+        .source
         .fetch_index_history(index.secid, 1, days * 2)
         .await
     {
@@ -135,7 +135,7 @@ pub async fn get_benchmark_data(
 }
 
 async fn benchmark_for_fund(session: &Session<'_>, code: &str, days: u32) -> Option<BenchmarkData> {
-    let index = match session.client.fetch_fund_profile(code).await {
+    let index = match session.source.fetch_fund_profile(code).await {
         Ok(profile) => resolve_benchmark(&profile.benchmark, &profile.fund_type),
         Err(e) => {
             tracing::warn!(code = %code, error = %e, "Failed to fetch profile for benchmark; using HS300");
@@ -146,14 +146,14 @@ async fn benchmark_for_fund(session: &Session<'_>, code: &str, days: u32) -> Opt
 }
 
 pub async fn get_fund_meta(session: &Session<'_>, code: &str) -> Option<FundMetaInfo> {
-    let manager = match session.client.fetch_fund_manager(code).await {
+    let manager = match session.source.fetch_fund_manager(code).await {
         Ok(m) => m,
         Err(e) => {
             tracing::warn!(code = %code, error = %e, "Failed to fetch fund manager");
             return None;
         }
     };
-    let fee = match session.client.fetch_fund_fee(code).await {
+    let fee = match session.source.fetch_fund_fee(code).await {
         Ok(f) => f,
         Err(e) => {
             tracing::warn!(code = %code, error = %e, "Failed to fetch fund fee");
@@ -176,7 +176,7 @@ async fn get_fund_name(session: &Session<'_>, code: &str) -> String {
             return name;
         }
     }
-    match session.client.fetch_fund_name(code).await {
+    match session.source.fetch_fund_name(code).await {
         Ok(name) => {
             let mut cache_guard = session.name_cache.lock().await;
             cache_guard.set_mapping(code, &name);

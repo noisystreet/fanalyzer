@@ -205,6 +205,14 @@
           "format": "uint32",
           "minimum": 0
         },
+        "duration_ms": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
         "generated_at": {
           "type": "string"
         },

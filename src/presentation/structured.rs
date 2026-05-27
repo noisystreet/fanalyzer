@@ -107,6 +107,8 @@ pub struct StructuredFailureEnvelope {
 pub struct BaseMeta {
     pub offline: bool,
     pub generated_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub duration_ms: Option<u64>,
 }
 
 /// 分析类命令 meta。
@@ -235,6 +237,7 @@ pub fn base_meta(ctx: &CommandContext<'_>) -> BaseMeta {
     BaseMeta {
         offline: ctx.offline,
         generated_at: Local::now().to_rfc3339(),
+        duration_ms: Some(ctx.elapsed_ms()),
     }
 }
 
@@ -481,6 +484,34 @@ pub fn compact_brief_summary(brief: &mut crate::models::FundBrief) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn base_meta_includes_duration_ms() {
+        use crate::api::eastmoney::EastMoneyClient;
+        use crate::application::{CommandContext, FundDataSource, StructuredOutput};
+        use crate::cache::FundCache;
+        use crate::nav_cache::NavCache;
+        use std::path::Path;
+        use std::sync::Arc;
+        use std::thread;
+        use std::time::Duration;
+        use tokio::sync::Mutex;
+
+        let client = EastMoneyClient::default();
+        let name_cache = Arc::new(Mutex::new(FundCache::new()));
+        let nav_store = NavCache::new();
+        let ctx = CommandContext::new(
+            &client as &dyn FundDataSource,
+            &name_cache,
+            &nav_store,
+            false,
+            Path::new("config/watchlist.toml"),
+            StructuredOutput::OFF,
+        );
+        thread::sleep(Duration::from_millis(2));
+        let meta = base_meta(&ctx);
+        assert!(meta.duration_ms.unwrap_or(0) >= 1);
+    }
 
     #[test]
     fn envelope_serializes_command_field() {

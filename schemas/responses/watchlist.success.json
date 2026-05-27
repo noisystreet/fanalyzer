@@ -46,6 +46,14 @@
       "description": "批量查询 meta。",
       "type": "object",
       "properties": {
+        "duration_ms": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
         "generated_at": {
           "type": "string"
         },
