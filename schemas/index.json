@@ -1,0 +1,33 @@
+{
+  "failure_envelope": "envelope.failure.json",
+  "generator": "fanalyzer schema export",
+  "models": {
+    "fund_analysis": "models/fund_analysis.json",
+    "fund_analysis_report": "models/fund_analysis_report.json",
+    "fund_brief": "models/fund_brief.json",
+    "fund_nav": "models/fund_nav.json",
+    "fund_overview": "models/fund_overview.json",
+    "portfolio_report": "models/portfolio_report.json"
+  },
+  "success_envelopes": {
+    "analyze": "responses/analyze.success.json",
+    "brief": "responses/brief.success.json",
+    "compare": "responses/compare.success.json",
+    "export": "responses/export.success.json",
+    "fetch": "responses/fetch.success.json",
+    "holdings": "responses/holdings.success.json",
+    "info": "responses/info.success.json",
+    "portfolio": "responses/portfolio.success.json",
+    "rank": "responses/rank.success.json",
+    "screen": "responses/screen.success.json",
+    "sectors": "responses/sectors.success.json"
+  },
+  "tools": "tools.v1.json",
+  "usage": {
+    "failure_envelope": "命令失败时 stdout 信封",
+    "models": "data 字段常用子结构",
+    "responses": "各 json 子命令 stdout 成功信封",
+    "tools": "MCP / function-calling 入参 schema（自 Clap 生成）"
+  },
+  "v": "1"
+}

@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FundOverview",
+  "description": "基金概况（F10 / info 命令）。",
+  "type": "object",
+  "properties": {
+    "asset_size": {
+      "type": "string"
+    },
+    "benchmark": {
+      "type": "string"
+    },
+    "code": {
+      "type": "string"
+    },
+    "company": {
+      "type": "string"
+    },
+    "custody_fee": {
+      "type": "number",
+      "format": "double"
+    },
+    "establishment_date": {
+      "type": "string"
+    },
+    "full_name": {
+      "type": "string"
+    },
+    "fund_type": {
+      "type": "string"
+    },
+    "investment_scope": {
+      "type": "string"
+    },
+    "investment_target": {
+      "type": "string"
+    },
+    "management_fee": {
+      "type": "number",
+      "format": "double"
+    },
+    "manager_name": {
+      "type": "string"
+    },
+    "manager_tenure_days": {
+      "type": "integer",
+      "format": "int32"
+    },
+    "manager_total_return": {
+      "type": "number",
+      "format": "double"
+    },
+    "name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "code",
+    "name",
+    "full_name",
+    "fund_type",
+    "establishment_date",
+    "asset_size",
+    "company",
+    "manager_name",
+    "manager_tenure_days",
+    "manager_total_return",
+    "management_fee",
+    "custody_fee",
+    "investment_target",
+    "investment_scope",
+    "benchmark"
+  ]
+}

@@ -29,6 +29,7 @@ csv = "1"
 dirs = "5"
 regex = "1"
 tabled = { version = "0.20", default-features = false, features = ["std", "derive"] }
+schemars = { version = "1", features = ["chrono04"] }
 leptos = { version = "0.7", default-features = false, features = ["ssr"], optional = true }
 axum = { version = "0.7", optional = true, features = ["macros"] }
 tower = { version = "0.4", optional = true }

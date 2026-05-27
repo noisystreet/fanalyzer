@@ -1,0 +1,419 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BriefSuccessEnvelope",
+  "type": "object",
+  "properties": {
+    "command": {
+      "type": "string"
+    },
+    "data": {
+      "$ref": "#/$defs/BatchPayload"
+    },
+    "meta": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AnalysisMeta"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "v": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "v",
+    "command",
+    "ok",
+    "warnings",
+    "data"
+  ],
+  "$defs": {
+    "AnalysisMeta": {
+      "description": "分析类命令 meta。",
+      "type": "object",
+      "properties": {
+        "days": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "generated_at": {
+          "type": "string"
+        },
+        "offline": {
+          "type": "boolean"
+        },
+        "period": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "requested": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "rolling_window": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "succeeded": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "offline",
+        "generated_at",
+        "days",
+        "requested",
+        "succeeded"
+      ]
+    },
+    "BatchPayload": {
+      "description": "多基金/多条目结果（含可选 partial errors）。",
+      "type": "object",
+      "properties": {
+        "errors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ItemError"
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FundBrief"
+          }
+        }
+      },
+      "required": [
+        "items"
+      ]
+    },
+    "FundAnalysis": {
+      "type": "object",
+      "properties": {
+        "alpha": {
+          "type": "number",
+          "format": "double"
+        },
+        "annualized_return": {
+          "type": "number",
+          "format": "double"
+        },
+        "avg_nav": {
+          "type": "number",
+          "format": "double"
+        },
+        "beta": {
+          "type": "number",
+          "format": "double"
+        },
+        "calmar_ratio": {
+          "type": "number",
+          "format": "double"
+        },
+        "code": {
+          "type": "string"
+        },
+        "custody_fee": {
+          "type": "number",
+          "format": "double"
+        },
+        "management_fee": {
+          "type": "number",
+          "format": "double"
+        },
+        "manager_name": {
+          "type": "string"
+        },
+        "manager_tenure_days": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "manager_total_return": {
+          "type": "number",
+          "format": "double"
+        },
+        "max_drawdown": {
+          "type": "number",
+          "format": "double"
+        },
+        "max_nav": {
+          "type": "number",
+          "format": "double"
+        },
+        "min_nav": {
+          "type": "number",
+          "format": "double"
+        },
+        "name": {
+          "type": "string"
+        },
+        "period_days": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "sharpe_ratio": {
+          "type": "number",
+          "format": "double"
+        },
+        "sortino_ratio": {
+          "type": "number",
+          "format": "double"
+        },
+        "total_return": {
+          "type": "number",
+          "format": "double"
+        },
+        "volatility": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "code",
+        "name",
+        "period_days",
+        "avg_nav",
+        "max_nav",
+        "min_nav",
+        "total_return",
+        "annualized_return",
+        "volatility",
+        "max_drawdown",
+        "sharpe_ratio",
+        "sortino_ratio",
+        "calmar_ratio",
+        "alpha",
+        "beta",
+        "manager_name",
+        "manager_tenure_days",
+        "manager_total_return",
+        "management_fee",
+        "custody_fee"
+      ]
+    },
+    "FundBrief": {
+      "description": "选基综合简报（终端与 Markdown 共用）。",
+      "type": "object",
+      "properties": {
+        "analysis": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FundAnalysis"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "asset_size": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "company": {
+          "type": "string"
+        },
+        "days": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "fund_type": {
+          "type": "string"
+        },
+        "holdings": {
+          "$ref": "#/$defs/StockHoldings"
+        },
+        "holdings_top": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "industry": {
+          "$ref": "#/$defs/IndustryAllocation"
+        },
+        "industry_top": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "name",
+        "fund_type",
+        "company",
+        "asset_size",
+        "days",
+        "industry",
+        "holdings",
+        "industry_top",
+        "holdings_top"
+      ]
+    },
+    "IndustryAllocation": {
+      "description": "行业配置报告。",
+      "type": "object",
+      "properties": {
+        "as_of": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/IndustryRow"
+          }
+        }
+      },
+      "required": [
+        "rows"
+      ]
+    },
+    "IndustryRow": {
+      "description": "行业配置一行。",
+      "type": "object",
+      "properties": {
+        "industry": {
+          "type": "string"
+        },
+        "market_value_wan": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "pct_nav": {
+          "type": "number",
+          "format": "double"
+        },
+        "rank": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "rank",
+        "industry",
+        "pct_nav"
+      ]
+    },
+    "ItemError": {
+      "description": "批量条目失败信息。",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "error_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ]
+    },
+    "StockHoldingRow": {
+      "description": "重仓股一行。",
+      "type": "object",
+      "properties": {
+        "market_value_wan": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "pct_nav": {
+          "type": "number",
+          "format": "double"
+        },
+        "rank": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "shares_wan": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "stock_code": {
+          "type": "string"
+        },
+        "stock_name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "rank",
+        "stock_code",
+        "stock_name",
+        "pct_nav"
+      ]
+    },
+    "StockHoldings": {
+      "description": "重仓股报告。",
+      "type": "object",
+      "properties": {
+        "as_of": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/StockHoldingRow"
+          }
+        }
+      },
+      "required": [
+        "rows"
+      ]
+    }
+  }
+}

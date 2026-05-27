@@ -26,7 +26,7 @@ struct ExportOneParams {
 
 pub async fn run_export(ctx: &CommandContext<'_>, req: ExportRequest) -> anyhow::Result<()> {
     if ctx.structured() && req.format != "json" {
-        anyhow::bail!("`--json` 模式下 export 仅支持 `--format json`");
+        anyhow::bail!("`json export` 仅支持 `--format json`");
     }
     if req.pick_watchlist {
         export_watchlist(ctx, req).await

@@ -2,41 +2,53 @@ use assert_cmd::Command;
 use predicates::prelude::*;
 
 #[test]
-fn test_cli_help() {
+fn test_cli_help_lists_json_subcommand() {
     Command::cargo_bin("fanalyzer")
         .unwrap()
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("--json"));
-}
-
-#[test]
-fn test_cli_json_alias_in_help() {
-    Command::cargo_bin("fanalyzer")
-        .unwrap()
-        .arg("--help")
-        .assert()
-        .success()
+        .stdout(predicate::str::contains("json"))
         .stdout(predicate::str::contains("structured"));
 }
 
 #[test]
-fn test_cli_json_compact_in_help() {
+fn test_cli_json_subcommand_help() {
+    Command::cargo_bin("fanalyzer")
+        .unwrap()
+        .args(["json", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--compact"))
+        .stdout(predicate::str::contains("compact-series"))
+        .stdout(predicate::str::contains("analyze"));
+}
+
+#[test]
+fn test_cli_no_global_json_flag() {
     Command::cargo_bin("fanalyzer")
         .unwrap()
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("json-compact"))
-        .stdout(predicate::str::contains("compact-series"));
+        .stdout(predicate::str::contains("--json").not());
+}
+
+#[test]
+fn test_cli_json_analyze_positional_code() {
+    Command::cargo_bin("fanalyzer")
+        .unwrap()
+        .args(["json", "analyze", "110011", "--days", "90"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"command\": \"analyze\""));
 }
 
 #[test]
 fn test_cli_json_failure_envelope() {
     Command::cargo_bin("fanalyzer")
         .unwrap()
-        .args(["--json", "compare", "--codes", "110011"])
+        .args(["json", "compare", "--codes", "110011"])
         .assert()
         .failure()
         .stdout(predicate::str::contains("\"ok\": false"))
@@ -105,6 +117,39 @@ fn test_cli_portfolio_help() {
         .args(["portfolio", "--help"])
         .assert()
         .success();
+}
+
+#[test]
+fn test_cli_schema_export_writes_index() {
+    let temp = tempfile::tempdir().unwrap();
+    Command::cargo_bin("fanalyzer")
+        .unwrap()
+        .args([
+            "schema",
+            "export",
+            "--output-dir",
+            temp.path().to_str().unwrap(),
+        ])
+        .assert()
+        .success();
+    let index = temp.path().join("index.json");
+    assert!(index.exists(), "schema export should write index.json");
+    let tools = temp.path().join("tools.v1.json");
+    assert!(tools.exists(), "schema export should write tools.v1.json");
+}
+
+#[test]
+fn test_cli_schema_tools_excludes_schema_command() {
+    let raw = Command::cargo_bin("fanalyzer")
+        .unwrap()
+        .args(["schema", "tools"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let text = String::from_utf8(raw).unwrap();
+    assert!(!text.contains("fanalyzer_schema"));
 }
 
 #[cfg(feature = "web")]

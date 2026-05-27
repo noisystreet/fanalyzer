@@ -58,21 +58,25 @@ funds = ["000001", "110011", "某基金简称"]
 |------|------|
 | `--offline` | 仅使用本地已缓存的净值数据。**不可**与 `fetch`、`info`、`rank`、`brief`、`screen` 等需联网子命令共用；`analyze` / `compare` / `portfolio` / `export` 在已有缓存时可用。 |
 | `--watchlist-file <PATH>` | 自选文件路径，默认 `config/watchlist.toml`。 |
-| `--json`（`--structured`） | 仅向 **stdout** 输出结构化 JSON，便于 Agent / 脚本解析；人类可读表格不再打印。日志仍在 **stderr**。可与 `--output` 同时写入文件。 |
-| `--json-compact` | 与 `--json` 联用：紧凑单行 JSON（管道 / jq 友好）。 |
-| `--compact-series` | 与 `--json` 联用：省略 `series` 时间序列，减少 token 占用。 |
 
 ## 结构化输出（Agent 集成）
 
-完整 Agent 集成说明见 **[AGENT.md](AGENT.md)**；JSON Schema 见 **[schemas/envelope.v1.json](../schemas/envelope.v1.json)**。
+完整 Agent 集成说明见 **[AGENT.md](AGENT.md)**；JSON Schema 索引见 **[schemas/index.json](../schemas/index.json)**。
 
-大模型 Agent 或自动化脚本可使用全局 **`--json`**（别名 **`--structured`**）获取统一 JSON 信封，便于解析与后续分析。
+使用 **`json`** 子命令（别名 **`structured`**）获取统一 JSON 信封；人类可读模式仍用顶层子命令（如 `analyze`、`compare`）。
 
 **约定：**
 
-- **stdout**：成功与失败均为 JSON（默认 pretty-print；`--json-compact` 为单行）
+- **stdout**：成功与失败均为 JSON（默认 pretty-print；`json --compact` 为单行）
 - **stderr**：`tracing` 日志（进度、警告等）
 - 退出码：`0` 表示成功；失败时 stdout 仍输出 `{ "ok": false, "error": {...} }`
+
+**`json` 子命令选项：**
+
+| 参数 | 说明 |
+|------|------|
+| `--compact` | 紧凑单行 JSON（管道 / jq 友好） |
+| `--compact-series` | 省略 `series` 时间序列，减少 token 占用 |
 
 **成功信封格式：**
 
@@ -102,7 +106,7 @@ funds = ["000001", "110011", "某基金简称"]
 | 字段 | 说明 |
 |------|------|
 | `v` | 信封版本，当前为 `1` |
-| `command` | 子命令名（如 `analyze`、`portfolio`） |
+| `command` | 业务子命令名（如 `analyze`、`portfolio`） |
 | `ok` | 是否成功 |
 | `meta` | 请求上下文（离线、时间戳、分析窗口等） |
 | `warnings` | 非致命警告（部分标的跳过等） |
@@ -111,33 +115,33 @@ funds = ["000001", "110011", "某基金简称"]
 
 批量命令的 `data` 含 `items[]` 与可选 `errors[]`（partial success）。
 
-**示例子命令：**
+**示例：**
 
 ```bash
-# 单基金分析 → data.items[] 为 FundAnalysisReport
-cargo run -- --json analyze 110011 --days 90
+# 单基金分析 → data.items[] 为 FundAnalysisReport（`CODE` 位置参数或 `--code`）
+cargo run -- json analyze 110011 --days 90
+cargo run -- json analyze --code 110011 --days 90
 
 # 紧凑 + 省略曲线
-cargo run -- --json --json-compact --compact-series analyze 110011 --days 90
+cargo run -- json --compact --compact-series analyze 110011 --days 90
 
 # 组合分析 → data 为 PortfolioReport 对象
-cargo run -- --json portfolio --weights 110011:0.6,005827:0.4 --days 180
+cargo run -- json portfolio --days 180
 
 # 筛选 → data 含 pool_size、passed 等
-cargo run -- --json screen --kind gp --days 90 --max-drawdown 0.15
+cargo run -- json screen --kind gp --days 90 --max-drawdown 0.15
 
-# 导出净值（须 --format json；可不指定 --output-dir，JSON 直接 stdout）
-cargo run -- --json export 110011 --format json --days 365
+# 导出净值（默认 format=json；stdout 即 JSON）
+cargo run -- json export 110011 --days 365
 ```
 
-**支持 `--json` 的子命令：** `fetch`、`analyze`、`compare`、`portfolio`、`export`、`info`、`sectors`、`holdings`、`rank`、`brief`、`screen`。
-
-**注意：** `export --json` 要求 `--format json`；`serve` 为 Web 服务，不使用此模式。
+**`json` 下支持的嵌套子命令：** `fetch`、`analyze`、`compare`、`portfolio`、`export`、`info`、`sectors`、`holdings`、`rank`、`brief`、`screen`（不含 `serve`）。
 
 ## 子命令总览
 
 | 子命令 | 需要联网 | 自选 `--watchlist` | 说明 |
 |--------|----------|-------------------|------|
+| `json` | 视嵌套命令 | 视嵌套命令 | 结构化 JSON 输出（Agent）；嵌套 `analyze` 等，见 [AGENT.md](AGENT.md) |
 | `fetch` | 是 | 支持 | 拉取净值历史并打印 |
 | `analyze` | 否（`--offline` 时仅缓存） | 支持 | 收益、风险、经理与费率等分析 |
 | `compare` | 否（`--offline` 时仅缓存） | 支持 | 多基金对比 |

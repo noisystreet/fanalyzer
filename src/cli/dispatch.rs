@@ -31,6 +31,7 @@ pub async fn dispatch_with_command(
         Commands::Brief { .. } | Commands::Screen { .. } => {
             super::dispatch_workflow::dispatch(&ctx, cmd).await
         }
+        Commands::Json { .. } => unreachable!("json handled in cli::run"),
         Commands::Serve { .. } => unreachable!("serve handled in cli::run"),
         other => super::dispatch_query::dispatch_core(&ctx, other).await,
     }

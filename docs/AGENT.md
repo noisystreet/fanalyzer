@@ -7,14 +7,14 @@
 ## 快速开始
 
 ```bash
-# 单基金分析（stdout 仅 JSON）
-cargo run -- --json analyze 110011 --days 90
+# 单基金分析（stdout 仅 JSON；`CODE` 位置参数或 `--code`）
+cargo run -- json analyze 110011 --days 90
 
 # 紧凑单行 JSON（管道友好）
-cargo run -- --json --json-compact analyze 110011 --days 90
+cargo run -- json --compact analyze 110011 --days 90
 
 # 省略时间序列曲线（省 token）
-cargo run -- --json --compact-series analyze 110011 --days 90
+cargo run -- json --compact-series analyze 110011 --days 90
 ```
 
 ## 流约定
@@ -27,7 +27,12 @@ cargo run -- --json --compact-series analyze 110011 --days 90
 
 ## 信封格式
 
-JSON Schema 见 [schemas/envelope.v1.json](../schemas/envelope.v1.json)。
+Schema 索引见 [schemas/index.json](../schemas/index.json)（由 `fanalyzer schema export` 自动生成）。
+
+- **成功**：各命令见 `schemas/responses/<command>.success.json`
+- **失败**：`schemas/envelope.failure.json`
+- **MCP 工具入参**：`schemas/tools.v1.json`
+- **data 子结构**：`schemas/models/*.json`
 
 ### 成功
 
@@ -72,7 +77,7 @@ JSON Schema 见 [schemas/envelope.v1.json](../schemas/envelope.v1.json)。
 | 字段 | 说明 |
 |------|------|
 | `v` | 信封版本，当前为 `1` |
-| `command` | 子命令名 |
+| `command` | 业务子命令名（非 `json` 包装层） |
 | `ok` | 是否成功 |
 | `meta` | 请求上下文（离线、时间戳、窗口天数等，因命令而异） |
 | `warnings` | 非致命警告（如部分标的跳过、深度分析截断） |
@@ -122,34 +127,52 @@ JSON Schema 见 [schemas/envelope.v1.json](../schemas/envelope.v1.json)。
 
 模型字段详见 [DATA_MODEL.md](DATA_MODEL.md)。
 
-## 全局参数
+## `json` 子命令
+
+```bash
+fanalyzer json [--compact] [--compact-series] <子命令> [参数...]
+```
 
 | 参数 | 说明 |
 |------|------|
-| `--json` / `--structured` | 启用结构化输出 |
-| `--json-compact` | 单行 minified JSON |
+| `json` / `structured` | 进入结构化输出模式 |
+| `--compact` | 单行 minified JSON |
 | `--compact-series` | 省略 `series` 时间序列 |
-| `--offline` | 仅本地缓存（部分命令不可用） |
+| `--offline` | 全局：仅本地缓存（部分嵌套命令不可用） |
+
+嵌套子命令：`fetch`、`analyze`、`compare`、`portfolio`、`export`、`info`、`sectors`、`holdings`、`rank`、`brief`、`screen`。
 
 ## Agent 调用建议
 
 1. **始终解析 stdout JSON**，勿依赖 stderr 文本判断成败
 2. **检查 `warnings`**：部分成功时 Agent 应告知用户哪些标的被跳过
-3. **大上下文场景**加 `--compact-series`，必要时 `--json-compact`
+3. **大上下文场景**加 `--compact-series`，必要时 `--compact`
 4. **对比前先 `analyze` 或 `fetch`** 写入缓存，再 `--offline` 复用
-5. Tool schema 可引用 `schemas/envelope.v1.json` 作为 response 外层结构
+5. Tool schema：入参见 `schemas/tools.v1.json`，响应见 `schemas/index.json` 中的 `success_envelopes`
+
+## Schema 生成与校验
+
+```bash
+# 导出/更新 schemas/（无需联网）
+cargo run -- schema export --output-dir schemas
+# 或
+python3 scripts/generate_schemas.py
+
+# CI / 本地校验是否与代码同步
+python3 scripts/generate_schemas.py --check
+```
 
 ## 示例：Shell 中提取 items
 
 ```bash
-cargo run -- --json --json-compact analyze 110011 --days 90 2>/dev/null \
+cargo run -- json --compact analyze 110011 --days 90 2>/dev/null \
   | jq -r '.data.items[0].snapshot.sharpe_ratio'
 ```
 
 ## 示例：失败处理
 
 ```bash
-if ! out=$(cargo run -- --json compare --codes 110011 2>/dev/null); then
+if ! out=$(cargo run -- json compare --codes 110011 2>/dev/null); then
   code=$(echo "$out" | jq -r '.error.code')
   echo "failed: $code"
 fi

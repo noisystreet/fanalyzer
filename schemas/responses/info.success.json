@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "InfoSuccessEnvelope",
+  "type": "object",
+  "properties": {
+    "command": {
+      "type": "string"
+    },
+    "data": {
+      "$ref": "#/$defs/BatchPayload"
+    },
+    "meta": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BatchMeta"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "v": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "v",
+    "command",
+    "ok",
+    "warnings",
+    "data"
+  ],
+  "$defs": {
+    "BatchMeta": {
+      "description": "批量查询 meta。",
+      "type": "object",
+      "properties": {
+        "generated_at": {
+          "type": "string"
+        },
+        "offline": {
+          "type": "boolean"
+        },
+        "requested": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "succeeded": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "offline",
+        "generated_at",
+        "requested",
+        "succeeded"
+      ]
+    },
+    "BatchPayload": {
+      "description": "多基金/多条目结果（含可选 partial errors）。",
+      "type": "object",
+      "properties": {
+        "errors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ItemError"
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FundOverview"
+          }
+        }
+      },
+      "required": [
+        "items"
+      ]
+    },
+    "FundOverview": {
+      "description": "基金概况（F10 / info 命令）。",
+      "type": "object",
+      "properties": {
+        "asset_size": {
+          "type": "string"
+        },
+        "benchmark": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "company": {
+          "type": "string"
+        },
+        "custody_fee": {
+          "type": "number",
+          "format": "double"
+        },
+        "establishment_date": {
+          "type": "string"
+        },
+        "full_name": {
+          "type": "string"
+        },
+        "fund_type": {
+          "type": "string"
+        },
+        "investment_scope": {
+          "type": "string"
+        },
+        "investment_target": {
+          "type": "string"
+        },
+        "management_fee": {
+          "type": "number",
+          "format": "double"
+        },
+        "manager_name": {
+          "type": "string"
+        },
+        "manager_tenure_days": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "manager_total_return": {
+          "type": "number",
+          "format": "double"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "name",
+        "full_name",
+        "fund_type",
+        "establishment_date",
+        "asset_size",
+        "company",
+        "manager_name",
+        "manager_tenure_days",
+        "manager_total_return",
+        "management_fee",
+        "custody_fee",
+        "investment_target",
+        "investment_scope",
+        "benchmark"
+      ]
+    },
+    "ItemError": {
+      "description": "批量条目失败信息。",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "error_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ]
+    }
+  }
+}

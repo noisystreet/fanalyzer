@@ -1,0 +1,595 @@
+{
+  "generator": "fanalyzer schema tools",
+  "tools": [
+    {
+      "description": "单基金命令的代码参数（位置参数与 flag 二选一或一致）。（stdout 为 JSON 信封，见 schemas/responses/fetch.success.json）",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] fetch ...`",
+        "properties": {
+          "code": {
+            "description": "基金代码或名称",
+            "type": "string"
+          },
+          "compact": {
+            "description": "紧凑单行 JSON（无 pretty-print）",
+            "type": "boolean"
+          },
+          "compact-series": {
+            "description": "省略时间序列曲线以节省 token",
+            "type": "boolean"
+          },
+          "limit": {
+            "default": "20",
+            "description": "拉取记录条数",
+            "type": "integer"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "watchlist": {
+            "description": "使用自选文件中的所有基金",
+            "type": "boolean"
+          },
+          "watchlist-file": {
+            "default": "config/watchlist.toml",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_fetch",
+      "outputSchema": "schemas/responses/fetch.success.json"
+    },
+    {
+      "description": "单基金命令的代码参数（位置参数与 flag 二选一或一致）。（stdout 为 JSON 信封，见 schemas/responses/analyze.success.json）",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] analyze ...`",
+        "properties": {
+          "code": {
+            "description": "基金代码或名称",
+            "type": "string"
+          },
+          "compact": {
+            "description": "紧凑单行 JSON（无 pretty-print）",
+            "type": "boolean"
+          },
+          "compact-series": {
+            "description": "省略时间序列曲线以节省 token",
+            "type": "boolean"
+          },
+          "days": {
+            "default": "30",
+            "description": "分析窗口（日历天）；可被 --period 覆盖",
+            "type": "integer"
+          },
+          "format": {
+            "default": "json",
+            "description": "额外导出格式（目前支持 json）",
+            "type": "string"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "output": {
+            "description": "额外写入 JSON 文件路径",
+            "type": "string"
+          },
+          "period": {
+            "description": "预设窗口：7d/1m/3m/6m/1y/ytd 或 rank 的 sc（1nzf/zzf 等）",
+            "type": "string"
+          },
+          "rolling-window": {
+            "default": "60",
+            "description": "滚动指标窗口（交易日，10～252）",
+            "type": "integer"
+          },
+          "watchlist": {
+            "description": "分析自选文件中所有基金",
+            "type": "boolean"
+          },
+          "watchlist-file": {
+            "default": "config/watchlist.toml",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_analyze",
+      "outputSchema": "schemas/responses/analyze.success.json"
+    },
+    {
+      "description": "结构化 JSON 输出（供 Agent 调用）（stdout 为 JSON 信封，见 schemas/responses/compare.success.json）",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] compare ...`",
+        "properties": {
+          "codes": {
+            "description": "逗号分隔的基金代码或名称",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "compact": {
+            "description": "紧凑单行 JSON（无 pretty-print）",
+            "type": "boolean"
+          },
+          "compact-series": {
+            "description": "省略时间序列曲线以节省 token",
+            "type": "boolean"
+          },
+          "days": {
+            "default": "30",
+            "description": "分析窗口（日历天）；可被 --period 覆盖",
+            "type": "integer"
+          },
+          "format": {
+            "default": "json",
+            "description": "额外导出格式 json",
+            "type": "string"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "output": {
+            "description": "额外写入 JSON 文件路径",
+            "type": "string"
+          },
+          "period": {
+            "description": "预设窗口：7d/1m/3m/6m/1y/ytd 或 rank 的 sc",
+            "type": "string"
+          },
+          "sort": {
+            "description": "结果排序：sharpe/sortino/calmar/total-return/max-drawdown/alpha/volatility",
+            "type": "string"
+          },
+          "watchlist": {
+            "description": "对比自选文件中所有基金",
+            "type": "boolean"
+          },
+          "watchlist-file": {
+            "default": "config/watchlist.toml",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_compare",
+      "outputSchema": "schemas/responses/compare.success.json"
+    },
+    {
+      "description": "结构化 JSON 输出（供 Agent 调用）（stdout 为 JSON 信封，见 schemas/responses/portfolio.success.json）",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] portfolio ...`",
+        "properties": {
+          "compact": {
+            "description": "紧凑单行 JSON（无 pretty-print）",
+            "type": "boolean"
+          },
+          "compact-series": {
+            "description": "省略时间序列曲线以节省 token",
+            "type": "boolean"
+          },
+          "days": {
+            "default": "90",
+            "description": "分析窗口（日历天）；可被 --period 覆盖",
+            "type": "integer"
+          },
+          "format": {
+            "default": "json",
+            "description": "额外导出格式（目前支持 json）",
+            "type": "string"
+          },
+          "holdings-top": {
+            "default": "10",
+            "description": "重仓重叠分析取前 N 大重仓（1～50，需联网）",
+            "type": "integer"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "output": {
+            "description": "额外写入 JSON 文件路径",
+            "type": "string"
+          },
+          "period": {
+            "description": "预设窗口：7d/1m/3m/6m/1y/ytd 或 rank 的 sc",
+            "type": "string"
+          },
+          "portfolio-file": {
+            "default": "config/portfolio.toml",
+            "description": "组合权重 TOML 路径",
+            "type": "string"
+          },
+          "rolling-window": {
+            "default": "60",
+            "description": "滚动指标窗口（交易日，10～252）",
+            "type": "integer"
+          },
+          "watchlist-file": {
+            "default": "config/watchlist.toml",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_portfolio",
+      "outputSchema": "schemas/responses/portfolio.success.json"
+    },
+    {
+      "description": "单基金命令的代码参数（位置参数与 flag 二选一或一致）。（stdout 为 JSON 信封，见 schemas/responses/export.success.json）",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] export ...`",
+        "properties": {
+          "code": {
+            "description": "基金代码或名称",
+            "type": "string"
+          },
+          "compact": {
+            "description": "紧凑单行 JSON（无 pretty-print）",
+            "type": "boolean"
+          },
+          "compact-series": {
+            "description": "省略时间序列曲线以节省 token",
+            "type": "boolean"
+          },
+          "days": {
+            "default": "30",
+            "description": "日历天窗口",
+            "type": "integer"
+          },
+          "format": {
+            "default": "json",
+            "description": "额外文件格式（json）",
+            "type": "string"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "output": {
+            "description": "单基金额外写入路径",
+            "type": "string"
+          },
+          "output-dir": {
+            "description": "自选额外写入目录（每项生成 {代码}.json）",
+            "type": "string"
+          },
+          "watchlist": {
+            "description": "导出自选文件中所有基金",
+            "type": "boolean"
+          },
+          "watchlist-file": {
+            "default": "config/watchlist.toml",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_export",
+      "outputSchema": "schemas/responses/export.success.json"
+    },
+    {
+      "description": "单基金命令的代码参数（位置参数与 flag 二选一或一致）。（stdout 为 JSON 信封，见 schemas/responses/info.success.json）",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] info ...`",
+        "properties": {
+          "code": {
+            "description": "基金代码或名称",
+            "type": "string"
+          },
+          "compact": {
+            "description": "紧凑单行 JSON（无 pretty-print）",
+            "type": "boolean"
+          },
+          "compact-series": {
+            "description": "省略时间序列曲线以节省 token",
+            "type": "boolean"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "watchlist": {
+            "description": "输出自选文件中所有基金的概况",
+            "type": "boolean"
+          },
+          "watchlist-file": {
+            "default": "config/watchlist.toml",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_info",
+      "outputSchema": "schemas/responses/info.success.json"
+    },
+    {
+      "description": "单基金命令的代码参数（位置参数与 flag 二选一或一致）。（stdout 为 JSON 信封，见 schemas/responses/sectors.success.json）",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] sectors ...`",
+        "properties": {
+          "code": {
+            "description": "基金代码或名称",
+            "type": "string"
+          },
+          "compact": {
+            "description": "紧凑单行 JSON（无 pretty-print）",
+            "type": "boolean"
+          },
+          "compact-series": {
+            "description": "省略时间序列曲线以节省 token",
+            "type": "boolean"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "watchlist": {
+            "description": "输出自选文件中所有基金的行业配置",
+            "type": "boolean"
+          },
+          "watchlist-file": {
+            "default": "config/watchlist.toml",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_sectors",
+      "outputSchema": "schemas/responses/sectors.success.json"
+    },
+    {
+      "description": "单基金命令的代码参数（位置参数与 flag 二选一或一致）。（stdout 为 JSON 信封，见 schemas/responses/holdings.success.json）",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] holdings ...`",
+        "properties": {
+          "code": {
+            "description": "基金代码或名称",
+            "type": "string"
+          },
+          "compact": {
+            "description": "紧凑单行 JSON（无 pretty-print）",
+            "type": "boolean"
+          },
+          "compact-series": {
+            "description": "省略时间序列曲线以节省 token",
+            "type": "boolean"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "top": {
+            "default": "10",
+            "description": "展示条数对应接口 topline，1～50",
+            "type": "integer"
+          },
+          "watchlist": {
+            "description": "输出自选文件中所有基金的重仓股",
+            "type": "boolean"
+          },
+          "watchlist-file": {
+            "default": "config/watchlist.toml",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_holdings",
+      "outputSchema": "schemas/responses/holdings.success.json"
+    },
+    {
+      "description": "结构化 JSON 输出（供 Agent 调用）（stdout 为 JSON 信封，见 schemas/responses/rank.success.json）",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] rank ...`",
+        "properties": {
+          "compact": {
+            "description": "紧凑单行 JSON（无 pretty-print）",
+            "type": "boolean"
+          },
+          "compact-series": {
+            "description": "省略时间序列曲线以节省 token",
+            "type": "boolean"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "sort": {
+            "default": "1n",
+            "description": "rankhandler 的排序字段 sc（默认 1n）；st 固定 desc",
+            "type": "string"
+          },
+          "top": {
+            "default": "100",
+            "description": "取前 N 名（≤500）",
+            "type": "integer"
+          },
+          "watchlist-file": {
+            "default": "config/watchlist.toml",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "name": "fanalyzer_rank",
+      "outputSchema": "schemas/responses/rank.success.json"
+    },
+    {
+      "description": "单基金命令的代码参数（位置参数与 flag 二选一或一致）。（stdout 为 JSON 信封，见 schemas/responses/brief.success.json）",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] brief ...`",
+        "properties": {
+          "code": {
+            "description": "基金代码或名称",
+            "type": "string"
+          },
+          "compact": {
+            "description": "紧凑单行 JSON（无 pretty-print）",
+            "type": "boolean"
+          },
+          "compact-series": {
+            "description": "省略时间序列曲线以节省 token",
+            "type": "boolean"
+          },
+          "days": {
+            "default": "90",
+            "description": "净值分析窗口（日历天）；可被 --period 覆盖",
+            "type": "integer"
+          },
+          "holdings-top": {
+            "default": "10",
+            "description": "重仓股展示条数（1～50）",
+            "type": "integer"
+          },
+          "industry-top": {
+            "default": "5",
+            "description": "行业配置展示前 N 项",
+            "type": "integer"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "output": {
+            "description": "忽略（json 模式 stdout 已为 JSON）",
+            "type": "string"
+          },
+          "period": {
+            "description": "预设窗口：7d/1m/3m/6m/1y/ytd 或 rank 的 sc",
+            "type": "string"
+          },
+          "watchlist": {
+            "description": "对自选列表逐只生成简报",
+            "type": "boolean"
+          },
+          "watchlist-file": {
+            "default": "config/watchlist.toml",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fanalyzer_brief",
+      "outputSchema": "schemas/responses/brief.success.json"
+    },
+    {
+      "description": "结构化 JSON 输出（供 Agent 调用）（stdout 为 JSON 信封，见 schemas/responses/screen.success.json）",
+      "inputSchema": {
+        "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] screen ...`",
+        "properties": {
+          "compact": {
+            "description": "紧凑单行 JSON（无 pretty-print）",
+            "type": "boolean"
+          },
+          "compact-series": {
+            "description": "省略时间序列曲线以节省 token",
+            "type": "boolean"
+          },
+          "days": {
+            "description": "deep 分析窗口（日历天）；省略时按 --sort 区间对齐",
+            "type": "integer"
+          },
+          "deep-limit": {
+            "default": "15",
+            "description": "deep 分析最多只数（默认 15，需 --full-scan 扫全池）",
+            "type": "integer"
+          },
+          "format": {
+            "default": "json",
+            "description": "额外导出格式 json",
+            "type": "string"
+          },
+          "full-scan": {
+            "description": "对候选池全部做 deep 分析（较慢）",
+            "type": "boolean"
+          },
+          "kind": {
+            "description": "排行类型，同 rank --kind",
+            "type": "string"
+          },
+          "limit": {
+            "default": "10",
+            "description": "对比展示上限（2～30）",
+            "type": "integer"
+          },
+          "max-drawdown": {
+            "description": "最大回撤上限（百分点，如 25）",
+            "type": "number"
+          },
+          "max-mgmt-fee": {
+            "description": "管理费率上限（百分点，如 1.5）",
+            "type": "number"
+          },
+          "max-volatility": {
+            "description": "波动率上限（百分点）",
+            "type": "number"
+          },
+          "min-alpha": {
+            "description": "最低 Alpha（百分点）",
+            "type": "number"
+          },
+          "min-rank-return": {
+            "description": "排行区间收益下限（百分点，列与 --sort 一致）",
+            "type": "number"
+          },
+          "min-sharpe": {
+            "description": "最低夏普比率",
+            "type": "number"
+          },
+          "min-total-return": {
+            "description": "区间总收益下限（百分点）",
+            "type": "number"
+          },
+          "offline": {
+            "description": "仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）",
+            "type": "boolean"
+          },
+          "output": {
+            "description": "额外写入 JSON 文件路径",
+            "type": "string"
+          },
+          "period": {
+            "description": "预设窗口：7d/1m/3m/6m/1y/ytd 或 rank 的 sc",
+            "type": "string"
+          },
+          "rank-top": {
+            "default": "30",
+            "description": "从排行前 N 只中扫描（5～100）",
+            "type": "integer"
+          },
+          "sort": {
+            "default": "1n",
+            "description": "排行排序 sc，同 rank --sort",
+            "type": "string"
+          },
+          "sort-by": {
+            "description": "通过筛选后按指标排序，默认 sharpe；可选 sortino/calmar/total-return 等",
+            "type": "string"
+          },
+          "watchlist-file": {
+            "default": "config/watchlist.toml",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "name": "fanalyzer_screen",
+      "outputSchema": "schemas/responses/screen.success.json"
+    }
+  ],
+  "v": "1"
+}

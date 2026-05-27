@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ExportSuccessEnvelope",
+  "type": "object",
+  "properties": {
+    "command": {
+      "type": "string"
+    },
+    "data": {
+      "$ref": "#/$defs/BatchPayload"
+    },
+    "meta": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ExportMeta"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "v": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "v",
+    "command",
+    "ok",
+    "warnings",
+    "data"
+  ],
+  "$defs": {
+    "BatchPayload": {
+      "description": "多基金/多条目结果（含可选 partial errors）。",
+      "type": "object",
+      "properties": {
+        "errors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ItemError"
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ExportPayload"
+          }
+        }
+      },
+      "required": [
+        "items"
+      ]
+    },
+    "ExportMeta": {
+      "description": "导出 meta。",
+      "type": "object",
+      "properties": {
+        "days": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "generated_at": {
+          "type": "string"
+        },
+        "offline": {
+          "type": "boolean"
+        },
+        "requested": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "succeeded": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "offline",
+        "generated_at",
+        "days",
+        "requested",
+        "succeeded"
+      ]
+    },
+    "ExportPayload": {
+      "description": "净值导出条目。",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "days": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "name": {
+          "type": "string"
+        },
+        "nav": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FundNav"
+          }
+        }
+      },
+      "required": [
+        "code",
+        "name",
+        "days",
+        "nav"
+      ]
+    },
+    "FundNav": {
+      "type": "object",
+      "properties": {
+        "acc_nav": {
+          "type": "number",
+          "format": "double"
+        },
+        "code": {
+          "type": "string"
+        },
+        "daily_return": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "date": {
+          "type": "string",
+          "format": "date"
+        },
+        "nav": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "code",
+        "date",
+        "nav",
+        "acc_nav"
+      ]
+    },
+    "ItemError": {
+      "description": "批量条目失败信息。",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "error_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ]
+    }
+  }
+}

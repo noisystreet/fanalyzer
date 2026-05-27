@@ -7,7 +7,7 @@ use crate::domain::ScreenFilters;
 pub async fn dispatch(ctx: &CommandContext<'_>, cmd: Commands) -> anyhow::Result<()> {
     match cmd {
         Commands::Brief {
-            code,
+            fund_code,
             pick_watchlist,
             days,
             period,
@@ -18,7 +18,7 @@ pub async fn dispatch(ctx: &CommandContext<'_>, cmd: Commands) -> anyhow::Result
             run_brief(
                 ctx,
                 BriefRequest {
-                    code,
+                    code: fund_code.resolve()?,
                     pick_watchlist,
                     days,
                     period,

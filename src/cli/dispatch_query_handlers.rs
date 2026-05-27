@@ -21,14 +21,14 @@ pub async fn dispatch(ctx: &CommandContext<'_>, cmd: Commands) -> anyhow::Result
 async fn dispatch_fund(ctx: &CommandContext<'_>, cmd: Commands) -> anyhow::Result<()> {
     match cmd {
         Commands::Fetch {
-            code,
+            fund_code,
             pick_watchlist,
             limit,
         } => {
             run_fetch(
                 ctx,
                 FetchRequest {
-                    code,
+                    code: fund_code.resolve()?,
                     pick_watchlist,
                     limit,
                 },
@@ -36,7 +36,7 @@ async fn dispatch_fund(ctx: &CommandContext<'_>, cmd: Commands) -> anyhow::Resul
             .await
         }
         Commands::Analyze {
-            code,
+            fund_code,
             pick_watchlist,
             days,
             period,
@@ -47,7 +47,7 @@ async fn dispatch_fund(ctx: &CommandContext<'_>, cmd: Commands) -> anyhow::Resul
             run_analyze(
                 ctx,
                 AnalyzeRequest {
-                    code,
+                    code: fund_code.resolve()?,
                     pick_watchlist,
                     days,
                     period,
@@ -111,7 +111,7 @@ async fn dispatch_portfolio_export(ctx: &CommandContext<'_>, cmd: Commands) -> a
             .await
         }
         Commands::Export {
-            code,
+            fund_code,
             pick_watchlist,
             days,
             output,
@@ -121,7 +121,7 @@ async fn dispatch_portfolio_export(ctx: &CommandContext<'_>, cmd: Commands) -> a
             run_export(
                 ctx,
                 ExportRequest {
-                    code,
+                    code: fund_code.resolve()?,
                     pick_watchlist,
                     days,
                     output,

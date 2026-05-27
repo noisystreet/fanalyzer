@@ -1,8 +1,9 @@
 //! 组合分析结果模型。
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortfolioMember {
     pub code: String,
     pub name: String,
@@ -15,7 +16,7 @@ pub struct PortfolioMember {
     pub return_contribution: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortfolioSummary {
     pub name: String,
     pub period_days: u32,
@@ -28,13 +29,13 @@ pub struct PortfolioSummary {
     pub members: Vec<PortfolioMember>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CorrelationMatrix {
     pub labels: Vec<String>,
     pub values: Vec<Vec<f64>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct OverlapPair {
     pub fund_a_code: String,
     pub fund_a_name: String,
@@ -45,7 +46,7 @@ pub struct OverlapPair {
     pub shared_count: usize,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortfolioReport {
     pub summary: PortfolioSummary,
     pub correlation: CorrelationMatrix,
@@ -59,7 +60,7 @@ pub struct PortfolioReport {
 }
 
 /// 解读条目严重程度。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum InsightLevel {
     Positive,
@@ -68,7 +69,7 @@ pub enum InsightLevel {
 }
 
 /// 单条解读。
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortfolioInsight {
     pub level: InsightLevel,
     pub category: String,
@@ -76,7 +77,7 @@ pub struct PortfolioInsight {
 }
 
 /// 组合解读汇总。
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortfolioInterpretation {
     pub headline: String,
     pub insights: Vec<PortfolioInsight>,

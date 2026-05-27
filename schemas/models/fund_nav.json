@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FundNav",
+  "type": "object",
+  "properties": {
+    "acc_nav": {
+      "type": "number",
+      "format": "double"
+    },
+    "code": {
+      "type": "string"
+    },
+    "daily_return": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "format": "double"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "nav": {
+      "type": "number",
+      "format": "double"
+    }
+  },
+  "required": [
+    "code",
+    "date",
+    "nav",
+    "acc_nav"
+  ]
+}

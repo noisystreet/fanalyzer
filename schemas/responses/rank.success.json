@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RankSuccessEnvelope",
+  "type": "object",
+  "properties": {
+    "command": {
+      "type": "string"
+    },
+    "data": {
+      "$ref": "#/$defs/RankPayload"
+    },
+    "meta": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RankMeta"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "v": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "v",
+    "command",
+    "ok",
+    "warnings",
+    "data"
+  ],
+  "$defs": {
+    "FundRankRow": {
+      "description": "排行表一行（展示用）。",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "pct_1y": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "pct_3m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "pct_6m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "pct_month": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "pct_this_year": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "pct_week": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        }
+      },
+      "required": [
+        "code",
+        "name"
+      ]
+    },
+    "RankMeta": {
+      "description": "排行 meta。",
+      "type": "object",
+      "properties": {
+        "generated_at": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "offline": {
+          "type": "boolean"
+        },
+        "sort": {
+          "type": "string"
+        },
+        "top": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "offline",
+        "generated_at",
+        "kind",
+        "sort",
+        "top"
+      ]
+    },
+    "RankPayload": {
+      "description": "排行结果。",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FundRankRow"
+          }
+        },
+        "sort": {
+          "type": "string"
+        },
+        "total_records": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "kind",
+        "sort",
+        "total_records",
+        "rows"
+      ]
+    }
+  }
+}

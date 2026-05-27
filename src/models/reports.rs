@@ -2,10 +2,11 @@
 
 use super::FundAnalysis;
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// 基金概况（F10 / info 命令）。
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct FundOverview {
     pub code: String,
     pub name: String,
@@ -25,7 +26,7 @@ pub struct FundOverview {
 }
 
 /// 行业配置一行。
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct IndustryRow {
     pub rank: u32,
     pub industry: String,
@@ -34,14 +35,14 @@ pub struct IndustryRow {
 }
 
 /// 行业配置报告。
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct IndustryAllocation {
     pub as_of: Option<String>,
     pub rows: Vec<IndustryRow>,
 }
 
 /// 重仓股一行。
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct StockHoldingRow {
     pub rank: u32,
     pub stock_code: String,
@@ -52,14 +53,14 @@ pub struct StockHoldingRow {
 }
 
 /// 重仓股报告。
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct StockHoldings {
     pub as_of: Option<String>,
     pub rows: Vec<StockHoldingRow>,
 }
 
 /// 排行表一行（展示用）。
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct FundRankRow {
     pub code: String,
     pub name: String,
@@ -72,7 +73,7 @@ pub struct FundRankRow {
 }
 
 /// 选基综合简报（终端与 Markdown 共用）。
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct FundBrief {
     pub code: String,
     pub name: String,

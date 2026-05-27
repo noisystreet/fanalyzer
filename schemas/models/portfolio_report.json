@@ -1,0 +1,317 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PortfolioReport",
+  "type": "object",
+  "properties": {
+    "correlation": {
+      "$ref": "#/$defs/CorrelationMatrix"
+    },
+    "interpretation": {
+      "description": "规则引擎生成的解读（可选，由 application 填充）",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PortfolioInterpretation"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "overlaps": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/OverlapPair"
+      }
+    },
+    "series": {
+      "description": "组合净值与滚动指标时间序列",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PortfolioTimeSeries"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "summary": {
+      "$ref": "#/$defs/PortfolioSummary"
+    }
+  },
+  "required": [
+    "summary",
+    "correlation",
+    "overlaps"
+  ],
+  "$defs": {
+    "CorrelationMatrix": {
+      "type": "object",
+      "properties": {
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            }
+          }
+        }
+      },
+      "required": [
+        "labels",
+        "values"
+      ]
+    },
+    "InsightLevel": {
+      "description": "解读条目严重程度。",
+      "type": "string",
+      "enum": [
+        "positive",
+        "info",
+        "caution"
+      ]
+    },
+    "OverlapPair": {
+      "type": "object",
+      "properties": {
+        "fund_a_code": {
+          "type": "string"
+        },
+        "fund_a_name": {
+          "type": "string"
+        },
+        "fund_b_code": {
+          "type": "string"
+        },
+        "fund_b_name": {
+          "type": "string"
+        },
+        "overlap_pct": {
+          "description": "加权重叠（占净值百分比，0～100）",
+          "type": "number",
+          "format": "double"
+        },
+        "shared_count": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "fund_a_code",
+        "fund_a_name",
+        "fund_b_code",
+        "fund_b_name",
+        "overlap_pct",
+        "shared_count"
+      ]
+    },
+    "PortfolioInsight": {
+      "description": "单条解读。",
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "string"
+        },
+        "level": {
+          "$ref": "#/$defs/InsightLevel"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "level",
+        "category",
+        "message"
+      ]
+    },
+    "PortfolioInterpretation": {
+      "description": "组合解读汇总。",
+      "type": "object",
+      "properties": {
+        "headline": {
+          "type": "string"
+        },
+        "insights": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PortfolioInsight"
+          }
+        }
+      },
+      "required": [
+        "headline",
+        "insights"
+      ]
+    },
+    "PortfolioMember": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "max_drawdown": {
+          "type": "number",
+          "format": "double"
+        },
+        "name": {
+          "type": "string"
+        },
+        "return_contribution": {
+          "description": "静态贡献近似：`weight × total_return`",
+          "type": "number",
+          "format": "double"
+        },
+        "sharpe_ratio": {
+          "type": "number",
+          "format": "double"
+        },
+        "total_return": {
+          "type": "number",
+          "format": "double"
+        },
+        "volatility": {
+          "type": "number",
+          "format": "double"
+        },
+        "weight": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "code",
+        "name",
+        "weight",
+        "total_return",
+        "volatility",
+        "max_drawdown",
+        "sharpe_ratio",
+        "return_contribution"
+      ]
+    },
+    "PortfolioSummary": {
+      "type": "object",
+      "properties": {
+        "aligned_days": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "annualized_return": {
+          "type": "number",
+          "format": "double"
+        },
+        "max_drawdown": {
+          "type": "number",
+          "format": "double"
+        },
+        "members": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PortfolioMember"
+          }
+        },
+        "name": {
+          "type": "string"
+        },
+        "period_days": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "sharpe_ratio": {
+          "type": "number",
+          "format": "double"
+        },
+        "total_return": {
+          "type": "number",
+          "format": "double"
+        },
+        "volatility": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "name",
+        "period_days",
+        "aligned_days",
+        "total_return",
+        "annualized_return",
+        "volatility",
+        "max_drawdown",
+        "sharpe_ratio",
+        "members"
+      ]
+    },
+    "PortfolioTimeSeries": {
+      "description": "组合层时间序列（加权净值与滚动指标）。",
+      "type": "object",
+      "properties": {
+        "drawdown": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SeriesPoint"
+          }
+        },
+        "nav_normalized": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SeriesPoint"
+          }
+        },
+        "rolling_sharpe": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SeriesPoint"
+          }
+        },
+        "rolling_volatility": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SeriesPoint"
+          }
+        },
+        "rolling_window": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "rolling_window",
+        "nav_normalized",
+        "drawdown",
+        "rolling_sharpe",
+        "rolling_volatility"
+      ]
+    },
+    "SeriesPoint": {
+      "description": "单个时间序列数据点。",
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "format": "date"
+        },
+        "value": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "date",
+        "value"
+      ]
+    }
+  }
+}

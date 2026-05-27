@@ -15,7 +15,7 @@ pub struct Session<'a> {
     pub nav_store: &'a NavCache,
 }
 
-/// `--json` 及相关输出选项。
+/// `json` 子命令及相关输出选项。
 #[derive(Debug, Clone, Copy)]
 pub struct StructuredOutput {
     pub enabled: bool,

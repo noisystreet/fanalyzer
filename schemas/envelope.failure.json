@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StructuredFailureEnvelope",
+  "description": "失败响应信封（无 data）。",
+  "type": "object",
+  "properties": {
+    "command": {
+      "type": "string"
+    },
+    "error": {
+      "$ref": "#/$defs/StructuredError"
+    },
+    "meta": true,
+    "ok": {
+      "type": "boolean"
+    },
+    "v": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "v",
+    "command",
+    "ok",
+    "error"
+  ],
+  "$defs": {
+    "StructuredError": {
+      "description": "统一错误体。",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ]
+    }
+  }
+}

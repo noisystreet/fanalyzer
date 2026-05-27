@@ -9,13 +9,13 @@ use crate::application::{
 pub async fn dispatch(ctx: &CommandContext<'_>, cmd: Commands) -> anyhow::Result<()> {
     match cmd {
         Commands::Info {
-            code,
+            fund_code,
             pick_watchlist,
         } => {
             run_info(
                 ctx,
                 InfoRequest {
-                    code,
+                    code: fund_code.resolve()?,
                     pick_watchlist,
                 },
             )
@@ -23,27 +23,27 @@ pub async fn dispatch(ctx: &CommandContext<'_>, cmd: Commands) -> anyhow::Result
         }
         Commands::Rank { kind, top, sort } => run_rank(ctx, RankRequest { kind, top, sort }).await,
         Commands::Sectors {
-            code,
+            fund_code,
             pick_watchlist,
         } => {
             run_sectors(
                 ctx,
                 SectorsRequest {
-                    code,
+                    code: fund_code.resolve()?,
                     pick_watchlist,
                 },
             )
             .await
         }
         Commands::Holdings {
-            code,
+            fund_code,
             pick_watchlist,
             top,
         } => {
             run_holdings(
                 ctx,
                 HoldingsRequest {
-                    code,
+                    code: fund_code.resolve()?,
                     pick_watchlist,
                     top,
                 },

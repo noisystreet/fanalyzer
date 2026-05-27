@@ -13,6 +13,7 @@ pub use reports::{
 pub use series::{FundAnalysisReport, FundAnalysisSeries, PortfolioTimeSeries, SeriesPoint};
 
 use chrono::NaiveDate;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -44,7 +45,7 @@ pub enum FundType {
     Other,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct FundNav {
     pub code: String,
     pub date: NaiveDate,
@@ -53,7 +54,7 @@ pub struct FundNav {
     pub daily_return: Option<f64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct FundAnalysis {
     pub code: String,
     pub name: String,

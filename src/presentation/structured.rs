@@ -3,6 +3,7 @@
 use crate::application::CommandContext;
 use crate::models::{FundAnalysisReport, PortfolioReport};
 use chrono::Local;
+use schemars::JsonSchema;
 use serde::Serialize;
 use std::io::{self, Write};
 use std::path::Path;
@@ -28,14 +29,14 @@ impl CodedError {
 }
 
 /// 统一错误体。
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct StructuredError {
     pub code: String,
     pub message: String,
 }
 
 /// 批量条目失败信息。
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ItemError {
     pub code: String,
     pub message: String,
@@ -44,7 +45,7 @@ pub struct ItemError {
 }
 
 /// 多基金/多条目结果（含可选 partial errors）。
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct BatchPayload<T> {
     pub items: Vec<T>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -68,7 +69,7 @@ pub struct StructuredEnvelope<T> {
 }
 
 /// 失败响应信封（无 data）。
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct StructuredFailureEnvelope {
     pub v: u32,
     pub command: String,
@@ -81,14 +82,14 @@ pub struct StructuredFailureEnvelope {
 }
 
 /// 信封 meta 公共字段。
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct BaseMeta {
     pub offline: bool,
     pub generated_at: String,
 }
 
 /// 分析类命令 meta。
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct AnalysisMeta {
     #[serde(flatten)]
     pub base: BaseMeta,
@@ -102,7 +103,7 @@ pub struct AnalysisMeta {
 }
 
 /// 批量查询 meta。
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct BatchMeta {
     #[serde(flatten)]
     pub base: BaseMeta,
@@ -111,7 +112,7 @@ pub struct BatchMeta {
 }
 
 /// 排行 meta。
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct RankMeta {
     #[serde(flatten)]
     pub base: BaseMeta,
@@ -121,7 +122,7 @@ pub struct RankMeta {
 }
 
 /// 筛选 meta。
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ScreenMeta {
     #[serde(flatten)]
     pub base: BaseMeta,
@@ -133,7 +134,7 @@ pub struct ScreenMeta {
 }
 
 /// 组合 meta。
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct PortfolioMeta {
     #[serde(flatten)]
     pub base: BaseMeta,
@@ -145,7 +146,7 @@ pub struct PortfolioMeta {
 }
 
 /// 导出 meta。
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ExportMeta {
     #[serde(flatten)]
     pub base: BaseMeta,
@@ -155,7 +156,7 @@ pub struct ExportMeta {
 }
 
 /// 排行结果。
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct RankPayload {
     pub kind: String,
     pub sort: String,
@@ -164,7 +165,7 @@ pub struct RankPayload {
 }
 
 /// 筛选结果。
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct ScreenPayload {
     pub kind: String,
     pub sort: String,
@@ -175,7 +176,7 @@ pub struct ScreenPayload {
 }
 
 /// 净值拉取结果。
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct FetchPayload {
     pub code: String,
     pub name: String,
@@ -185,7 +186,7 @@ pub struct FetchPayload {
 }
 
 /// 行业配置条目。
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct SectorItem {
     pub code: String,
     pub name: String,
@@ -193,7 +194,7 @@ pub struct SectorItem {
 }
 
 /// 重仓股条目。
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct HoldingsItem {
     pub code: String,
     pub name: String,
@@ -201,7 +202,7 @@ pub struct HoldingsItem {
 }
 
 /// 净值导出条目。
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct ExportPayload {
     pub code: String,
     pub name: String,
@@ -348,7 +349,7 @@ pub fn print_failure_stdout(
     write_json_stdout(&json)
 }
 
-/// 顶层错误处理：`--json` 模式下将 anyhow 错误转为 stdout 失败信封。
+/// 顶层错误处理：`json` 子命令模式下将 anyhow 错误转为 stdout 失败信封。
 pub fn print_failure_from_anyhow(
     ctx: &CommandContext<'_>,
     command: &str,
@@ -371,7 +372,7 @@ pub fn write_file<T: Serialize, M: Serialize>(
     Ok(())
 }
 
-/// `--json` 模式下输出；可选同时写 `--output` 文件。
+/// `json` 子命令模式下输出；可选同时写 `--output` 文件。
 pub fn emit<T: Serialize, M: Serialize>(
     ctx: &CommandContext<'_>,
     command: &'static str,
