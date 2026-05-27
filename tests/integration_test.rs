@@ -163,6 +163,32 @@ fn test_cli_mcp_serve_help() {
 }
 
 #[test]
+fn test_mcp_tools_call_watchlist_list_returns_json_envelope() {
+    let req = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"fanalyzer_watchlist_list","arguments":{}}}"#;
+    let raw = Command::cargo_bin("fanalyzer")
+        .unwrap()
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .args(["mcp", "serve", "--profile", "summary"])
+        .write_stdin(format!("{req}\n"))
+        .timeout(std::time::Duration::from_secs(10))
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let line = String::from_utf8(raw).unwrap();
+    let line = line.lines().next().expect("one json line");
+    let rpc: serde_json::Value = serde_json::from_str(line).unwrap();
+    let text = rpc["result"]["content"][0]["text"]
+        .as_str()
+        .expect("tool result text");
+    let envelope: serde_json::Value = serde_json::from_str(text).unwrap();
+    assert_eq!(envelope["ok"], true);
+    assert_eq!(envelope["command"], "watchlist");
+    assert!(envelope["data"]["items"].is_array());
+}
+
+#[test]
 fn test_cli_json_profile_flag() {
     Command::cargo_bin("fanalyzer")
         .unwrap()

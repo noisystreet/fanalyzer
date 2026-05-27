@@ -24,14 +24,6 @@ pub async fn run_structured_command(
 ) -> String {
     let structured = StructuredOutput::for_capture(profile);
     let cmd_name = cmd.name();
-    let ctx = CommandContext::new(
-        client,
-        name_cache,
-        nav_store,
-        offline,
-        watchlist_path,
-        structured,
-    );
     match dispatch::dispatch_with_command(
         cmd,
         client,
@@ -43,10 +35,16 @@ pub async fn run_structured_command(
     )
     .await
     {
-        Ok(()) => ctx
-            .take_captured()
-            .unwrap_or_else(|| missing_capture_json(cmd_name)),
+        Ok(captured) => captured.unwrap_or_else(|| missing_capture_json(cmd_name)),
         Err(e) => {
+            let ctx = CommandContext::new(
+                client,
+                name_cache,
+                nav_store,
+                offline,
+                watchlist_path,
+                structured,
+            );
             let structured_err = error_from_anyhow(&e);
             print_failure_capture(&ctx, cmd_name, &structured_err)
                 .unwrap_or_else(|_| fallback_failure_json(cmd_name, &structured_err))

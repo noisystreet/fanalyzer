@@ -411,7 +411,7 @@ async fn execute_command(
         }
         Ok(())
     } else {
-        result
+        result.map(|_| ())
     }
 }
 

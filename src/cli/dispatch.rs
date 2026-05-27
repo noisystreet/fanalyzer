@@ -17,7 +17,7 @@ pub async fn dispatch_with_command(
     offline: bool,
     watchlist_path: &Path,
     structured_output: StructuredOutput,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Option<String>> {
     let ctx = CommandContext::new(
         client,
         name_cache,
@@ -27,7 +27,7 @@ pub async fn dispatch_with_command(
         structured_output,
     );
 
-    match cmd {
+    let result = match cmd {
         Commands::Brief { .. } | Commands::Screen { .. } => {
             super::dispatch_workflow::dispatch(&ctx, cmd).await
         }
@@ -41,5 +41,11 @@ pub async fn dispatch_with_command(
         | Commands::WatchlistRemove { .. }
         | Commands::PortfolioConfig { .. } => super::dispatch_agent::dispatch(&ctx, cmd).await,
         other => super::dispatch_query::dispatch_core(&ctx, other).await,
+    };
+
+    if structured_output.capture {
+        result.map(|()| ctx.take_captured())
+    } else {
+        result.map(|()| None)
     }
 }
