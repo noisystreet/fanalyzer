@@ -1,0 +1,156 @@
+# Agent 集成指南
+
+面向大模型 Agent、MCP 工具与自动化脚本的 **结构化 CLI** 说明。
+
+> 数据边界与免责声明见 [DISCLAIMER.md](DISCLAIMER.md)。输出仅供研究参考，不构成投资建议。
+
+## 快速开始
+
+```bash
+# 单基金分析（stdout 仅 JSON）
+cargo run -- --json analyze 110011 --days 90
+
+# 紧凑单行 JSON（管道友好）
+cargo run -- --json --json-compact analyze 110011 --days 90
+
+# 省略时间序列曲线（省 token）
+cargo run -- --json --compact-series analyze 110011 --days 90
+```
+
+## 流约定
+
+| 流 | 内容 |
+|----|------|
+| **stdout** | 成功或失败均为 JSON 信封 |
+| **stderr** | `tracing` 日志（`RUST_LOG=warn` 可减少噪音） |
+| **退出码** | `0` 成功；非 `0` 失败（失败时 stdout 仍有 JSON） |
+
+## 信封格式
+
+JSON Schema 见 [schemas/envelope.v1.json](../schemas/envelope.v1.json)。
+
+### 成功
+
+```json
+{
+  "v": 1,
+  "command": "analyze",
+  "ok": true,
+  "meta": {
+    "offline": false,
+    "generated_at": "2026-05-23T12:00:00+08:00",
+    "days": 90,
+    "requested": 1,
+    "succeeded": 1
+  },
+  "warnings": [],
+  "data": { }
+}
+```
+
+### 失败
+
+```json
+{
+  "v": 1,
+  "command": "compare",
+  "ok": false,
+  "meta": {
+    "offline": false,
+    "generated_at": "2026-05-23T12:00:00+08:00"
+  },
+  "warnings": [],
+  "error": {
+    "code": "INSUFFICIENT_SAMPLES",
+    "message": "有效样本不足（需要≥2）；请检查离线缓存或数据源"
+  }
+}
+```
+
+### 字段说明
+
+| 字段 | 说明 |
+|------|------|
+| `v` | 信封版本，当前为 `1` |
+| `command` | 子命令名 |
+| `ok` | 是否成功 |
+| `meta` | 请求上下文（离线、时间戳、窗口天数等，因命令而异） |
+| `warnings` | 非致命警告（如部分标的跳过、深度分析截断） |
+| `data` | 成功时的 payload（失败时省略） |
+| `error` | 失败时的 `{ code, message }`（成功时省略） |
+
+## 错误码
+
+| code | 典型场景 |
+|------|----------|
+| `INSUFFICIENT_SAMPLES` | 对比/筛选有效样本不足 |
+| `INSUFFICIENT_DATA` | 分析/导出无有效数据 |
+| `OFFLINE_UNSUPPORTED` | 离线模式下调用需联网命令 |
+| `COMMAND_FAILED` | 其他运行时错误 |
+
+## 批量命令与 partial success
+
+多标的命令（`analyze`、`compare`、`fetch` 等）的 `data` 使用：
+
+```json
+{
+  "items": [ /* 成功条目 */ ],
+  "errors": [
+    {
+      "code": "000001",
+      "message": "分析数据不足",
+      "error_code": "INSUFFICIENT_DATA"
+    }
+  ]
+}
+```
+
+- 至少 1 条 `items` 时 `ok: true`，失败条目记录在 `errors`
+- 全部失败时 `ok: false`，见 `error` 字段
+
+## 各命令 `data` 形状
+
+| command | data 类型 |
+|---------|-----------|
+| `analyze` | `{ items: FundAnalysisReport[], errors? }` |
+| `compare` | `{ items: FundAnalysis[], errors? }` |
+| `portfolio` | `PortfolioReport` 对象 |
+| `screen` | `ScreenPayload`（含 `passed[]`） |
+| `rank` | `RankPayload`（含 `rows[]`） |
+| `fetch` / `export` | `{ items: FetchPayload/ExportPayload[], errors? }` |
+| `info` / `sectors` / `holdings` / `brief` | `{ items: [...], errors? }` |
+
+模型字段详见 [DATA_MODEL.md](DATA_MODEL.md)。
+
+## 全局参数
+
+| 参数 | 说明 |
+|------|------|
+| `--json` / `--structured` | 启用结构化输出 |
+| `--json-compact` | 单行 minified JSON |
+| `--compact-series` | 省略 `series` 时间序列 |
+| `--offline` | 仅本地缓存（部分命令不可用） |
+
+## Agent 调用建议
+
+1. **始终解析 stdout JSON**，勿依赖 stderr 文本判断成败
+2. **检查 `warnings`**：部分成功时 Agent 应告知用户哪些标的被跳过
+3. **大上下文场景**加 `--compact-series`，必要时 `--json-compact`
+4. **对比前先 `analyze` 或 `fetch`** 写入缓存，再 `--offline` 复用
+5. Tool schema 可引用 `schemas/envelope.v1.json` 作为 response 外层结构
+
+## 示例：Shell 中提取 items
+
+```bash
+cargo run -- --json --json-compact analyze 110011 --days 90 2>/dev/null \
+  | jq -r '.data.items[0].snapshot.sharpe_ratio'
+```
+
+## 示例：失败处理
+
+```bash
+if ! out=$(cargo run -- --json compare --codes 110011 2>/dev/null); then
+  code=$(echo "$out" | jq -r '.error.code')
+  echo "failed: $code"
+fi
+```

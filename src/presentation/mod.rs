@@ -7,6 +7,7 @@ mod fetch;
 mod portfolio;
 mod query_output;
 mod screen_output;
+mod structured;
 
 use crate::models::FundAnalysis;
 pub use analysis::{export_analysis_json, render_analysis};
@@ -21,6 +22,14 @@ pub use screen_output::{
 };
 use std::fs::File;
 use std::io::Write;
+pub use structured::{
+    base_meta, compact_analysis_reports, compact_portfolio_report, emit, error_from_anyhow,
+    item_error, item_error_failed, item_error_insufficient, print_failure_from_anyhow, write_file,
+    AnalysisMeta, BaseMeta, BatchMeta, BatchPayload, CodedError, ExportMeta, ExportPayload,
+    FetchPayload, HoldingsItem, ItemError, ItemsPayload, PortfolioMeta, RankMeta, RankPayload,
+    ScreenMeta, ScreenPayload, SectorItem, StructuredEnvelope, StructuredError,
+    StructuredFailureEnvelope, ENVELOPE_VERSION,
+};
 use tabled::settings::{object::Columns, Alignment, Style};
 use tabled::{Table, Tabled};
 

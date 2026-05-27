@@ -5,7 +5,9 @@ use super::fund_service::resolve_fund_identifier;
 use super::mappers::{map_holdings, map_industry, map_profile, map_rank_rows};
 use crate::domain::rank_ft_code;
 use crate::presentation::{
-    print_fetch_result, print_fund_overview, print_holdings, print_industry, print_ranking_table,
+    base_meta, emit, item_error_failed, print_fetch_result, print_fund_overview, print_holdings,
+    print_industry, print_ranking_table, BatchMeta, BatchPayload, FetchPayload, HoldingsItem,
+    RankMeta, RankPayload, SectorItem,
 };
 
 pub struct FetchRequest {
@@ -36,6 +38,50 @@ pub struct HoldingsRequest {
     pub top: u32,
 }
 
+async fn collect_batch<T, F, Fut>(
+    ctx: &CommandContext<'_>,
+    ids: Vec<String>,
+    mut op: F,
+) -> anyhow::Result<(Vec<T>, Vec<crate::presentation::ItemError>)>
+where
+    F: FnMut(String) -> Fut,
+    Fut: std::future::Future<Output = anyhow::Result<T>>,
+{
+    let requested = ids.len();
+    let mut items = Vec::with_capacity(requested);
+    let mut errors = Vec::new();
+    for id in ids {
+        match op(id.clone()).await {
+            Ok(value) => items.push(value),
+            Err(e) => {
+                if ctx.structured() {
+                    errors.push(item_error_failed(&id, e));
+                } else {
+                    return Err(e);
+                }
+            }
+        }
+    }
+    if ctx.structured() && items.is_empty() {
+        anyhow::bail!("全部条目处理失败");
+    }
+    Ok((items, errors))
+}
+
+fn batch_meta(ctx: &CommandContext<'_>, requested: usize, succeeded: usize) -> BatchMeta {
+    BatchMeta {
+        base: base_meta(ctx),
+        requested,
+        succeeded,
+    }
+}
+
+fn warn_partial(ctx: &CommandContext<'_>, errors: &[crate::presentation::ItemError]) {
+    if !errors.is_empty() {
+        ctx.warn(format!("{} 只条目处理失败", errors.len()));
+    }
+}
+
 pub async fn run_fetch(ctx: &CommandContext<'_>, req: FetchRequest) -> anyhow::Result<()> {
     require_online(ctx.offline, "fetch")?;
     let ids = resolve_fund_ids(
@@ -44,8 +90,22 @@ pub async fn run_fetch(ctx: &CommandContext<'_>, req: FetchRequest) -> anyhow::R
         ctx.watchlist_path,
         "--code/--watchlist",
     )?;
-    for id in ids {
-        fetch_one(&ctx.session, id, req.limit).await?;
+    let requested = ids.len();
+    let limit = req.limit;
+    let (items, errors) = collect_batch(ctx, ids, |id| {
+        fetch_one(&ctx.session, id, limit, ctx.structured())
+    })
+    .await?;
+    if ctx.structured() {
+        warn_partial(ctx, &errors);
+        let succeeded = items.len();
+        emit(
+            ctx,
+            "fetch",
+            &BatchPayload { items, errors },
+            Some(&batch_meta(ctx, requested, succeeded)),
+            None,
+        )?;
     }
     Ok(())
 }
@@ -54,21 +114,26 @@ async fn fetch_one(
     session: &super::context::Session<'_>,
     code: String,
     limit: u32,
-) -> anyhow::Result<()> {
+    structured: bool,
+) -> anyhow::Result<FetchPayload> {
     let (resolved_code, name) = resolve_fund_identifier(session, &code, false).await?;
     tracing::info!(code = %resolved_code, name = %name, limit = limit, "Fetching fund nav history");
-    match session
+    let (nav_list, total) = session
         .client
         .fetch_nav_history(&resolved_code, 1, limit)
         .await
-    {
-        Ok((nav_list, total)) => {
-            tracing::info!(total = total, fetched = nav_list.len(), "Fetched nav data");
-            print_fetch_result(&resolved_code, &name, &nav_list, total);
-        }
-        Err(e) => tracing::error!(error = %e, "Failed to fetch nav history"),
+        .map_err(|e| anyhow::anyhow!("拉取净值失败：{e}"))?;
+    tracing::info!(total = total, fetched = nav_list.len(), "Fetched nav data");
+    if !structured {
+        print_fetch_result(&resolved_code, &name, &nav_list, total);
     }
-    Ok(())
+    Ok(FetchPayload {
+        code: resolved_code,
+        name,
+        total,
+        fetched: nav_list.len(),
+        nav: nav_list,
+    })
 }
 
 pub async fn load_fund_overview(
@@ -109,18 +174,33 @@ pub async fn run_info(ctx: &CommandContext<'_>, req: InfoRequest) -> anyhow::Res
         ctx.watchlist_path,
         "--code/--watchlist",
     )?;
-    for id in ids {
-        info_one(&ctx.session, id).await?;
+    let requested = ids.len();
+    let (items, errors) =
+        collect_batch(ctx, ids, |id| info_one(&ctx.session, id, ctx.structured())).await?;
+    if ctx.structured() {
+        warn_partial(ctx, &errors);
+        let succeeded = items.len();
+        emit(
+            ctx,
+            "info",
+            &BatchPayload { items, errors },
+            Some(&batch_meta(ctx, requested, succeeded)),
+            None,
+        )?;
     }
     Ok(())
 }
 
-async fn info_one(session: &super::context::Session<'_>, code: String) -> anyhow::Result<()> {
-    match load_fund_overview(session, &code).await {
-        Ok(profile) => print_fund_overview(&profile),
-        Err(e) => tracing::error!(error = %e, "Failed to fetch fund info"),
+async fn info_one(
+    session: &super::context::Session<'_>,
+    code: String,
+    structured: bool,
+) -> anyhow::Result<crate::models::FundOverview> {
+    let profile = load_fund_overview(session, &code).await?;
+    if !structured {
+        print_fund_overview(&profile);
     }
-    Ok(())
+    Ok(profile)
 }
 
 pub async fn run_rank(ctx: &CommandContext<'_>, req: RankRequest) -> anyhow::Result<()> {
@@ -143,7 +223,23 @@ pub async fn run_rank(ctx: &CommandContext<'_>, req: RankRequest) -> anyhow::Res
         .fetch_fund_ranking_top(ft, sc, req.top)
         .await?;
     let rows = map_rank_rows(&page.rows);
-    print_ranking_table(&rows, ft, sc, page.total_records);
+    if ctx.structured() {
+        let payload = RankPayload {
+            kind: req.kind.clone(),
+            sort: sc.to_string(),
+            total_records: page.total_records,
+            rows,
+        };
+        let meta = RankMeta {
+            base: base_meta(ctx),
+            kind: req.kind,
+            sort: sc.to_string(),
+            top: req.top,
+        };
+        emit(ctx, "rank", &payload, Some(&meta), None)?;
+    } else {
+        print_ranking_table(&rows, ft, sc, page.total_records);
+    }
     Ok(())
 }
 
@@ -155,13 +251,30 @@ pub async fn run_sectors(ctx: &CommandContext<'_>, req: SectorsRequest) -> anyho
         ctx.watchlist_path,
         "--code/--watchlist",
     )?;
-    for id in ids {
-        sectors_one(&ctx.session, id).await?;
+    let requested = ids.len();
+    let (items, errors) = collect_batch(ctx, ids, |id| {
+        sectors_one(&ctx.session, id, ctx.structured())
+    })
+    .await?;
+    if ctx.structured() {
+        warn_partial(ctx, &errors);
+        let succeeded = items.len();
+        emit(
+            ctx,
+            "sectors",
+            &BatchPayload { items, errors },
+            Some(&batch_meta(ctx, requested, succeeded)),
+            None,
+        )?;
     }
     Ok(())
 }
 
-async fn sectors_one(session: &super::context::Session<'_>, code: String) -> anyhow::Result<()> {
+async fn sectors_one(
+    session: &super::context::Session<'_>,
+    code: String,
+    structured: bool,
+) -> anyhow::Result<SectorItem> {
     let (resolved_code, name) = resolve_fund_identifier(session, &code, false).await?;
     tracing::info!(code = %resolved_code, "Fetching industry allocation");
     let report = session
@@ -169,8 +282,15 @@ async fn sectors_one(session: &super::context::Session<'_>, code: String) -> any
         .fetch_fund_industry_allocation(&resolved_code)
         .await
         .map_err(|e| anyhow::anyhow!("行业配置获取失败：{e}"))?;
-    print_industry(&resolved_code, &name, &map_industry(&report));
-    Ok(())
+    let industry = map_industry(&report);
+    if !structured {
+        print_industry(&resolved_code, &name, &industry);
+    }
+    Ok(SectorItem {
+        code: resolved_code,
+        name,
+        industry,
+    })
 }
 
 pub async fn run_holdings(ctx: &CommandContext<'_>, req: HoldingsRequest) -> anyhow::Result<()> {
@@ -182,8 +302,21 @@ pub async fn run_holdings(ctx: &CommandContext<'_>, req: HoldingsRequest) -> any
         ctx.watchlist_path,
         "--code/--watchlist",
     )?;
-    for id in ids {
-        holdings_one(&ctx.session, id, top).await?;
+    let requested = ids.len();
+    let (items, errors) = collect_batch(ctx, ids, |id| {
+        holdings_one(&ctx.session, id, top, ctx.structured())
+    })
+    .await?;
+    if ctx.structured() {
+        warn_partial(ctx, &errors);
+        let succeeded = items.len();
+        emit(
+            ctx,
+            "holdings",
+            &BatchPayload { items, errors },
+            Some(&batch_meta(ctx, requested, succeeded)),
+            None,
+        )?;
     }
     Ok(())
 }
@@ -192,14 +325,16 @@ async fn holdings_one(
     session: &super::context::Session<'_>,
     code: String,
     top: u32,
-) -> anyhow::Result<()> {
+    structured: bool,
+) -> anyhow::Result<HoldingsItem> {
     let (resolved_code, name) = resolve_fund_identifier(session, &code, false).await?;
-    tracing::info!(code = %resolved_code, top = top, "Fetching stock holdings");
-    let report = session
-        .client
-        .fetch_fund_stock_holdings(&resolved_code, top)
-        .await
-        .map_err(|e| anyhow::anyhow!("重仓股接口失败：{e}"))?;
-    print_holdings(&resolved_code, &name, &map_holdings(&report));
-    Ok(())
+    let holdings = load_fund_holdings(session, &code, top).await?;
+    if !structured {
+        print_holdings(&resolved_code, &name, &holdings);
+    }
+    Ok(HoldingsItem {
+        code: resolved_code,
+        name,
+        holdings,
+    })
 }

@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/analysis_fund/schemas/envelope.v1.json",
+  "title": "FanalyzerStructuredEnvelope",
+  "description": "Fanalyzer CLI --json 模式统一响应信封（v1）",
+  "oneOf": [
+    { "$ref": "#/$defs/SuccessEnvelope" },
+    { "$ref": "#/$defs/FailureEnvelope" }
+  ],
+  "$defs": {
+    "BaseMeta": {
+      "type": "object",
+      "properties": {
+        "offline": { "type": "boolean" },
+        "generated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["offline", "generated_at"],
+      "additionalProperties": true
+    },
+    "StructuredError": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "COMMAND_FAILED",
+            "INSUFFICIENT_DATA",
+            "INSUFFICIENT_SAMPLES",
+            "OFFLINE_UNSUPPORTED"
+          ]
+        },
+        "message": { "type": "string" }
+      },
+      "required": ["code", "message"],
+      "additionalProperties": false
+    },
+    "ItemError": {
+      "type": "object",
+      "properties": {
+        "code": { "type": "string", "description": "基金标识" },
+        "message": { "type": "string" },
+        "error_code": {
+          "type": "string",
+          "enum": ["INSUFFICIENT_DATA", "ANALYSIS_FAILED", "FETCH_FAILED"]
+        }
+      },
+      "required": ["code", "message"],
+      "additionalProperties": false
+    },
+    "BatchPayload": {
+      "type": "object",
+      "properties": {
+        "items": { "type": "array" },
+        "errors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ItemError" }
+        }
+      },
+      "required": ["items"],
+      "additionalProperties": false
+    },
+    "SuccessEnvelope": {
+      "type": "object",
+      "properties": {
+        "v": { "const": 1 },
+        "command": {
+          "type": "string",
+          "enum": [
+            "fetch",
+            "analyze",
+            "compare",
+            "portfolio",
+            "export",
+            "info",
+            "sectors",
+            "holdings",
+            "rank",
+            "brief",
+            "screen"
+          ]
+        },
+        "ok": { "const": true },
+        "meta": { "$ref": "#/$defs/BaseMeta" },
+        "warnings": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "data": {}
+      },
+      "required": ["v", "command", "ok", "data"],
+      "additionalProperties": false
+    },
+    "FailureEnvelope": {
+      "type": "object",
+      "properties": {
+        "v": { "const": 1 },
+        "command": { "type": "string" },
+        "ok": { "const": false },
+        "meta": { "$ref": "#/$defs/BaseMeta" },
+        "warnings": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "error": { "$ref": "#/$defs/StructuredError" }
+      },
+      "required": ["v", "command", "ok", "error"],
+      "additionalProperties": false
+    }
+  }
+}

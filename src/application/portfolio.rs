@@ -14,6 +14,7 @@ use crate::models::{
     StockHoldings,
 };
 use crate::portfolio::PortfolioDefinition;
+use crate::presentation::{base_meta, compact_portfolio_report, emit, PortfolioMeta};
 use chrono::Local;
 use std::collections::HashMap;
 use std::path::Path;
@@ -76,6 +77,29 @@ pub async fn run_portfolio(ctx: &CommandContext<'_>, req: PortfolioRequest) -> a
         req.rolling_window,
     )
     .await?;
+    if ctx.structured() {
+        let mut report = report;
+        if ctx.compact_series() {
+            compact_portfolio_report(&mut report);
+        }
+        if ctx.offline {
+            ctx.warn("离线模式：重仓重叠未计算".to_string());
+        }
+        let meta = PortfolioMeta {
+            base: base_meta(ctx),
+            days: report.summary.period_days,
+            period: req.period.clone(),
+            rolling_window: req.rolling_window,
+            holdings: report.summary.members.len(),
+        };
+        return emit(
+            ctx,
+            "portfolio",
+            &report,
+            Some(&meta),
+            req.output.as_deref().filter(|_| req.format == "json"),
+        );
+    }
     crate::presentation::render_portfolio(&report, req.output.as_deref(), &req.format)
 }
 

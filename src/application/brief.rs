@@ -5,7 +5,10 @@ use super::fund_service::{analyze_fund, resolve_fund_identifier};
 use super::mappers::{map_holdings, map_industry};
 use crate::domain::resolve_analysis_days;
 use crate::models::FundBrief;
-use crate::presentation::{print_brief_separator, render_brief_terminal, write_brief_markdown};
+use crate::presentation::{
+    base_meta, emit, item_error_failed, print_brief_separator, render_brief_terminal,
+    write_brief_markdown, AnalysisMeta, BatchPayload,
+};
 use chrono::Local;
 
 /// `brief` 请求参数。
@@ -29,18 +32,56 @@ pub async fn run_brief(ctx: &CommandContext<'_>, req: BriefRequest) -> anyhow::R
         ctx.watchlist_path,
         "--code/--watchlist",
     )?;
-    let multi = ids.len() > 1;
+    let requested = ids.len();
+    let multi = requested > 1;
+    let mut items = Vec::with_capacity(requested);
+    let mut errors = Vec::new();
     for id in ids {
-        let brief =
-            gather_brief(&ctx.session, &id, days, req.holdings_top, req.industry_top).await?;
-        render_brief_terminal(&brief);
-        if let Some(ref path) = req.output {
-            write_brief_markdown(&brief, path)?;
-            tracing::info!(path = %path.display(), "Wrote brief markdown");
+        match gather_brief(&ctx.session, &id, days, req.holdings_top, req.industry_top).await {
+            Ok(brief) => {
+                if !ctx.structured() {
+                    render_brief_terminal(&brief);
+                    if let Some(ref path) = req.output {
+                        write_brief_markdown(&brief, path)?;
+                        tracing::info!(path = %path.display(), "Wrote brief markdown");
+                    }
+                    if multi {
+                        print_brief_separator();
+                    }
+                }
+                items.push(brief);
+            }
+            Err(e) => {
+                if ctx.structured() {
+                    errors.push(item_error_failed(&id, e));
+                } else {
+                    return Err(e);
+                }
+            }
         }
-        if multi {
-            print_brief_separator();
+    }
+    if ctx.structured() {
+        if items.is_empty() {
+            anyhow::bail!("无有效简报结果");
         }
+        if !errors.is_empty() {
+            ctx.warn(format!("{} 只标的简报生成失败", errors.len()));
+        }
+        let meta = AnalysisMeta {
+            base: base_meta(ctx),
+            days,
+            period: req.period.clone(),
+            rolling_window: None,
+            requested,
+            succeeded: items.len(),
+        };
+        emit(
+            ctx,
+            "brief",
+            &BatchPayload { items, errors },
+            Some(&meta),
+            None,
+        )?;
     }
     Ok(())
 }

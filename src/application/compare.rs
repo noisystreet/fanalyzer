@@ -4,7 +4,10 @@ use super::context::{resolve_many_fund_ids, CommandContext, Session};
 use super::fund_service;
 use crate::domain::{parse_sort_key, resolve_analysis_days, sort_analyses, AnalysisSortKey};
 use crate::models::FundAnalysis;
-use crate::presentation::render_comparison;
+use crate::presentation::{
+    base_meta, emit, item_error_failed, item_error_insufficient, render_comparison, AnalysisMeta,
+    BatchPayload, ItemError,
+};
 use chrono::Local;
 use std::path::PathBuf;
 
@@ -18,13 +21,18 @@ pub struct CompareRequest {
     pub format: String,
 }
 
+pub struct CompareGather {
+    pub items: Vec<FundAnalysis>,
+    pub errors: Vec<ItemError>,
+}
+
 async fn try_push_analysis(
     session: &Session<'_>,
     identifier: &str,
     days: u32,
     offline: bool,
     out: &mut Vec<FundAnalysis>,
-) {
+) -> Option<ItemError> {
     match fund_service::analyze_fund(
         session,
         identifier,
@@ -34,9 +42,18 @@ async fn try_push_analysis(
     )
     .await
     {
-        Ok(Some(r)) => out.push(r.snapshot),
-        Ok(None) => tracing::warn!(identifier = %identifier, "分析数据不足，跳过"),
-        Err(e) => tracing::warn!(identifier = %identifier, error = %e, "跳过该标的"),
+        Ok(Some(r)) => {
+            out.push(r.snapshot);
+            None
+        }
+        Ok(None) => {
+            tracing::warn!(identifier = %identifier, "分析数据不足，跳过");
+            Some(item_error_insufficient(identifier))
+        }
+        Err(e) => {
+            tracing::warn!(identifier = %identifier, error = %e, "跳过该标的");
+            Some(item_error_failed(identifier, e))
+        }
     }
 }
 
@@ -46,12 +63,15 @@ pub async fn gather_compare_analyses(
     identifiers: &[String],
     days: u32,
     offline: bool,
-) -> Vec<FundAnalysis> {
-    let mut analyses = Vec::new();
+) -> CompareGather {
+    let mut items = Vec::new();
+    let mut errors = Vec::new();
     for identifier in identifiers {
-        try_push_analysis(session, identifier, days, offline, &mut analyses).await;
+        if let Some(err) = try_push_analysis(session, identifier, days, offline, &mut items).await {
+            errors.push(err);
+        }
     }
-    analyses
+    CompareGather { items, errors }
 }
 
 /// 按指标对对比结果排序；未指定时按代码升序。
@@ -77,14 +97,48 @@ pub async fn run_compare(ctx: &CommandContext<'_>, req: CompareRequest) -> anyho
     let days = resolve_analysis_days(req.period.as_deref(), req.days, today)?;
     tracing::info!(codes = ?ids, days = days, "Comparing funds");
 
-    let mut analyses = gather_compare_analyses(&ctx.session, &ids, days, ctx.offline).await;
+    let requested = ids.len();
+    let gathered = gather_compare_analyses(&ctx.session, &ids, days, ctx.offline).await;
 
-    if analyses.len() < 2 {
+    if gathered.items.len() < 2 {
+        if ctx.structured() {
+            anyhow::bail!("有效样本不足（需要≥2）；请检查离线缓存或数据源");
+        }
         tracing::warn!("有效样本不足（需要≥2）；请检查离线缓存或数据源");
         return Ok(());
     }
 
+    if !gathered.errors.is_empty() {
+        ctx.warn(format!(
+            "{} 只标的分析失败或数据不足",
+            gathered.errors.len()
+        ));
+    }
+
+    let mut analyses = gathered.items;
     sort_compare_analyses(&mut analyses, req.sort.as_deref())?;
+
+    if ctx.structured() {
+        let meta = AnalysisMeta {
+            base: base_meta(ctx),
+            days,
+            period: req.period.clone(),
+            rolling_window: None,
+            requested,
+            succeeded: analyses.len(),
+        };
+        emit(
+            ctx,
+            "compare",
+            &BatchPayload {
+                items: analyses,
+                errors: gathered.errors,
+            },
+            Some(&meta),
+            req.output.as_deref().filter(|_| req.format == "json"),
+        )?;
+        return Ok(());
+    }
 
     render_comparison(&analyses, req.output.as_deref(), &req.format)
 }

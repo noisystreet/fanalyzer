@@ -1,4 +1,5 @@
 use assert_cmd::Command;
+use predicates::prelude::*;
 
 #[test]
 fn test_cli_help() {
@@ -6,7 +7,41 @@ fn test_cli_help() {
         .unwrap()
         .arg("--help")
         .assert()
-        .success();
+        .success()
+        .stdout(predicate::str::contains("--json"));
+}
+
+#[test]
+fn test_cli_json_alias_in_help() {
+    Command::cargo_bin("fanalyzer")
+        .unwrap()
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("structured"));
+}
+
+#[test]
+fn test_cli_json_compact_in_help() {
+    Command::cargo_bin("fanalyzer")
+        .unwrap()
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("json-compact"))
+        .stdout(predicate::str::contains("compact-series"));
+}
+
+#[test]
+fn test_cli_json_failure_envelope() {
+    Command::cargo_bin("fanalyzer")
+        .unwrap()
+        .args(["--json", "compare", "--codes", "110011"])
+        .assert()
+        .failure()
+        .stdout(predicate::str::contains("\"ok\": false"))
+        .stdout(predicate::str::contains("\"command\": \"compare\""))
+        .stdout(predicate::str::contains("INSUFFICIENT_SAMPLES"));
 }
 
 #[test]

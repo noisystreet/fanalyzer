@@ -2,7 +2,7 @@
 
 use super::Commands;
 use crate::api::eastmoney::EastMoneyClient;
-use crate::application::CommandContext;
+use crate::application::{CommandContext, StructuredOutput};
 use crate::cache::FundCache;
 use crate::nav_cache::NavCache;
 use std::path::Path;
@@ -16,8 +16,16 @@ pub async fn dispatch_with_command(
     nav_store: &NavCache,
     offline: bool,
     watchlist_path: &Path,
+    structured_output: StructuredOutput,
 ) -> anyhow::Result<()> {
-    let ctx = CommandContext::new(client, name_cache, nav_store, offline, watchlist_path);
+    let ctx = CommandContext::new(
+        client,
+        name_cache,
+        nav_store,
+        offline,
+        watchlist_path,
+        structured_output,
+    );
 
     match cmd {
         Commands::Brief { .. } | Commands::Screen { .. } => {

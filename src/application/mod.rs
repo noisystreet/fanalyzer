@@ -14,7 +14,7 @@ mod screen;
 pub use analyze::{run_analyze, AnalyzeRequest};
 pub use brief::{gather_brief, run_brief, BriefRequest};
 pub use compare::{gather_compare_analyses, run_compare, sort_compare_analyses, CompareRequest};
-pub use context::{require_online, CommandContext, FundRepository, Session};
+pub use context::{require_online, CommandContext, FundRepository, Session, StructuredOutput};
 pub use export::{run_export, ExportRequest};
 pub use portfolio::{gather_portfolio_report, run_portfolio, PortfolioRequest};
 pub use queries::{

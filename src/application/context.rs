@@ -3,6 +3,7 @@
 use crate::api::eastmoney::EastMoneyClient;
 use crate::cache::FundCache;
 use crate::nav_cache::NavCache;
+use std::cell::RefCell;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -14,11 +15,37 @@ pub struct Session<'a> {
     pub nav_store: &'a NavCache,
 }
 
-/// 命令级上下文：会话 + 离线/自选路径。
+/// `--json` 及相关输出选项。
+#[derive(Debug, Clone, Copy)]
+pub struct StructuredOutput {
+    pub enabled: bool,
+    pub json_compact: bool,
+    pub compact_series: bool,
+}
+
+impl StructuredOutput {
+    pub const OFF: Self = Self {
+        enabled: false,
+        json_compact: false,
+        compact_series: false,
+    };
+
+    pub fn new(enabled: bool, json_compact: bool, compact_series: bool) -> Self {
+        Self {
+            enabled,
+            json_compact,
+            compact_series,
+        }
+    }
+}
+
+/// 命令级上下文：会话 + 离线/自选路径 + 结构化输出模式。
 pub struct CommandContext<'a> {
     pub session: Session<'a>,
     pub offline: bool,
     pub watchlist_path: &'a Path,
+    pub structured_output: StructuredOutput,
+    warnings: RefCell<Vec<String>>,
 }
 
 impl<'a> CommandContext<'a> {
@@ -28,6 +55,7 @@ impl<'a> CommandContext<'a> {
         nav_store: &'a NavCache,
         offline: bool,
         watchlist_path: &'a Path,
+        structured_output: StructuredOutput,
     ) -> Self {
         Self {
             session: Session {
@@ -37,7 +65,35 @@ impl<'a> CommandContext<'a> {
             },
             offline,
             watchlist_path,
+            structured_output,
+            warnings: RefCell::new(Vec::new()),
         }
+    }
+
+    pub fn structured(&self) -> bool {
+        self.structured_output.enabled
+    }
+
+    pub fn json_compact(&self) -> bool {
+        self.structured_output.json_compact
+    }
+
+    pub fn compact_series(&self) -> bool {
+        self.structured_output.compact_series
+    }
+
+    /// 记录结构化输出警告（同时写 stderr 日志）。
+    pub fn warn(&self, message: impl Into<String>) {
+        let message = message.into();
+        if self.structured() {
+            self.warnings.borrow_mut().push(message.clone());
+        }
+        tracing::warn!(message = %message, "Structured warning");
+    }
+
+    /// 取出并清空已收集的 warnings（emit 时调用）。
+    pub fn take_warnings(&self) -> Vec<String> {
+        self.warnings.borrow_mut().drain(..).collect()
     }
 }
 

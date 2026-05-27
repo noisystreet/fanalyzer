@@ -1,7 +1,7 @@
 //! Web 服务共享状态。
 
 use crate::api::eastmoney::EastMoneyClient;
-use crate::application::CommandContext;
+use crate::application::{CommandContext, StructuredOutput};
 use crate::cache::FundCache;
 use crate::nav_cache::NavCache;
 use std::path::PathBuf;
@@ -48,6 +48,7 @@ impl AppState {
             &self.inner.nav_store,
             false,
             &self.inner.watchlist_path,
+            StructuredOutput::OFF,
         )
     }
 }

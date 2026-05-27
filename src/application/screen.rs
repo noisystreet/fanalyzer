@@ -9,8 +9,9 @@ use crate::domain::{
 };
 use crate::models::FundAnalysis;
 use crate::presentation::{
-    print_deep_limit_hint, print_filter_hint, print_insufficient_candidates, print_rank_prefilter,
-    print_screen_header, print_screen_passed, render_comparison, ScreenHeaderContext,
+    emit, print_deep_limit_hint, print_filter_hint, print_insufficient_candidates,
+    print_rank_prefilter, print_screen_header, print_screen_passed, render_comparison,
+    ScreenHeaderContext, ScreenPayload,
 };
 use chrono::Local;
 use std::path::PathBuf;
@@ -123,18 +124,22 @@ pub async fn run_screen(ctx: &CommandContext<'_>, req: ScreenRequest) -> anyhow:
         .client
         .fetch_fund_ranking_top(ft, sc, pool)
         .await?;
-    print_screen_header(&ScreenHeaderContext {
-        kind: &req.kind,
-        sort: sc,
-        pool_len: page.rows.len(),
-        days,
-        period_user_specified: req.period.is_some() || req.days.is_some(),
-    });
-    print_filter_hint(&req.filters, sc);
+    if !ctx.structured() {
+        print_screen_header(&ScreenHeaderContext {
+            kind: &req.kind,
+            sort: sc,
+            pool_len: page.rows.len(),
+            days,
+            period_user_specified: req.period.is_some() || req.days.is_some(),
+        });
+        print_filter_hint(&req.filters, sc);
+    }
 
     let candidates = filter_rank_pool(&page.rows, sc, req.filters.min_rank_return_pct);
-    if let Some(min_rr) = req.filters.min_rank_return_pct {
-        print_rank_prefilter(sc, min_rr, candidates.len());
+    if !ctx.structured() {
+        if let Some(min_rr) = req.filters.min_rank_return_pct {
+            print_rank_prefilter(sc, min_rr, candidates.len());
+        }
     }
 
     let to_analyze = if req.full_scan {
@@ -142,7 +147,7 @@ pub async fn run_screen(ctx: &CommandContext<'_>, req: ScreenRequest) -> anyhow:
     } else {
         candidates.len().min(deep_cap as usize)
     };
-    if to_analyze < candidates.len() {
+    if !ctx.structured() && to_analyze < candidates.len() {
         print_deep_limit_hint(to_analyze, candidates.len());
     }
 
@@ -151,6 +156,38 @@ pub async fn run_screen(ctx: &CommandContext<'_>, req: ScreenRequest) -> anyhow:
 
     sort_passed(&mut passed, req.sort_by.as_deref())?;
     passed.truncate(show as usize);
+
+    if ctx.structured() {
+        let payload = ScreenPayload {
+            kind: req.kind.clone(),
+            sort: sc.to_string(),
+            days,
+            pool_size: page.rows.len(),
+            analyzed: to_analyze,
+            passed,
+        };
+        let meta = crate::presentation::ScreenMeta {
+            base: crate::presentation::base_meta(ctx),
+            kind: req.kind.clone(),
+            sort: sc.to_string(),
+            days,
+            pool_size: payload.pool_size,
+            analyzed: payload.analyzed,
+        };
+        if to_analyze < candidates.len() {
+            ctx.warn(format!(
+                "深度分析上限 {to_analyze}，候选池共 {} 只",
+                candidates.len()
+            ));
+        }
+        return emit(
+            ctx,
+            "screen",
+            &payload,
+            Some(&meta),
+            req.output.as_deref().filter(|_| req.format == "json"),
+        );
+    }
 
     if passed.len() < 2 {
         let samples: Vec<_> = passed

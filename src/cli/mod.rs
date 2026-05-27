@@ -7,6 +7,7 @@ mod dispatch_query_info;
 mod dispatch_workflow;
 
 use crate::api::eastmoney::{into_anyhow, EastMoneyClient, EastMoneyClientOptions};
+use crate::application::{CommandContext, StructuredOutput};
 use crate::cache::FundCache;
 use crate::config::AppConfig;
 use crate::nav_cache::NavCache;
@@ -25,6 +26,15 @@ pub struct Cli {
     /// 仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）
     #[arg(long, global = true)]
     pub offline: bool,
+    /// 结构化 JSON 输出到 stdout（供 Agent/自动化调用；日志仍在 stderr）
+    #[arg(long, global = true, visible_alias = "structured")]
+    pub json: bool,
+    /// 与 --json 联用：紧凑单行 JSON（无 pretty-print）
+    #[arg(long = "json-compact", global = true, requires = "json")]
+    pub json_compact: bool,
+    /// 与 --json 联用：省略时间序列曲线以节省 token
+    #[arg(long = "compact-series", global = true, requires = "json")]
+    pub compact_series: bool,
     #[arg(
         long,
         global = true,
@@ -291,6 +301,26 @@ pub enum Commands {
     },
 }
 
+impl Commands {
+    /// 子命令名（结构化 JSON 信封 `command` 字段）。
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Fetch { .. } => "fetch",
+            Self::Analyze { .. } => "analyze",
+            Self::Compare { .. } => "compare",
+            Self::Portfolio { .. } => "portfolio",
+            Self::Export { .. } => "export",
+            Self::Info { .. } => "info",
+            Self::Sectors { .. } => "sectors",
+            Self::Holdings { .. } => "holdings",
+            Self::Rank { .. } => "rank",
+            Self::Brief { .. } => "brief",
+            Self::Screen { .. } => "screen",
+            Self::Serve { .. } => "serve",
+        }
+    }
+}
+
 pub async fn run(mut cli: Cli, config: AppConfig) -> anyhow::Result<()> {
     let opts = EastMoneyClientOptions {
         timeout_secs: config.api.timeout_secs.max(1),
@@ -321,15 +351,36 @@ pub async fn run(mut cli: Cli, config: AppConfig) -> anyhow::Result<()> {
             anyhow::bail!("Web 界面未编译进当前二进制；请使用: cargo run --features web -- serve");
         }
         cmd => {
-            dispatch::dispatch_with_command(
+            let structured_output =
+                StructuredOutput::new(cli.json, cli.json_compact, cli.compact_series);
+            let cmd_name = cmd.name();
+            let result = dispatch::dispatch_with_command(
                 cmd,
                 &client,
                 &name_cache,
                 &nav_store,
                 cli.offline,
                 &cli.watchlist_file,
+                structured_output,
             )
-            .await
+            .await;
+            if structured_output.enabled {
+                if let Err(e) = result {
+                    let err_ctx = CommandContext::new(
+                        &client,
+                        &name_cache,
+                        &nav_store,
+                        cli.offline,
+                        &cli.watchlist_file,
+                        structured_output,
+                    );
+                    crate::presentation::print_failure_from_anyhow(&err_ctx, cmd_name, &e)?;
+                    std::process::exit(1);
+                }
+                Ok(())
+            } else {
+                result
+            }
         }
     }
 }
