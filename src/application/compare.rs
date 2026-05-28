@@ -1,5 +1,6 @@
 //! 多基金对比用例。
 
+use super::concurrency::{map_concurrent, FUND_CONCURRENCY};
 use super::context::{resolve_many_fund_ids, CommandContext, Session};
 use super::fund_service;
 use crate::domain::{parse_sort_key, resolve_analysis_days, sort_analyses, AnalysisSortKey};
@@ -26,33 +27,34 @@ pub struct CompareGather {
     pub errors: Vec<ItemError>,
 }
 
-async fn try_push_analysis(
+enum AnalyzeOutcome {
+    Ok(FundAnalysis),
+    Err(ItemError),
+}
+
+async fn analyze_one(
     session: &Session<'_>,
-    identifier: &str,
+    identifier: String,
     days: u32,
     offline: bool,
-    out: &mut Vec<FundAnalysis>,
-) -> Option<ItemError> {
+) -> AnalyzeOutcome {
     match fund_service::analyze_fund(
         session,
-        identifier,
+        &identifier,
         days,
         offline,
         crate::domain::DEFAULT_ROLLING_WINDOW,
     )
     .await
     {
-        Ok(Some(r)) => {
-            out.push(r.snapshot);
-            None
-        }
+        Ok(Some(r)) => AnalyzeOutcome::Ok(r.snapshot),
         Ok(None) => {
             tracing::warn!(identifier = %identifier, "分析数据不足，跳过");
-            Some(item_error_insufficient(identifier))
+            AnalyzeOutcome::Err(item_error_insufficient(&identifier))
         }
         Err(e) => {
             tracing::warn!(identifier = %identifier, error = %e, "跳过该标的");
-            Some(item_error_failed(identifier, e))
+            AnalyzeOutcome::Err(item_error_failed(&identifier, e))
         }
     }
 }
@@ -64,11 +66,17 @@ pub async fn gather_compare_analyses(
     days: u32,
     offline: bool,
 ) -> CompareGather {
+    let outcomes = map_concurrent(identifiers, FUND_CONCURRENCY, |identifier| {
+        analyze_one(session, identifier, days, offline)
+    })
+    .await;
+
     let mut items = Vec::new();
     let mut errors = Vec::new();
-    for identifier in identifiers {
-        if let Some(err) = try_push_analysis(session, identifier, days, offline, &mut items).await {
-            errors.push(err);
+    for outcome in outcomes {
+        match outcome {
+            AnalyzeOutcome::Ok(item) => items.push(item),
+            AnalyzeOutcome::Err(err) => errors.push(err),
         }
     }
     CompareGather { items, errors }

@@ -345,6 +345,25 @@ fn serialize_success<T: Serialize, M: Serialize>(
     }
 }
 
+/// 构建成功响应 JSON 字符串（供复合编排复用）。
+pub fn success_envelope_json<T: Serialize, M: Serialize>(
+    command: &'static str,
+    data: &T,
+    meta: Option<&M>,
+    warnings: &[String],
+) -> anyhow::Result<String> {
+    serialize_success(command, data, meta, warnings, false)
+}
+
+/// 构建失败响应 JSON 字符串（供复合编排复用）。
+pub fn failure_envelope_json(
+    command: &str,
+    error: &StructuredError,
+    warnings: &[String],
+) -> anyhow::Result<String> {
+    serialize_failure(command, error, None::<&BaseMeta>, warnings, false)
+}
+
 fn serialize_failure<M: Serialize>(
     command: &str,
     error: &StructuredError,

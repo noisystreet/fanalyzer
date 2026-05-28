@@ -1,11 +1,12 @@
 //! MCP 工具执行：映射 tool name → CLI 命令 / 复合流程。
 
 use crate::api::eastmoney::EastMoneyClient;
-use crate::application::OutputProfile;
+use crate::application::{gather_research_fund, FundDataSource, OutputProfile, Session};
 use crate::cache::FundCache;
 use crate::cli::fund_code_arg::FundCodeArg;
 use crate::cli::structured_runner::run_structured_command;
 use crate::cli::Commands;
+use crate::domain::DEFAULT_ROLLING_WINDOW;
 use crate::nav_cache::NavCache;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
@@ -84,82 +85,33 @@ async fn research_fund(env: &McpEnv<'_>, args: Value) -> (String, bool) {
         None => return (error_envelope("research_fund", "缺少 code"), true),
     };
     let days = arg_u32(&args, "days", 90);
-    let started = std::time::Instant::now();
-    let mut steps = serde_json::Map::new();
-    let mut any_error = false;
-
-    for (step, cmd) in [
-        (
-            "info",
-            build_command(
-                "info",
-                json!({"code": code.clone(), "watchlist": false, "offline": env.offline}),
-            ),
-        ),
-        (
-            "analyze",
-            build_command(
-                "analyze",
-                json!({"code": code.clone(), "days": days, "offline": env.offline}),
-            ),
-        ),
-        (
-            "sectors",
-            build_command(
-                "sectors",
-                json!({"code": code.clone(), "offline": env.offline}),
-            ),
-        ),
-        (
-            "holdings",
-            build_command(
-                "holdings",
-                json!({"code": code.clone(), "offline": env.offline}),
-            ),
-        ),
-    ] {
-        match cmd {
-            Ok(c) => {
-                let (json, err) = run_and_classify(env, c).await;
-                if err {
-                    any_error = true;
-                }
-                if let Ok(v) = serde_json::from_str::<Value>(&json) {
-                    steps.insert(step.into(), v);
-                }
-            }
-            Err(e) => {
-                any_error = true;
-                steps.insert(
-                    step.into(),
-                    json!({
-                        "v": 1,
-                        "command": step,
-                        "ok": false,
-                        "warnings": [],
-                        "error": {"code": "MCP_TOOL_ERROR", "message": e.to_string()}
-                    }),
-                );
-            }
-        }
-    }
-
-    let envelope = json!({
-        "v": 1,
-        "command": "research_fund",
-        "ok": !any_error,
-        "warnings": [],
-        "meta": {
-            "offline": env.offline,
-            "steps_completed": steps.len() as u32,
-            "duration_ms": started.elapsed().as_millis() as u64,
-        },
-        "data": steps,
-    });
-    (
-        serde_json::to_string(&envelope).unwrap_or_default(),
-        any_error,
+    let holdings_top = arg_u32(&args, "top", 10);
+    let session = mcp_session(env);
+    match gather_research_fund(
+        &session,
+        &code,
+        days,
+        env.offline,
+        DEFAULT_ROLLING_WINDOW,
+        holdings_top,
     )
+    .await
+    {
+        Ok(result) => {
+            let is_error = !result.ok;
+            let text = result.to_envelope_json().unwrap_or_default();
+            (text, is_error)
+        }
+        Err(e) => (error_envelope("research_fund", &e.to_string()), true),
+    }
+}
+
+fn mcp_session<'a>(env: &'a McpEnv<'_>) -> Session<'a> {
+    Session {
+        source: env.client as &dyn FundDataSource,
+        name_cache: env.name_cache,
+        nav_store: env.nav_store,
+    }
 }
 
 fn build_command(sub: &str, args: Value) -> anyhow::Result<Commands> {

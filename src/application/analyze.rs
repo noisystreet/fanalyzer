@@ -1,11 +1,13 @@
 //! 单基金分析用例。
 
+use super::concurrency::{map_concurrent, FUND_CONCURRENCY};
 use super::context::{resolve_fund_ids, CommandContext};
 use super::fund_service;
 use crate::domain::resolve_analysis_days;
+use crate::models::FundAnalysisReport;
 use crate::presentation::{
     base_meta, compact_analysis_reports, emit, item_error_failed, item_error_insufficient,
-    print_analysis, render_analysis, AnalysisMeta, BatchPayload,
+    print_analysis, render_analysis, AnalysisMeta, BatchPayload, ItemError,
 };
 use chrono::Local;
 use std::path::PathBuf;
@@ -20,6 +22,30 @@ pub struct AnalyzeRequest {
     pub format: String,
 }
 
+enum AnalyzeBatchOutcome {
+    Ok(Box<FundAnalysisReport>),
+    Err(ItemError),
+}
+
+async fn analyze_one_for_batch(
+    ctx: &CommandContext<'_>,
+    id: String,
+    days: u32,
+    rolling_window: u32,
+) -> AnalyzeBatchOutcome {
+    match fund_service::analyze_fund(&ctx.session, &id, days, ctx.offline, rolling_window).await {
+        Ok(Some(report)) => AnalyzeBatchOutcome::Ok(Box::new(report)),
+        Ok(None) => {
+            tracing::warn!(code = %id, "Insufficient data for analysis");
+            AnalyzeBatchOutcome::Err(item_error_insufficient(&id))
+        }
+        Err(e) => {
+            tracing::warn!(code = %id, error = %e, "Failed to analyze, skipping");
+            AnalyzeBatchOutcome::Err(item_error_failed(&id, e))
+        }
+    }
+}
+
 pub async fn run_analyze(ctx: &CommandContext<'_>, req: AnalyzeRequest) -> anyhow::Result<()> {
     let today = Local::now().date_naive();
     let days = resolve_analysis_days(req.period.as_deref(), req.days, today)?;
@@ -30,38 +56,23 @@ pub async fn run_analyze(ctx: &CommandContext<'_>, req: AnalyzeRequest) -> anyho
         "--code/--watchlist",
     )?;
     let requested = ids.len();
-    let mut items = Vec::with_capacity(requested);
-    let mut errors = Vec::new();
-    for id in ids {
-        tracing::info!(code = %id, days = days, "Analyzing fund");
-        match fund_service::analyze_fund(&ctx.session, &id, days, ctx.offline, req.rolling_window)
-            .await
-        {
-            Ok(Some(report)) => {
-                if !ctx.structured() {
-                    print_analysis(&report.snapshot);
-                    render_analysis(&report, req.output.as_deref(), &req.format)?;
-                }
-                items.push(report);
-            }
-            Ok(None) => {
-                tracing::warn!(code = %id, "Insufficient data for analysis");
-                if ctx.structured() {
-                    errors.push(item_error_insufficient(&id));
-                }
-            }
-            Err(e) => {
-                if ctx.structured() {
-                    tracing::warn!(code = %id, error = %e, "Failed to analyze, skipping");
-                    errors.push(item_error_failed(&id, e));
-                } else {
-                    tracing::error!(error = %e, "Failed to analyze");
-                    return Err(e);
-                }
-            }
-        }
-    }
+
     if ctx.structured() {
+        let outcomes = map_concurrent(&ids, FUND_CONCURRENCY, |id| {
+            analyze_one_for_batch(ctx, id, days, req.rolling_window)
+        })
+        .await;
+        let mut errors = Vec::new();
+        let mut items: Vec<FundAnalysisReport> = outcomes
+            .into_iter()
+            .filter_map(|outcome| match outcome {
+                AnalyzeBatchOutcome::Ok(report) => Some(*report),
+                AnalyzeBatchOutcome::Err(err) => {
+                    errors.push(err);
+                    None
+                }
+            })
+            .collect();
         if items.is_empty() {
             anyhow::bail!("无有效分析结果（数据不足或全部失败）");
         }
@@ -86,6 +97,26 @@ pub async fn run_analyze(ctx: &CommandContext<'_>, req: AnalyzeRequest) -> anyho
             Some(&meta),
             req.output.as_deref().filter(|_| req.format == "json"),
         )?;
+        return Ok(());
+    }
+
+    for id in ids {
+        tracing::info!(code = %id, days = days, "Analyzing fund");
+        match fund_service::analyze_fund(&ctx.session, &id, days, ctx.offline, req.rolling_window)
+            .await
+        {
+            Ok(Some(report)) => {
+                print_analysis(&report.snapshot);
+                render_analysis(&report, req.output.as_deref(), &req.format)?;
+            }
+            Ok(None) => {
+                tracing::warn!(code = %id, "Insufficient data for analysis");
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to analyze");
+                return Err(e);
+            }
+        }
     }
     Ok(())
 }

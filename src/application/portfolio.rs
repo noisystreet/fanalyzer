@@ -1,7 +1,7 @@
 //! 组合分析用例：加权收益、相关矩阵、重仓重叠。
 
 use super::context::CommandContext;
-use super::fund_service::{analyze_fund, fetch_nav_series, resolve_fund_identifier};
+use super::fund_service::{analyze_fund_with_navs, fetch_nav_series, resolve_fund_identifier};
 use super::queries::load_fund_holdings;
 use crate::domain::{
     align_daily_returns, build_portfolio_series, correlation_matrix, daily_returns,
@@ -149,9 +149,17 @@ async fn fetch_return_series(
             anyhow::bail!("`{}` 净值数据为空，无法完成组合分析", m.code);
         }
         let returns = daily_returns(&navs);
-        let analysis = analyze_fund(session, &m.code, days, offline, rolling_window)
-            .await?
-            .map(|r| r.snapshot);
+        let analysis = analyze_fund_with_navs(
+            session,
+            &m.code,
+            &m.name,
+            &navs,
+            days,
+            offline,
+            rolling_window,
+        )
+        .await?
+        .map(|r| r.snapshot);
         let label = format!("{} {}", m.code, m.name);
         out.push(MemberReturns {
             label,

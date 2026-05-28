@@ -141,10 +141,17 @@ pub async fn load_fund_overview(
     code: &str,
 ) -> anyhow::Result<crate::models::FundOverview> {
     let (resolved_code, _name) = resolve_fund_identifier(session, code, false).await?;
+    load_fund_overview_resolved(session, &resolved_code).await
+}
+
+pub async fn load_fund_overview_resolved(
+    session: &super::context::Session<'_>,
+    resolved_code: &str,
+) -> anyhow::Result<crate::models::FundOverview> {
     tracing::info!(code = %resolved_code, "Fetching fund info");
     let profile = session
         .source
-        .fetch_fund_profile(&resolved_code)
+        .fetch_fund_profile(resolved_code)
         .await
         .map_err(|e| anyhow::anyhow!("获取基金概况失败：{e}"))?;
     Ok(map_profile(&profile))
@@ -155,15 +162,47 @@ pub async fn load_fund_holdings(
     code: &str,
     top: u32,
 ) -> anyhow::Result<crate::models::StockHoldings> {
-    let (resolved_code, _name) = resolve_fund_identifier(session, code, false).await?;
+    let (resolved_code, name) = resolve_fund_identifier(session, code, false).await?;
+    let item = load_fund_holdings_resolved(session, &resolved_code, &name, top).await?;
+    Ok(item.holdings)
+}
+
+pub async fn load_fund_holdings_resolved(
+    session: &super::context::Session<'_>,
+    resolved_code: &str,
+    name: &str,
+    top: u32,
+) -> anyhow::Result<HoldingsItem> {
     let top = top.clamp(1, 50);
     tracing::info!(code = %resolved_code, top = top, "Fetching stock holdings");
     let report = session
         .source
-        .fetch_fund_stock_holdings(&resolved_code, top)
+        .fetch_fund_stock_holdings(resolved_code, top)
         .await
         .map_err(|e| anyhow::anyhow!("重仓股接口失败：{e}"))?;
-    Ok(map_holdings(&report))
+    Ok(HoldingsItem {
+        code: resolved_code.to_string(),
+        name: name.to_string(),
+        holdings: map_holdings(&report),
+    })
+}
+
+pub async fn load_sectors_resolved(
+    session: &super::context::Session<'_>,
+    resolved_code: &str,
+    name: &str,
+) -> anyhow::Result<SectorItem> {
+    tracing::info!(code = %resolved_code, "Fetching industry allocation");
+    let report = session
+        .source
+        .fetch_fund_industry_allocation(resolved_code)
+        .await
+        .map_err(|e| anyhow::anyhow!("行业配置获取失败：{e}"))?;
+    Ok(SectorItem {
+        code: resolved_code.to_string(),
+        name: name.to_string(),
+        industry: map_industry(&report),
+    })
 }
 
 pub async fn run_info(ctx: &CommandContext<'_>, req: InfoRequest) -> anyhow::Result<()> {
@@ -276,21 +315,11 @@ async fn sectors_one(
     structured: bool,
 ) -> anyhow::Result<SectorItem> {
     let (resolved_code, name) = resolve_fund_identifier(session, &code, false).await?;
-    tracing::info!(code = %resolved_code, "Fetching industry allocation");
-    let report = session
-        .source
-        .fetch_fund_industry_allocation(&resolved_code)
-        .await
-        .map_err(|e| anyhow::anyhow!("行业配置获取失败：{e}"))?;
-    let industry = map_industry(&report);
+    let item = load_sectors_resolved(session, &resolved_code, &name).await?;
     if !structured {
-        print_industry(&resolved_code, &name, &industry);
+        print_industry(&resolved_code, &name, &item.industry);
     }
-    Ok(SectorItem {
-        code: resolved_code,
-        name,
-        industry,
-    })
+    Ok(item)
 }
 
 pub async fn run_holdings(ctx: &CommandContext<'_>, req: HoldingsRequest) -> anyhow::Result<()> {
@@ -328,13 +357,9 @@ async fn holdings_one(
     structured: bool,
 ) -> anyhow::Result<HoldingsItem> {
     let (resolved_code, name) = resolve_fund_identifier(session, &code, false).await?;
-    let holdings = load_fund_holdings(session, &code, top).await?;
+    let item = load_fund_holdings_resolved(session, &resolved_code, &name, top).await?;
     if !structured {
-        print_holdings(&resolved_code, &name, &holdings);
+        print_holdings(&resolved_code, &name, &item.holdings);
     }
-    Ok(HoldingsItem {
-        code: resolved_code,
-        name,
-        holdings,
-    })
+    Ok(item)
 }

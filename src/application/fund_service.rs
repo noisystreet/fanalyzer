@@ -32,6 +32,10 @@ pub async fn fetch_nav_series(
         }
         Ok(trimmed)
     } else {
+        if let Some(cached) = session.nav_store.load_covering_days(resolved_code, days) {
+            tracing::debug!(code = %resolved_code, days = days, "Using cached nav series");
+            return Ok(cached);
+        }
         let navs = session
             .source
             .fetch_nav_history_by_days(resolved_code, days)
@@ -41,6 +45,44 @@ pub async fn fetch_nav_series(
         }
         Ok(navs)
     }
+}
+
+/// 在已有净值序列上完成分析（跳过 resolve 与净值拉取）。
+pub async fn analyze_fund_with_navs(
+    session: &Session<'_>,
+    resolved_code: &str,
+    name: &str,
+    navs: &[crate::models::FundNav],
+    days: u32,
+    offline: bool,
+    rolling_window: u32,
+) -> anyhow::Result<Option<FundAnalysisReport>> {
+    if navs.is_empty() {
+        return Ok(None);
+    }
+    let benchmark = if offline {
+        None
+    } else {
+        benchmark_for_fund(session, resolved_code, days).await
+    };
+    let meta = if offline {
+        None
+    } else {
+        get_fund_meta(session, resolved_code).await
+    };
+    let snapshot = match FundAnalyzer::analyze(navs, days, name, benchmark.as_ref(), meta.as_ref())
+    {
+        Some(a) => a,
+        None => return Ok(None),
+    };
+    let rolling = normalize_rolling_window(rolling_window);
+    let series = build_fund_analysis_series(navs, benchmark.as_ref(), rolling);
+    let benchmark_label = benchmark.map(|b| b.label);
+    Ok(Some(FundAnalysisReport {
+        snapshot,
+        series,
+        benchmark_label,
+    }))
 }
 
 pub async fn resolve_fund_identifier(
@@ -198,31 +240,46 @@ pub async fn analyze_fund(
     rolling_window: u32,
 ) -> anyhow::Result<Option<FundAnalysisReport>> {
     let (resolved_code, name) = resolve_fund_identifier(session, identifier, offline).await?;
-    let benchmark = if offline {
-        None
-    } else {
-        benchmark_for_fund(session, &resolved_code, days).await
-    };
-    let meta = if offline {
-        None
-    } else {
-        get_fund_meta(session, &resolved_code).await
-    };
     let navs = fetch_nav_series(session, &resolved_code, days, offline).await?;
-    if navs.is_empty() {
-        return Ok(None);
-    }
-    let snapshot =
-        match FundAnalyzer::analyze(&navs, days, &name, benchmark.as_ref(), meta.as_ref()) {
-            Some(a) => a,
-            None => return Ok(None),
+    analyze_fund_with_navs(
+        session,
+        &resolved_code,
+        &name,
+        &navs,
+        days,
+        offline,
+        rolling_window,
+    )
+    .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::application::test_support::linear_nav_series;
+    use crate::cache::FundCache;
+    use crate::nav_cache::NavCache;
+    use std::sync::Arc;
+    use tempfile::tempdir;
+    use tokio::sync::Mutex;
+
+    #[tokio::test]
+    async fn fetch_nav_series_online_uses_cache_when_covering() {
+        let code = "000001";
+        let navs = linear_nav_series(code, 91);
+        let dir = tempdir().unwrap();
+        let cache_root = dir.path().join("cache");
+        let nav_store = NavCache::with_root(cache_root);
+        nav_store.save_merged(code, &navs).unwrap();
+        let name_cache = Arc::new(Mutex::new(FundCache::with_root(dir.path().to_path_buf())));
+        let client = crate::api::eastmoney::EastMoneyClient::default();
+        let session = Session {
+            source: &client as &dyn crate::application::FundDataSource,
+            name_cache: &name_cache,
+            nav_store: &nav_store,
         };
-    let rolling = normalize_rolling_window(rolling_window);
-    let series = build_fund_analysis_series(&navs, benchmark.as_ref(), rolling);
-    let benchmark_label = benchmark.map(|b| b.label);
-    Ok(Some(FundAnalysisReport {
-        snapshot,
-        series,
-        benchmark_label,
-    }))
+        let loaded = fetch_nav_series(&session, code, 90, false).await.unwrap();
+        assert!(!loaded.is_empty());
+        assert_eq!(loaded.first().unwrap().code, code);
+    }
 }

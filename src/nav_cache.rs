@@ -60,6 +60,20 @@ impl NavCache {
         Ok(nf.records)
     }
 
+    /// 若缓存覆盖 `days` 窗口则返回截断后的净值，否则 `None`。
+    pub fn load_covering_days(&self, fund_code: &str, days: u32) -> Option<Vec<FundNav>> {
+        if !self.exists(fund_code) {
+            return None;
+        }
+        let loaded = self.load(fund_code).ok()?;
+        let trimmed = filter_covering_calendar_days(loaded, days);
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    }
+
     /// 与已有缓存按日期去重合并后写回。
     pub fn save_merged(&self, fund_code: &str, incoming: &[FundNav]) -> anyhow::Result<()> {
         let merged = if self.exists(fund_code) {
@@ -162,5 +176,25 @@ mod tests {
         let f = filter_covering_calendar_days(navs, 30);
         assert_eq!(f.len(), 1);
         assert_eq!(f[0].date, d0);
+    }
+
+    #[test]
+    fn load_covering_days_returns_none_when_stale() {
+        let dir = tempfile::tempdir().unwrap();
+        let cache = NavCache::with_root(dir.path().to_path_buf());
+        let d_old = chrono::Local::now().date_naive() - chrono::Duration::days(400);
+        cache
+            .save_merged(
+                "000001",
+                &[FundNav {
+                    code: "000001".to_string(),
+                    date: d_old,
+                    nav: 1.0,
+                    acc_nav: 1.0,
+                    daily_return: None,
+                }],
+            )
+            .unwrap();
+        assert!(cache.load_covering_days("000001", 30).is_none());
     }
 }
