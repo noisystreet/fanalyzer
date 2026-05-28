@@ -515,7 +515,8 @@
         ],
         "type": "object"
       },
-      "name": "fanalyzer_research_fund"
+      "name": "fanalyzer_research_fund",
+      "outputSchema": "schemas/responses/research_fund.success.json"
     },
     {
       "description": "对比自选列表中全部基金",

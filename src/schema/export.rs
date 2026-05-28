@@ -6,7 +6,8 @@ use crate::schema::responses::{
     AnalyzeSuccessEnvelope, BriefSuccessEnvelope, CompareSuccessEnvelope, ExportSuccessEnvelope,
     FetchSuccessEnvelope, HoldingsSuccessEnvelope, InfoSuccessEnvelope,
     PortfolioConfigSuccessEnvelope, PortfolioSuccessEnvelope, RankSuccessEnvelope,
-    ScreenSuccessEnvelope, SectorsSuccessEnvelope, WatchlistSuccessEnvelope, SUCCESS_ENVELOPES,
+    ResearchFundSuccessEnvelope, ScreenSuccessEnvelope, SectorsSuccessEnvelope,
+    WatchlistSuccessEnvelope, SUCCESS_ENVELOPES,
 };
 use crate::schema::tools::write_tools;
 use schemars::{schema_for, JsonSchema};
@@ -39,6 +40,9 @@ pub fn export_all(output_dir: &Path) -> anyhow::Result<()> {
     write_schema::<WatchlistSuccessEnvelope>(&output_dir.join("responses/watchlist.success.json"))?;
     write_schema::<PortfolioConfigSuccessEnvelope>(
         &output_dir.join("responses/portfolio_config.success.json"),
+    )?;
+    write_schema::<ResearchFundSuccessEnvelope>(
+        &output_dir.join("responses/research_fund.success.json"),
     )?;
 
     let agent_tools = generate_agent_tools();

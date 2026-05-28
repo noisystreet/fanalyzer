@@ -2,6 +2,7 @@
 
 mod executor;
 mod protocol;
+mod resources;
 mod server;
 
 use crate::api::eastmoney::{into_anyhow, EastMoneyClient, EastMoneyClientOptions};
@@ -9,6 +10,7 @@ use crate::application::OutputProfile;
 use crate::cache::FundCache;
 use crate::config::AppConfig;
 use crate::nav_cache::NavCache;
+use crate::schema::ToolTier;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -23,11 +25,16 @@ pub enum McpCommands {
         /// 输出 profile：summary / standard / full
         #[arg(long, default_value = "standard")]
         profile: String,
+        /// 暴露工具集：minimal / standard / full
+        #[arg(long, default_value = "full", value_name = "TIER")]
+        tools: String,
         /// 仅从本地缓存读取
         #[arg(long)]
         offline: bool,
         #[arg(long, default_value = "config/watchlist.toml", value_name = "PATH")]
         watchlist_file: PathBuf,
+        #[arg(long, default_value = "config/portfolio.toml", value_name = "PATH")]
+        portfolio_file: PathBuf,
     },
 }
 
@@ -35,10 +42,13 @@ pub async fn run(cmd: McpCommands, config: AppConfig) -> anyhow::Result<()> {
     match cmd {
         McpCommands::Serve {
             profile,
+            tools,
             offline,
             watchlist_file,
+            portfolio_file,
         } => {
             let profile = OutputProfile::parse(&profile)?;
+            let tool_tier = ToolTier::parse(&tools)?;
             let opts = EastMoneyClientOptions {
                 timeout_secs: config.api.timeout_secs.max(1),
                 user_agent: config.api.user_agent.clone(),
@@ -51,12 +61,15 @@ pub async fn run(cmd: McpCommands, config: AppConfig) -> anyhow::Result<()> {
             let mut server = McpServer::new(
                 profile,
                 offline,
+                tool_tier,
                 &watchlist_file,
+                portfolio_file,
+                config,
                 &client,
                 &name_cache,
                 &nav_store,
             );
-            tracing::info!("MCP server listening on stdio");
+            tracing::info!(tools = ?tool_tier, "MCP server listening on stdio");
             server.run_stdio().await
         }
     }

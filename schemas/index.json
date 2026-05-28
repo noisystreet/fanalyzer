@@ -22,6 +22,7 @@
     "portfolio": "responses/portfolio.success.json",
     "portfolio_config": "responses/portfolio_config.success.json",
     "rank": "responses/rank.success.json",
+    "research_fund": "responses/research_fund.success.json",
     "screen": "responses/screen.success.json",
     "sectors": "responses/sectors.success.json",
     "watchlist": "responses/watchlist.success.json"

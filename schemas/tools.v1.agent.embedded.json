@@ -3469,7 +3469,176 @@
         ],
         "type": "object"
       },
-      "name": "fanalyzer_research_fund"
+      "name": "fanalyzer_research_fund",
+      "outputSchema": {
+        "$defs": {
+          "ResearchFundData": {
+            "description": "复合工具 `research_fund` 的 data 字段。",
+            "properties": {
+              "analyze": {
+                "$ref": "#/$defs/ResearchFundStepEnvelope"
+              },
+              "holdings": {
+                "$ref": "#/$defs/ResearchFundStepEnvelope"
+              },
+              "info": {
+                "$ref": "#/$defs/ResearchFundStepEnvelope"
+              },
+              "sectors": {
+                "$ref": "#/$defs/ResearchFundStepEnvelope"
+              }
+            },
+            "required": [
+              "info",
+              "analyze",
+              "sectors",
+              "holdings"
+            ],
+            "title": "ResearchFundData",
+            "type": "object"
+          },
+          "ResearchFundMeta": {
+            "description": "复合工具 `research_fund` meta。",
+            "properties": {
+              "duration_ms": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "offline": {
+                "type": "boolean"
+              },
+              "steps_completed": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "offline",
+              "steps_completed"
+            ],
+            "title": "ResearchFundMeta",
+            "type": "object"
+          },
+          "ResearchFundStepEnvelope": {
+            "description": "复合工具 `research_fund` 单步结果（成功或失败子信封）。",
+            "properties": {
+              "command": {
+                "type": "string"
+              },
+              "data": true,
+              "error": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/StructuredError"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "meta": true,
+              "ok": {
+                "type": "boolean"
+              },
+              "v": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "warnings": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "v",
+              "command",
+              "ok",
+              "warnings"
+            ],
+            "title": "ResearchFundStepEnvelope",
+            "type": "object"
+          },
+          "StructuredError": {
+            "description": "统一错误体。",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "hint": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "retryable": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "description": "MCP research_fund 复合工具成功响应",
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/$defs/ResearchFundData"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ResearchFundMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "v": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "v",
+          "command",
+          "ok",
+          "warnings",
+          "data"
+        ],
+        "title": "ResearchFundSuccessEnvelope",
+        "type": "object"
+      }
     },
     {
       "description": "对比自选列表中全部基金",

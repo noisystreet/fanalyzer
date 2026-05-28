@@ -149,8 +149,17 @@ fanalyzer json [--compact] [--compact-series] <子命令> [参数...]
 无需 Agent 拼 shell，直接通过 stdio MCP 调用：
 
 ```bash
-cargo run -- mcp serve --profile standard
+cargo run -- mcp serve --profile standard --tools minimal
 ```
+
+| 参数 | 说明 |
+|------|------|
+| `--profile` | 输出粒度：`summary` / `standard` / `full` |
+| `--tools` | 暴露工具集：`minimal`（6 个核心）/ `standard` / `full`（默认） |
+| `--offline` | 进程级离线模式 |
+| `--watchlist-file` / `--portfolio-file` | 自选与组合 TOML 路径 |
+
+**Resources**（`resources/list`、`resources/read`）：`fanalyzer://schemas/index`、`fanalyzer://watchlist`、`fanalyzer://portfolio`、`fanalyzer://config`（配置摘要，不含 proxy）。
 
 完整 MCP 配置（Cursor、Trae、Claude Code、Windsurf 等）见 [README.md](../README.md#mcp-与-agent-集成) 的 **「MCP 与 Agent 集成」** 章节。
 
@@ -161,7 +170,7 @@ cargo run -- mcp serve --profile standard
   "mcpServers": {
     "fanalyzer": {
       "command": "/path/to/fanalyzer/target/debug/fanalyzer",
-      "args": ["mcp", "serve", "--profile", "summary"],
+      "args": ["mcp", "serve", "--profile", "summary", "--tools", "minimal"],
       "cwd": "/path/to/fanalyzer",
       "env": { "RUST_LOG": "warn" }
     }

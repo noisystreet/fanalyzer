@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ResearchFundSuccessEnvelope",
+  "description": "MCP research_fund 复合工具成功响应",
+  "type": "object",
+  "properties": {
+    "command": {
+      "type": "string"
+    },
+    "data": {
+      "$ref": "#/$defs/ResearchFundData"
+    },
+    "meta": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ResearchFundMeta"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "v": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "v",
+    "command",
+    "ok",
+    "warnings",
+    "data"
+  ],
+  "$defs": {
+    "ResearchFundData": {
+      "title": "ResearchFundData",
+      "description": "复合工具 `research_fund` 的 data 字段。",
+      "type": "object",
+      "properties": {
+        "analyze": {
+          "$ref": "#/$defs/ResearchFundStepEnvelope"
+        },
+        "holdings": {
+          "$ref": "#/$defs/ResearchFundStepEnvelope"
+        },
+        "info": {
+          "$ref": "#/$defs/ResearchFundStepEnvelope"
+        },
+        "sectors": {
+          "$ref": "#/$defs/ResearchFundStepEnvelope"
+        }
+      },
+      "required": [
+        "info",
+        "analyze",
+        "sectors",
+        "holdings"
+      ]
+    },
+    "ResearchFundMeta": {
+      "title": "ResearchFundMeta",
+      "description": "复合工具 `research_fund` meta。",
+      "type": "object",
+      "properties": {
+        "duration_ms": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "offline": {
+          "type": "boolean"
+        },
+        "steps_completed": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "offline",
+        "steps_completed"
+      ]
+    },
+    "ResearchFundStepEnvelope": {
+      "title": "ResearchFundStepEnvelope",
+      "description": "复合工具 `research_fund` 单步结果（成功或失败子信封）。",
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string"
+        },
+        "data": true,
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StructuredError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "meta": true,
+        "ok": {
+          "type": "boolean"
+        },
+        "v": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "v",
+        "command",
+        "ok",
+        "warnings"
+      ]
+    },
+    "StructuredError": {
+      "description": "统一错误体。",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "hint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message": {
+          "type": "string"
+        },
+        "retryable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ]
+    }
+  }
+}

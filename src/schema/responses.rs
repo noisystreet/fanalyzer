@@ -6,7 +6,7 @@ use crate::application::{PortfolioConfigPayload, WatchlistItem};
 use crate::models::{FundAnalysis, FundAnalysisReport, FundBrief, FundOverview, PortfolioReport};
 use crate::presentation::{
     AnalysisMeta, BatchMeta, BatchPayload, ExportMeta, ExportPayload, FetchPayload, HoldingsItem,
-    PortfolioMeta, RankMeta, RankPayload, ScreenMeta, ScreenPayload, SectorItem,
+    PortfolioMeta, RankMeta, RankPayload, ScreenMeta, ScreenPayload, SectorItem, StructuredError,
 };
 use schemars::JsonSchema;
 
@@ -156,6 +156,52 @@ pub struct PortfolioConfigSuccessEnvelope {
     pub data: PortfolioConfigPayload,
 }
 
+/// 复合工具 `research_fund` 单步结果（成功或失败子信封）。
+#[derive(JsonSchema)]
+#[schemars(title = "ResearchFundStepEnvelope")]
+pub struct ResearchFundStepEnvelope {
+    pub v: u32,
+    pub command: String,
+    pub ok: bool,
+    pub warnings: Vec<String>,
+    pub meta: Option<serde_json::Value>,
+    pub data: Option<serde_json::Value>,
+    pub error: Option<StructuredError>,
+}
+
+/// 复合工具 `research_fund` 的 data 字段。
+#[derive(JsonSchema)]
+#[schemars(title = "ResearchFundData")]
+pub struct ResearchFundData {
+    pub info: ResearchFundStepEnvelope,
+    pub analyze: ResearchFundStepEnvelope,
+    pub sectors: ResearchFundStepEnvelope,
+    pub holdings: ResearchFundStepEnvelope,
+}
+
+/// 复合工具 `research_fund` meta。
+#[derive(JsonSchema)]
+#[schemars(title = "ResearchFundMeta")]
+pub struct ResearchFundMeta {
+    pub offline: bool,
+    pub steps_completed: u32,
+    pub duration_ms: Option<u64>,
+}
+
+#[derive(JsonSchema)]
+#[schemars(
+    title = "ResearchFundSuccessEnvelope",
+    description = "MCP research_fund 复合工具成功响应"
+)]
+pub struct ResearchFundSuccessEnvelope {
+    pub v: u32,
+    pub command: String,
+    pub ok: bool,
+    pub meta: Option<ResearchFundMeta>,
+    pub warnings: Vec<String>,
+    pub data: ResearchFundData,
+}
+
 /// 供 index 注册的成功信封清单。
 pub const SUCCESS_ENVELOPES: &[(&str, &str)] = &[
     ("analyze", "responses/analyze.success.json"),
@@ -174,4 +220,5 @@ pub const SUCCESS_ENVELOPES: &[(&str, &str)] = &[
         "portfolio_config",
         "responses/portfolio_config.success.json",
     ),
+    ("research_fund", "responses/research_fund.success.json"),
 ];

@@ -58,6 +58,10 @@ pub fn validate_success_command(instance: &Value, command: &str) {
     validate_envelope(instance, &success_schema_rel(command));
 }
 
+pub fn validate_failure_envelope(instance: &Value) {
+    validate_envelope(instance, "schemas/envelope.failure.json");
+}
+
 pub fn parse_stdout_json(raw: &[u8]) -> Value {
     let text = String::from_utf8(raw.to_vec()).expect("utf8 stdout");
     serde_json::from_str(text.trim()).expect("stdout json envelope")
@@ -209,7 +213,14 @@ pub fn parse_mcp_tool_envelope(stdout: &[u8]) -> Value {
 }
 
 pub fn offline_mcp_serve_args(env: &OfflineContractEnv) -> Vec<String> {
-    vec![
+    offline_mcp_serve_args_with_tier(env, None)
+}
+
+pub fn offline_mcp_serve_args_with_tier(
+    env: &OfflineContractEnv,
+    tools_tier: Option<&str>,
+) -> Vec<String> {
+    let mut args = vec![
         "--config".into(),
         env.config_path.to_string_lossy().into_owned(),
         "mcp".into(),
@@ -219,7 +230,36 @@ pub fn offline_mcp_serve_args(env: &OfflineContractEnv) -> Vec<String> {
         "summary".into(),
         "--watchlist-file".into(),
         env.watchlist_path.to_string_lossy().into_owned(),
-    ]
+        "--portfolio-file".into(),
+        env.portfolio_path.to_string_lossy().into_owned(),
+    ];
+    if let Some(tier) = tools_tier {
+        args.push("--tools".into());
+        args.push(tier.into());
+    }
+    args
+}
+
+pub fn mcp_rpc_result(serve_args: Vec<String>, method: &str, params: Value) -> Value {
+    let request = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": method,
+        "params": params,
+    });
+    let output = Command::cargo_bin("fanalyzer")
+        .unwrap()
+        .current_dir(repo_root())
+        .args(&serve_args)
+        .write_stdin(format!("{request}\n"))
+        .timeout(std::time::Duration::from_secs(15))
+        .assert()
+        .success()
+        .get_output()
+        .clone();
+    let text = String::from_utf8(output.stdout).expect("utf8 mcp stdout");
+    let line = text.lines().next().expect("one json-rpc line");
+    serde_json::from_str(line).expect("json-rpc")
 }
 
 pub fn offline_json_prefix(env: &OfflineContractEnv) -> Vec<String> {

@@ -66,6 +66,8 @@ pub struct InitializeResult {
 #[derive(Debug, Serialize)]
 pub struct InitializeCapabilities {
     pub tools: Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resources: Option<Value>,
 }
 
 #[derive(Debug, Serialize)]
@@ -85,6 +87,8 @@ pub struct McpTool {
     pub description: String,
     #[serde(rename = "inputSchema")]
     pub input_schema: Value,
+    #[serde(rename = "outputSchema", skip_serializing_if = "Option::is_none")]
+    pub output_schema: Option<Value>,
 }
 
 #[derive(Debug, Serialize)]
@@ -99,4 +103,33 @@ pub struct ToolContent {
     #[serde(rename = "type")]
     pub content_type: &'static str,
     pub text: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ResourcesListResult {
+    pub resources: Vec<McpResource>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct McpResource {
+    pub uri: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(rename = "mimeType", skip_serializing_if = "Option::is_none")]
+    pub mime_type: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ResourceReadResult {
+    pub contents: Vec<ResourceContent>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ResourceContent {
+    pub uri: String,
+    #[serde(rename = "mimeType", skip_serializing_if = "Option::is_none")]
+    pub mime_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
 }

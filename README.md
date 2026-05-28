@@ -248,7 +248,7 @@ cargo build
   "mcpServers": {
     "fanalyzer": {
       "command": "/path/to/fanalyzer/target/debug/fanalyzer",
-      "args": ["mcp", "serve", "--profile", "summary"],
+      "args": ["mcp", "serve", "--profile", "summary", "--tools", "minimal"],
       "cwd": "/path/to/fanalyzer",
       "env": { "RUST_LOG": "warn" }
     }
@@ -259,7 +259,7 @@ cargo build
 | 字段 | 说明 |
 |------|------|
 | `command` | `cargo build` 产物的**绝对路径**（release 可改为 `target/release/fanalyzer`） |
-| `args` | 固定 `mcp serve`；`--profile` 见下表 |
+| `args` | 固定 `mcp serve`；`--profile`、`--tools` 见下表 |
 | `cwd` | 建议设为项目根；也可用 `--config` / `FANALYZER_CONFIG` 指定配置，减少对 `cwd` 的依赖 |
 | `env` | 可选；`RUST_LOG=warn` 减少 stderr 日志 |
 
@@ -276,6 +276,16 @@ fanalyzer --config /path/to/config/default.toml mcp serve --profile summary
 | `summary` | 最省 token（默认推荐 Agent 对话） |
 | `standard` | 省略时间序列，保留完整业务字段 |
 | `full` | 含 `series` 时间序列 |
+
+**`--tools` 选项**（控制 `tools/list` 暴露范围；Windsurf 等客户端有工具数量上限时推荐 `minimal`）：
+
+| 值 | 说明 |
+|----|------|
+| `minimal` | 6 个核心工具：analyze、compare、research_fund、compare_watchlist、watchlist_list、portfolio |
+| `standard` | minimal + export、brief、portfolio_config、自选增删 |
+| `full` | 全部 Agent 工具（默认） |
+
+**Resources**：MCP `resources/list` 提供 `fanalyzer://schemas/index`、`fanalyzer://watchlist`、`fanalyzer://portfolio`、`fanalyzer://config`（只读上下文，减少 Agent 猜路径）。
 
 ### Cursor
 
@@ -294,7 +304,7 @@ fanalyzer --config /path/to/config/default.toml mcp serve --profile summary
   "mcpServers": {
     "fanalyzer": {
       "command": "${workspaceFolder}/target/debug/fanalyzer",
-      "args": ["mcp", "serve", "--profile", "summary"],
+      "args": ["mcp", "serve", "--profile", "summary", "--tools", "minimal"],
       "env": { "RUST_LOG": "warn" }
     }
   }
@@ -330,7 +340,7 @@ claude mcp add fanalyzer \
 
 也可在 Cascade 面板 → **MCP** 图标 → 编辑配置。JSON 格式与通用配置相同。修改后 **重启 Windsurf**。
 
-> Windsurf 对所有 MCP 工具有数量上限（约 100 个）；fanalyzer 工具较多，若与其他 Server 同开导致工具被截断，可暂时禁用不用的 MCP。
+> Windsurf 对所有 MCP 工具有数量上限（约 100 个）；若与其他 Server 同开导致工具被截断，请为 fanalyzer 加上 `--tools minimal` 或 `--tools standard`。
 
 ### Continue（VS Code / JetBrains）
 

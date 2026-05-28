@@ -3,11 +3,12 @@
 use crate::api::eastmoney::EastMoneyClient;
 use crate::application::OutputProfile;
 use crate::cache::FundCache;
+use crate::config::AppConfig;
 use crate::nav_cache::NavCache;
-use crate::schema::generate_agent_tools;
+use crate::schema::{discover_schema_root, filter_agent_tools, resolve_output_schema, ToolTier};
 use serde_json::{json, Value};
 use std::io::{self, BufRead, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -16,21 +17,30 @@ use super::protocol::{
     InitializeCapabilities, InitializeResult, JsonRpcRequest, JsonRpcResponse, McpTool, ServerInfo,
     ToolCallResult, ToolContent, ToolsListResult,
 };
+use super::resources;
 
 pub struct McpServer<'a> {
     profile: OutputProfile,
     offline: bool,
+    tool_tier: ToolTier,
     watchlist_path: &'a Path,
+    portfolio_path: PathBuf,
+    schema_root: PathBuf,
+    config: AppConfig,
     client: &'a EastMoneyClient,
     name_cache: &'a Arc<Mutex<FundCache>>,
     nav_store: &'a NavCache,
 }
 
 impl<'a> McpServer<'a> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         profile: OutputProfile,
         offline: bool,
+        tool_tier: ToolTier,
         watchlist_path: &'a Path,
+        portfolio_path: PathBuf,
+        config: AppConfig,
         client: &'a EastMoneyClient,
         name_cache: &'a Arc<Mutex<FundCache>>,
         nav_store: &'a NavCache,
@@ -38,7 +48,11 @@ impl<'a> McpServer<'a> {
         Self {
             profile,
             offline,
+            tool_tier,
             watchlist_path,
+            portfolio_path,
+            schema_root: discover_schema_root(),
+            config,
             client,
             name_cache,
             nav_store,
@@ -84,6 +98,8 @@ impl<'a> McpServer<'a> {
             "initialize" => self.handle_initialize(),
             "tools/list" => self.handle_tools_list(),
             "tools/call" => self.handle_tools_call(&req.params).await,
+            "resources/list" => self.handle_resources_list(),
+            "resources/read" => self.handle_resources_read(&req.params),
             "ping" => json!({}),
             _ => {
                 return Some(JsonRpcResponse::err(
@@ -100,7 +116,10 @@ impl<'a> McpServer<'a> {
     fn handle_initialize(&mut self) -> Value {
         let result = InitializeResult {
             protocol_version: "2024-11-05",
-            capabilities: InitializeCapabilities { tools: json!({}) },
+            capabilities: InitializeCapabilities {
+                tools: json!({}),
+                resources: Some(json!({})),
+            },
             server_info: ServerInfo {
                 name: "fanalyzer",
                 version: env!("CARGO_PKG_VERSION"),
@@ -110,12 +129,13 @@ impl<'a> McpServer<'a> {
     }
 
     fn handle_tools_list(&self) -> Value {
-        let tools: Vec<McpTool> = generate_agent_tools()
+        let tools: Vec<McpTool> = filter_agent_tools(self.tool_tier)
             .into_iter()
-            .map(|t| McpTool {
-                name: t.name,
-                description: t.description,
-                input_schema: serde_json::to_value(t.input_schema).unwrap_or(json!({})),
+            .map(|tool| McpTool {
+                name: tool.name.clone(),
+                description: tool.description.clone(),
+                input_schema: serde_json::to_value(&tool.input_schema).unwrap_or(json!({})),
+                output_schema: resolve_output_schema(&tool, &self.schema_root),
             })
             .collect();
         serde_json::to_value(ToolsListResult { tools }).expect("tools list serializes")
@@ -144,5 +164,29 @@ impl<'a> McpServer<'a> {
             is_error: is_error.then_some(true),
         };
         serde_json::to_value(result).expect("tool call serializes")
+    }
+
+    fn handle_resources_list(&self) -> Value {
+        serde_json::to_value(resources::list_resources()).expect("resources list serializes")
+    }
+
+    fn handle_resources_read(&self, params: &Value) -> Value {
+        let uri = params
+            .get("uri")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default();
+        match resources::read_resource(
+            uri,
+            &self.schema_root,
+            self.watchlist_path,
+            &self.portfolio_path,
+            &self.config,
+        ) {
+            Ok(result) => serde_json::to_value(result).expect("resource read serializes"),
+            Err(message) => json!({
+                "contents": [],
+                "error": message,
+            }),
+        }
     }
 }

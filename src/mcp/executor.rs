@@ -84,6 +84,7 @@ async fn research_fund(env: &McpEnv<'_>, args: Value) -> (String, bool) {
         None => return (error_envelope("research_fund", "缺少 code"), true),
     };
     let days = arg_u32(&args, "days", 90);
+    let started = std::time::Instant::now();
     let mut steps = serde_json::Map::new();
     let mut any_error = false;
 
@@ -129,7 +130,16 @@ async fn research_fund(env: &McpEnv<'_>, args: Value) -> (String, bool) {
             }
             Err(e) => {
                 any_error = true;
-                steps.insert(step.into(), json!({"ok": false, "error": e.to_string()}));
+                steps.insert(
+                    step.into(),
+                    json!({
+                        "v": 1,
+                        "command": step,
+                        "ok": false,
+                        "warnings": [],
+                        "error": {"code": "MCP_TOOL_ERROR", "message": e.to_string()}
+                    }),
+                );
             }
         }
     }
@@ -138,6 +148,12 @@ async fn research_fund(env: &McpEnv<'_>, args: Value) -> (String, bool) {
         "v": 1,
         "command": "research_fund",
         "ok": !any_error,
+        "warnings": [],
+        "meta": {
+            "offline": env.offline,
+            "steps_completed": steps.len() as u32,
+            "duration_ms": started.elapsed().as_millis() as u64,
+        },
         "data": steps,
     });
     (
@@ -299,6 +315,7 @@ fn error_envelope(command: &str, message: &str) -> String {
         "v": 1,
         "command": command,
         "ok": false,
+        "warnings": [],
         "error": {"code": "MCP_TOOL_ERROR", "message": message}
     })
     .to_string()
