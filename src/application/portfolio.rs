@@ -1,5 +1,6 @@
 //! 组合分析用例：加权收益、相关矩阵、重仓重叠。
 
+use super::concurrency::{map_concurrent, FUND_CONCURRENCY};
 use super::context::CommandContext;
 use super::fund_service::{analyze_fund_with_navs, fetch_nav_series, resolve_fund_identifier};
 use super::queries::load_fund_holdings;
@@ -103,10 +104,21 @@ pub async fn run_portfolio(ctx: &CommandContext<'_>, req: PortfolioRequest) -> a
     crate::presentation::render_portfolio(&report, req.output.as_deref(), &req.format)
 }
 
+#[derive(Clone)]
 struct ResolvedMember {
     code: String,
     name: String,
     weight: f64,
+}
+
+async fn resolve_one_member(
+    session: &super::context::Session<'_>,
+    identifier: String,
+    weight: f64,
+    offline: bool,
+) -> anyhow::Result<ResolvedMember> {
+    let (code, name) = resolve_fund_identifier(session, &identifier, offline).await?;
+    Ok(ResolvedMember { code, name, weight })
 }
 
 async fn resolve_members(
@@ -114,16 +126,12 @@ async fn resolve_members(
     def: &PortfolioDefinition,
     offline: bool,
 ) -> anyhow::Result<Vec<ResolvedMember>> {
-    let mut out = Vec::with_capacity(def.holdings.len());
-    for (identifier, weight) in &def.holdings {
-        let (code, name) = resolve_fund_identifier(session, identifier, offline).await?;
-        out.push(ResolvedMember {
-            code,
-            name,
-            weight: *weight,
-        });
-    }
-    Ok(out)
+    let holdings: Vec<(String, f64)> = def.holdings.clone();
+    let results = map_concurrent(&holdings, FUND_CONCURRENCY, |(identifier, weight)| {
+        resolve_one_member(session, identifier, weight, offline)
+    })
+    .await;
+    results.into_iter().collect()
 }
 
 struct MemberReturns {
@@ -135,6 +143,40 @@ struct MemberReturns {
     analysis: Option<crate::models::FundAnalysis>,
 }
 
+async fn fetch_one_member_returns(
+    session: &super::context::Session<'_>,
+    member: ResolvedMember,
+    days: u32,
+    offline: bool,
+    rolling_window: u32,
+) -> anyhow::Result<MemberReturns> {
+    let navs = fetch_nav_series(session, &member.code, days, offline).await?;
+    if navs.is_empty() {
+        anyhow::bail!("`{}` 净值数据为空，无法完成组合分析", member.code);
+    }
+    let returns = daily_returns(&navs);
+    let analysis = analyze_fund_with_navs(
+        session,
+        &member.code,
+        &member.name,
+        &navs,
+        days,
+        offline,
+        rolling_window,
+    )
+    .await?
+    .map(|r| r.snapshot);
+    let label = format!("{} {}", member.code, member.name);
+    Ok(MemberReturns {
+        label,
+        code: member.code,
+        name: member.name,
+        weight: member.weight,
+        returns,
+        analysis,
+    })
+}
+
 async fn fetch_return_series(
     session: &super::context::Session<'_>,
     members: &[ResolvedMember],
@@ -142,35 +184,11 @@ async fn fetch_return_series(
     offline: bool,
     rolling_window: u32,
 ) -> anyhow::Result<Vec<MemberReturns>> {
-    let mut out = Vec::with_capacity(members.len());
-    for m in members {
-        let navs = fetch_nav_series(session, &m.code, days, offline).await?;
-        if navs.is_empty() {
-            anyhow::bail!("`{}` 净值数据为空，无法完成组合分析", m.code);
-        }
-        let returns = daily_returns(&navs);
-        let analysis = analyze_fund_with_navs(
-            session,
-            &m.code,
-            &m.name,
-            &navs,
-            days,
-            offline,
-            rolling_window,
-        )
-        .await?
-        .map(|r| r.snapshot);
-        let label = format!("{} {}", m.code, m.name);
-        out.push(MemberReturns {
-            label,
-            code: m.code.clone(),
-            name: m.name.clone(),
-            weight: m.weight,
-            returns,
-            analysis,
-        });
-    }
-    Ok(out)
+    let results = map_concurrent(members, FUND_CONCURRENCY, |member| {
+        fetch_one_member_returns(session, member, days, offline, rolling_window)
+    })
+    .await;
+    results.into_iter().collect()
 }
 
 async fn build_report(
@@ -311,20 +329,39 @@ async fn build_overlaps(
     pairs
 }
 
+enum HoldingsFetchOutcome {
+    Ok(String, StockHoldings),
+    Skip,
+}
+
+async fn fetch_one_holdings(
+    session: &super::context::Session<'_>,
+    code: String,
+    top: u32,
+) -> HoldingsFetchOutcome {
+    match load_fund_holdings(session, &code, top).await {
+        Ok(h) => HoldingsFetchOutcome::Ok(code, h),
+        Err(e) => {
+            tracing::warn!(code = %code, error = %e, "跳过该标的重仓重叠");
+            HoldingsFetchOutcome::Skip
+        }
+    }
+}
+
 async fn fetch_all_holdings(
     session: &super::context::Session<'_>,
     members: &[ResolvedMember],
     top: u32,
 ) -> HashMap<String, StockHoldings> {
+    let codes: Vec<String> = members.iter().map(|m| m.code.clone()).collect();
+    let outcomes = map_concurrent(&codes, FUND_CONCURRENCY, |code| {
+        fetch_one_holdings(session, code, top)
+    })
+    .await;
     let mut map = HashMap::new();
-    for m in members {
-        match load_fund_holdings(session, &m.code, top).await {
-            Ok(h) => {
-                map.insert(m.code.clone(), h);
-            }
-            Err(e) => {
-                tracing::warn!(code = %m.code, error = %e, "跳过该标的重仓重叠");
-            }
+    for outcome in outcomes {
+        if let HoldingsFetchOutcome::Ok(code, h) = outcome {
+            map.insert(code, h);
         }
     }
     map

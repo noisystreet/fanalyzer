@@ -1,10 +1,11 @@
 //! 净值导出用例。
 
+use super::concurrency::{map_concurrent, FUND_CONCURRENCY};
 use super::context::{resolve_fund_ids, CommandContext};
 use super::fund_service::{fetch_nav_series, resolve_fund_identifier};
 use crate::presentation::{
     base_meta, emit, export_csv, export_json, item_error_failed, BatchPayload, ExportMeta,
-    ExportPayload,
+    ExportPayload, ItemError,
 };
 use std::path::{Path, PathBuf};
 
@@ -15,6 +16,22 @@ pub struct ExportRequest {
     pub output: Option<String>,
     pub output_dir: Option<String>,
     pub format: String,
+}
+
+enum ExportBatchOutcome {
+    Ok(ExportPayload),
+    Err(ItemError),
+}
+
+async fn export_watchlist_one_structured(
+    ctx: &CommandContext<'_>,
+    req: &ExportRequest,
+    id: String,
+) -> ExportBatchOutcome {
+    match export_watchlist_structured(ctx, req, &id).await {
+        Ok(payload) => ExportBatchOutcome::Ok(payload),
+        Err(e) => ExportBatchOutcome::Err(item_error_failed(&id, e)),
+    }
 }
 
 struct ExportOneParams {
@@ -44,14 +61,21 @@ async fn export_watchlist(ctx: &CommandContext<'_>, req: ExportRequest) -> anyho
     )?;
     let requested = ids.len();
     if ctx.structured() {
-        let mut items = Vec::with_capacity(requested);
+        let outcomes = map_concurrent(&ids, FUND_CONCURRENCY, |id| {
+            export_watchlist_one_structured(ctx, &req, id)
+        })
+        .await;
         let mut errors = Vec::new();
-        for id in ids {
-            match export_watchlist_structured(ctx, &req, &id).await {
-                Ok(payload) => items.push(payload),
-                Err(e) => errors.push(item_error_failed(&id, e)),
-            }
-        }
+        let items: Vec<ExportPayload> = outcomes
+            .into_iter()
+            .filter_map(|outcome| match outcome {
+                ExportBatchOutcome::Ok(payload) => Some(payload),
+                ExportBatchOutcome::Err(err) => {
+                    errors.push(err);
+                    None
+                }
+            })
+            .collect();
         if items.is_empty() {
             anyhow::bail!("全部导出失败");
         }

@@ -1,5 +1,6 @@
 //! fetch / info / rank / sectors / holdings 查询用例。
 
+use super::concurrency::{map_concurrent, FUND_CONCURRENCY};
 use super::context::{require_online, resolve_fund_ids, CommandContext};
 use super::fund_service::resolve_fund_identifier;
 use super::mappers::{map_holdings, map_industry, map_profile, map_rank_rows};
@@ -41,31 +42,41 @@ pub struct HoldingsRequest {
 async fn collect_batch<T, F, Fut>(
     ctx: &CommandContext<'_>,
     ids: Vec<String>,
-    mut op: F,
+    op: F,
 ) -> anyhow::Result<(Vec<T>, Vec<crate::presentation::ItemError>)>
 where
-    F: FnMut(String) -> Fut,
+    F: Fn(String) -> Fut,
     Fut: std::future::Future<Output = anyhow::Result<T>>,
 {
     let requested = ids.len();
+    if ctx.structured() {
+        let results = map_concurrent(&ids, FUND_CONCURRENCY, |id| async {
+            let result = op(id.clone()).await;
+            (id, result)
+        })
+        .await;
+        let mut items = Vec::with_capacity(requested);
+        let mut errors = Vec::new();
+        for (id, result) in results {
+            match result {
+                Ok(value) => items.push(value),
+                Err(e) => errors.push(item_error_failed(&id, e)),
+            }
+        }
+        if items.is_empty() {
+            anyhow::bail!("全部条目处理失败");
+        }
+        return Ok((items, errors));
+    }
+
     let mut items = Vec::with_capacity(requested);
-    let mut errors = Vec::new();
     for id in ids {
         match op(id.clone()).await {
             Ok(value) => items.push(value),
-            Err(e) => {
-                if ctx.structured() {
-                    errors.push(item_error_failed(&id, e));
-                } else {
-                    return Err(e);
-                }
-            }
+            Err(e) => return Err(e),
         }
     }
-    if ctx.structured() && items.is_empty() {
-        anyhow::bail!("全部条目处理失败");
-    }
-    Ok((items, errors))
+    Ok((items, Vec::new()))
 }
 
 fn batch_meta(ctx: &CommandContext<'_>, requested: usize, succeeded: usize) -> BatchMeta {

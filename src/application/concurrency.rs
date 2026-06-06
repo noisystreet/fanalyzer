@@ -6,9 +6,10 @@ use std::future::Future;
 pub const FUND_CONCURRENCY: usize = 4;
 
 /// 对 `items` 最多 `limit` 路并发执行 `f`，保持结果顺序与输入一致。
-pub async fn map_concurrent<F, Fut, T>(items: &[String], limit: usize, mut f: F) -> Vec<T>
+pub async fn map_concurrent<F, Fut, T, I>(items: &[I], limit: usize, mut f: F) -> Vec<T>
 where
-    F: FnMut(String) -> Fut,
+    I: Clone,
+    F: FnMut(I) -> Fut,
     Fut: Future<Output = T>,
 {
     if items.is_empty() {
@@ -22,9 +23,10 @@ where
     out
 }
 
-async fn join_chunk<F, Fut, T>(chunk: &[String], f: &mut F) -> Vec<T>
+async fn join_chunk<F, Fut, T, I>(chunk: &[I], f: &mut F) -> Vec<T>
 where
-    F: FnMut(String) -> Fut,
+    I: Clone,
+    F: FnMut(I) -> Fut,
     Fut: Future<Output = T>,
 {
     match chunk.len() {
@@ -72,7 +74,7 @@ mod tests {
     async fn map_concurrent_runs_in_parallel_within_chunk() {
         let active = Arc::new(AtomicUsize::new(0));
         let max_active = Arc::new(AtomicUsize::new(0));
-        let items = vec!["a".into(), "b".into(), "c".into(), "d".into()];
+        let items: Vec<String> = vec!["a".into(), "b".into(), "c".into(), "d".into()];
         let _ = map_concurrent(&items, 4, {
             let active = active.clone();
             let max_active = max_active.clone();

@@ -1,5 +1,6 @@
 //! 从全市场排行池中按风险/费率规则筛选候选基金。
 
+use super::concurrency::{map_concurrent, FUND_CONCURRENCY};
 use super::context::{require_online, CommandContext};
 use super::fund_service::analyze_fund;
 use crate::api::fund_ranking::{rank_return_for_sort, FundRankEntry};
@@ -15,7 +16,6 @@ use crate::presentation::{
 };
 use chrono::Local;
 use std::path::PathBuf;
-use std::time::Duration as StdDuration;
 
 pub struct ScreenRequest {
     pub kind: String,
@@ -63,6 +63,30 @@ fn filter_rank_pool<'a>(
     out
 }
 
+async fn analyze_one_screen_candidate(
+    session: &super::context::Session<'_>,
+    code: String,
+    days: u32,
+    filters: ScreenFilters,
+) -> Option<FundAnalysis> {
+    match analyze_fund(
+        session,
+        &code,
+        days,
+        false,
+        crate::domain::DEFAULT_ROLLING_WINDOW,
+    )
+    .await
+    {
+        Ok(Some(r)) if passes_screen(&r.snapshot, &filters) => Some(r.snapshot),
+        Ok(Some(_)) | Ok(None) => None,
+        Err(e) => {
+            tracing::warn!(code = %code, error = %e, "分析失败，跳过");
+            None
+        }
+    }
+}
+
 async fn deep_analyze_candidates(
     session: &super::context::Session<'_>,
     candidates: &[&FundRankEntry],
@@ -70,26 +94,17 @@ async fn deep_analyze_candidates(
     days: u32,
     filters: &ScreenFilters,
 ) -> Vec<FundAnalysis> {
-    let mut passed = Vec::new();
-    for (i, row) in candidates.iter().take(to_analyze).enumerate() {
-        match analyze_fund(
-            session,
-            &row.code,
-            days,
-            false,
-            crate::domain::DEFAULT_ROLLING_WINDOW,
-        )
-        .await
-        {
-            Ok(Some(r)) if passes_screen(&r.snapshot, filters) => passed.push(r.snapshot),
-            Ok(Some(_)) | Ok(None) => {}
-            Err(e) => tracing::warn!(code = %row.code, error = %e, "分析失败，跳过"),
-        }
-        if i + 1 < to_analyze {
-            tokio::time::sleep(StdDuration::from_millis(200)).await;
-        }
-    }
-    passed
+    let codes: Vec<String> = candidates
+        .iter()
+        .take(to_analyze)
+        .map(|row| row.code.clone())
+        .collect();
+    let filters = filters.clone();
+    let outcomes = map_concurrent(&codes, FUND_CONCURRENCY, |code| {
+        analyze_one_screen_candidate(session, code, days, filters.clone())
+    })
+    .await;
+    outcomes.into_iter().flatten().collect()
 }
 
 fn sort_passed(analyses: &mut [FundAnalysis], sort_by: Option<&str>) -> anyhow::Result<()> {

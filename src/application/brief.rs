@@ -1,5 +1,6 @@
 //! 单基金选基综合简报：分析 + 行业 + 重仓。
 
+use super::concurrency::{map_concurrent, FUND_CONCURRENCY};
 use super::context::{require_online, resolve_fund_ids, CommandContext};
 use super::fund_service::{analyze_fund, resolve_fund_identifier};
 use super::mappers::{map_holdings, map_industry};
@@ -7,7 +8,7 @@ use crate::domain::resolve_analysis_days;
 use crate::models::FundBrief;
 use crate::presentation::{
     base_meta, compact_brief_summary, emit, item_error_failed, print_brief_separator,
-    render_brief_terminal, write_brief_markdown, AnalysisMeta, BatchPayload,
+    render_brief_terminal, write_brief_markdown, AnalysisMeta, BatchPayload, ItemError,
 };
 use chrono::Local;
 
@@ -22,6 +23,24 @@ pub struct BriefRequest {
     pub output: Option<std::path::PathBuf>,
 }
 
+enum BriefBatchOutcome {
+    Ok(Box<FundBrief>),
+    Err(ItemError),
+}
+
+async fn brief_one_for_batch(
+    session: &super::context::Session<'_>,
+    id: String,
+    days: u32,
+    holdings_top: u32,
+    industry_top: u32,
+) -> BriefBatchOutcome {
+    match gather_brief(session, &id, days, holdings_top, industry_top).await {
+        Ok(brief) => BriefBatchOutcome::Ok(Box::new(brief)),
+        Err(e) => BriefBatchOutcome::Err(item_error_failed(&id, e)),
+    }
+}
+
 pub async fn run_brief(ctx: &CommandContext<'_>, req: BriefRequest) -> anyhow::Result<()> {
     require_online(ctx.offline, "brief")?;
     let today = Local::now().date_naive();
@@ -34,33 +53,23 @@ pub async fn run_brief(ctx: &CommandContext<'_>, req: BriefRequest) -> anyhow::R
     )?;
     let requested = ids.len();
     let multi = requested > 1;
-    let mut items = Vec::with_capacity(requested);
-    let mut errors = Vec::new();
-    for id in ids {
-        match gather_brief(&ctx.session, &id, days, req.holdings_top, req.industry_top).await {
-            Ok(brief) => {
-                if !ctx.structured() {
-                    render_brief_terminal(&brief);
-                    if let Some(ref path) = req.output {
-                        write_brief_markdown(&brief, path)?;
-                        tracing::info!(path = %path.display(), "Wrote brief markdown");
-                    }
-                    if multi {
-                        print_brief_separator();
-                    }
-                }
-                items.push(brief);
-            }
-            Err(e) => {
-                if ctx.structured() {
-                    errors.push(item_error_failed(&id, e));
-                } else {
-                    return Err(e);
-                }
-            }
-        }
-    }
+
     if ctx.structured() {
+        let outcomes = map_concurrent(&ids, FUND_CONCURRENCY, |id| {
+            brief_one_for_batch(&ctx.session, id, days, req.holdings_top, req.industry_top)
+        })
+        .await;
+        let mut errors = Vec::new();
+        let mut items: Vec<FundBrief> = outcomes
+            .into_iter()
+            .filter_map(|outcome| match outcome {
+                BriefBatchOutcome::Ok(brief) => Some(*brief),
+                BriefBatchOutcome::Err(err) => {
+                    errors.push(err);
+                    None
+                }
+            })
+            .collect();
         if items.is_empty() {
             anyhow::bail!("无有效简报结果");
         }
@@ -87,6 +96,23 @@ pub async fn run_brief(ctx: &CommandContext<'_>, req: BriefRequest) -> anyhow::R
             Some(&meta),
             None,
         )?;
+        return Ok(());
+    }
+
+    for id in ids {
+        match gather_brief(&ctx.session, &id, days, req.holdings_top, req.industry_top).await {
+            Ok(brief) => {
+                render_brief_terminal(&brief);
+                if let Some(ref path) = req.output {
+                    write_brief_markdown(&brief, path)?;
+                    tracing::info!(path = %path.display(), "Wrote brief markdown");
+                }
+                if multi {
+                    print_brief_separator();
+                }
+            }
+            Err(e) => return Err(e),
+        }
     }
     Ok(())
 }
