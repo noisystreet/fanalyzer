@@ -1,5 +1,8 @@
 # Fanalyzer
 
+[![CI](https://github.com/noisystreet/fanalyzer/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/noisystreet/fanalyzer/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/github/license/noisystreet/fanalyzer)](LICENSE)
+
 Fund analysis CLI & Web UI — 个人基金研究与选基工具（Rust）。
 
 仓库：<https://github.com/noisystreet/fanalyzer>
