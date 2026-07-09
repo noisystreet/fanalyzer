@@ -2,8 +2,7 @@
 
 use super::concurrency::{map_concurrent, FUND_CONCURRENCY};
 use super::context::{require_online, resolve_fund_ids, CommandContext};
-use super::fund_service::{analyze_fund, resolve_fund_identifier};
-use super::mappers::{map_holdings, map_industry};
+use super::research_fund::gather_fund_research_io;
 use crate::domain::resolve_analysis_days;
 use crate::models::FundBrief;
 use crate::presentation::{
@@ -124,59 +123,51 @@ pub async fn gather_brief(
     holdings_top: u32,
     industry_top: u32,
 ) -> anyhow::Result<FundBrief> {
-    let (code, name) = resolve_fund_identifier(session, identifier, false).await?;
-    tracing::info!(code = %code, days = days, "Building fund brief");
-
-    let analysis = analyze_fund(
+    tracing::info!(identifier = %identifier, days = days, "Building fund brief");
+    let io = gather_fund_research_io(
         session,
-        &code,
+        identifier,
         days,
         false,
         crate::domain::DEFAULT_ROLLING_WINDOW,
+        holdings_top,
     )
-    .await?
-    .map(|r| r.snapshot);
+    .await?;
 
-    let profile = session.source.fetch_fund_profile(&code).await.ok();
-    let fund_type = profile
+    let analysis = match io.analyze {
+        Ok(report) => report.map(|r| r.snapshot),
+        Err(e) => return Err(e),
+    };
+
+    let overview = io.overview.ok();
+    let fund_type = overview
         .as_ref()
         .map(|p| p.fund_type.clone())
         .unwrap_or_default();
-    let company = profile
+    let company = overview
         .as_ref()
         .map(|p| p.company.clone())
         .unwrap_or_default();
-    let asset_size = profile
+    let asset_size = overview
         .as_ref()
         .map(|p| p.asset_size.clone())
         .unwrap_or_default();
-    let display_name = profile
+    let display_name = overview
         .as_ref()
         .map(|p| p.name.clone())
         .filter(|n| !n.is_empty())
-        .unwrap_or(name);
-
-    let industry_api = session
-        .source
-        .fetch_fund_industry_allocation(&code)
-        .await
-        .unwrap_or_default();
-    let holdings_api = session
-        .source
-        .fetch_fund_stock_holdings(&code, holdings_top.clamp(1, 50))
-        .await
-        .unwrap_or_default();
+        .unwrap_or_else(|| io.name.clone());
 
     Ok(FundBrief {
-        code,
+        code: io.code,
         name: display_name,
         fund_type,
         company,
         asset_size,
-        days,
+        days: io.days,
         analysis,
-        industry: map_industry(&industry_api),
-        holdings: map_holdings(&holdings_api),
+        industry: io.sectors.map(|s| s.industry).unwrap_or_default(),
+        holdings: io.holdings.map(|h| h.holdings).unwrap_or_default(),
         industry_top: industry_top as usize,
         holdings_top: holdings_top as usize,
     })

@@ -34,16 +34,13 @@ pub struct PortfolioRequest {
 
 /// 组合分析核心逻辑（CLI / Web 共用）。
 pub async fn gather_portfolio_report(
-    ctx: &CommandContext<'_>,
+    session: &super::context::Session<'_>,
     def: &PortfolioDefinition,
-    days: u32,
-    period: Option<&str>,
-    holdings_top: u32,
-    rolling_window: u32,
+    req: PortfolioGatherRequest,
 ) -> anyhow::Result<PortfolioReport> {
     let today = Local::now().date_naive();
-    let window = crate::domain::resolve_analysis_days(period, days, today)?;
-    let rolling = normalize_rolling_window(rolling_window);
+    let window = crate::domain::resolve_analysis_days(req.period.as_deref(), req.days, today)?;
+    let rolling = normalize_rolling_window(req.rolling_window);
     tracing::info!(
         name = %def.name,
         holdings = def.holdings.len(),
@@ -52,30 +49,45 @@ pub async fn gather_portfolio_report(
         "Analyzing portfolio"
     );
 
-    let members = resolve_members(&ctx.session, def, ctx.offline).await?;
+    let members = resolve_members(session, def, req.offline).await?;
     let return_series =
-        fetch_return_series(&ctx.session, &members, window, ctx.offline, rolling_window).await?;
+        fetch_return_series(session, &members, window, req.offline, req.rolling_window).await?;
     build_report(
         def,
         &members,
         &return_series,
         window,
-        ctx,
-        holdings_top,
+        BuildReportContext {
+            session,
+            offline: req.offline,
+            holdings_top: req.holdings_top,
+        },
         rolling,
     )
     .await
 }
 
+/// `gather_portfolio_report` 参数（避免过长函数签名）。
+pub struct PortfolioGatherRequest {
+    pub days: u32,
+    pub period: Option<String>,
+    pub holdings_top: u32,
+    pub rolling_window: u32,
+    pub offline: bool,
+}
+
 pub async fn run_portfolio(ctx: &CommandContext<'_>, req: PortfolioRequest) -> anyhow::Result<()> {
     let def = crate::portfolio::load_portfolio(&req.portfolio_path)?;
     let report = gather_portfolio_report(
-        ctx,
+        &ctx.session,
         &def,
-        req.days,
-        req.period.as_deref(),
-        req.holdings_top,
-        req.rolling_window,
+        PortfolioGatherRequest {
+            days: req.days,
+            period: req.period.clone(),
+            holdings_top: req.holdings_top,
+            rolling_window: req.rolling_window,
+            offline: ctx.offline,
+        },
     )
     .await?;
     if ctx.structured() {
@@ -191,13 +203,18 @@ async fn fetch_return_series(
     results.into_iter().collect()
 }
 
+struct BuildReportContext<'a> {
+    session: &'a super::context::Session<'a>,
+    offline: bool,
+    holdings_top: u32,
+}
+
 async fn build_report(
     def: &PortfolioDefinition,
     members: &[ResolvedMember],
     series: &[MemberReturns],
     window_days: u32,
-    ctx: &CommandContext<'_>,
-    holdings_top: u32,
+    ctx: BuildReportContext<'_>,
     rolling_window: usize,
 ) -> anyhow::Result<PortfolioReport> {
     let labeled: Vec<(String, Vec<(chrono::NaiveDate, f64)>)> = series
@@ -229,7 +246,7 @@ async fn build_report(
 
     let summary = build_summary(def, series, window_days, dates.len() as u32, &metrics);
     let correlation = build_correlation(series, &aligned);
-    let overlaps = build_overlaps(ctx, members, holdings_top).await;
+    let overlaps = build_overlaps(ctx.session, ctx.offline, members, ctx.holdings_top).await;
     let thresholds = load_portfolio_insights(Path::new(DEFAULT_INSIGHTS_PATH));
     let interpretation = Some(crate::domain::interpret_portfolio(
         &summary,
@@ -296,16 +313,17 @@ fn build_correlation(series: &[MemberReturns], aligned: &[Vec<f64>]) -> Correlat
 }
 
 async fn build_overlaps(
-    ctx: &CommandContext<'_>,
+    session: &super::context::Session<'_>,
+    offline: bool,
     members: &[ResolvedMember],
     holdings_top: u32,
 ) -> Vec<OverlapPair> {
-    if ctx.offline {
+    if offline {
         tracing::warn!("`--offline` 跳过重仓重叠分析（需联网拉取 holdings）");
         return Vec::new();
     }
     let top = holdings_top.clamp(1, 50);
-    let holdings = fetch_all_holdings(&ctx.session, members, top).await;
+    let holdings = fetch_all_holdings(session, members, top).await;
     let mut pairs = Vec::new();
     for i in 0..members.len() {
         for j in (i + 1)..members.len() {

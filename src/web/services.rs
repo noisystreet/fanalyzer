@@ -3,7 +3,7 @@
 use super::state::AppState;
 use crate::application::{
     analyze_fund, gather_brief, gather_compare_analyses, gather_portfolio_report,
-    load_fund_overview, sort_compare_analyses,
+    load_fund_overview, sort_compare_analyses, PortfolioGatherRequest,
 };
 use crate::domain::resolve_analysis_days;
 use crate::models::{FundAnalysis, FundAnalysisReport, FundBrief, FundOverview, PortfolioReport};
@@ -19,13 +19,11 @@ pub async fn analyze_one(
 ) -> anyhow::Result<Option<FundAnalysisReport>> {
     let today = Local::now().date_naive();
     let window = resolve_analysis_days(period, days, today)?;
-    let ctx = state.command_context();
-    analyze_fund(&ctx.session, code.trim(), window, false, rolling_window).await
+    analyze_fund(&state.session(), code.trim(), window, false, rolling_window).await
 }
 
 pub async fn fetch_overview(state: &AppState, code: &str) -> anyhow::Result<FundOverview> {
-    let ctx = state.command_context();
-    load_fund_overview(&ctx.session, code.trim()).await
+    load_fund_overview(&state.session(), code.trim()).await
 }
 
 pub async fn build_brief(
@@ -38,9 +36,8 @@ pub async fn build_brief(
 ) -> anyhow::Result<FundBrief> {
     let today = Local::now().date_naive();
     let window = resolve_analysis_days(period, days, today)?;
-    let ctx = state.command_context();
     gather_brief(
-        &ctx.session,
+        &state.session(),
         code.trim(),
         window,
         holdings_top,
@@ -58,10 +55,9 @@ pub async fn compare_funds(
 ) -> anyhow::Result<Vec<FundAnalysis>> {
     let today = Local::now().date_naive();
     let window = resolve_analysis_days(period, days, today)?;
-    let ctx = state.command_context();
-    let mut analyses = gather_compare_analyses(&ctx.session, codes, window, false).await;
-    sort_compare_analyses(&mut analyses, sort)?;
-    Ok(analyses)
+    let mut gather = gather_compare_analyses(&state.session(), codes, window, false).await;
+    sort_compare_analyses(&mut gather.items, sort)?;
+    Ok(gather.items)
 }
 
 pub async fn analyze_portfolio(
@@ -72,8 +68,18 @@ pub async fn analyze_portfolio(
     holdings_top: u32,
     rolling_window: u32,
 ) -> anyhow::Result<PortfolioReport> {
-    let ctx = state.command_context();
-    gather_portfolio_report(&ctx, def, days, period, holdings_top, rolling_window).await
+    gather_portfolio_report(
+        &state.session(),
+        def,
+        PortfolioGatherRequest {
+            days,
+            period: period.map(str::to_string),
+            holdings_top,
+            rolling_window,
+            offline: false,
+        },
+    )
+    .await
 }
 
 pub fn parse_code_list(raw: &str) -> Vec<String> {

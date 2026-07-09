@@ -260,18 +260,43 @@ async fn portfolio(
         (None, None) => None,
     };
 
-    render(view! {
+    Html(portfolio_page_html(PortfolioPageData {
+        portfolio_name,
+        holdings_text,
+        days,
+        period,
+        holdings_top,
+        rolling_window,
+        report,
+        error,
+    }))
+}
+
+struct PortfolioPageData {
+    portfolio_name: String,
+    holdings_text: String,
+    days: u32,
+    period: String,
+    holdings_top: u32,
+    rolling_window: u32,
+    report: Option<crate::models::PortfolioReport>,
+    error: Option<String>,
+}
+
+fn portfolio_page_html(data: PortfolioPageData) -> String {
+    view! {
         <PortfolioPage
-            portfolio_name=portfolio_name
-            holdings_text=holdings_text
-            days=days
-            period=period
-            holdings_top=holdings_top
-            rolling_window=rolling_window
-            report=report
-            error=error
+            portfolio_name=data.portfolio_name
+            holdings_text=data.holdings_text
+            days=data.days
+            period=data.period
+            holdings_top=data.holdings_top
+            rolling_window=data.rolling_window
+            report=data.report
+            error=data.error
         />
-    })
+    }
+    .to_html()
 }
 
 pub fn router(state: AppState) -> Router {

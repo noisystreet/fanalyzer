@@ -14,6 +14,17 @@ use anyhow::Context;
 use serde_json::{json, Map, Value};
 use std::time::Instant;
 
+/// 单基金研究 IO 结果（info / analyze / sectors / holdings 四步并行）。
+pub struct FundResearchIo {
+    pub code: String,
+    pub name: String,
+    pub days: u32,
+    pub analyze: anyhow::Result<Option<FundAnalysisReport>>,
+    pub overview: anyhow::Result<crate::models::FundOverview>,
+    pub sectors: anyhow::Result<SectorItem>,
+    pub holdings: anyhow::Result<HoldingsItem>,
+}
+
 pub struct ResearchFundResult {
     pub ok: bool,
     pub steps: Map<String, Value>,
@@ -21,16 +32,15 @@ pub struct ResearchFundResult {
     pub offline: bool,
 }
 
-/// 单基金研究：一次 resolve + 一次净值，四步并行拉取/分析。
-pub async fn gather_research_fund(
+/// 一次 resolve + 一次净值拉取，四步并行（供 brief / research_fund 复用）。
+pub async fn gather_fund_research_io(
     session: &Session<'_>,
     identifier: &str,
     days: u32,
     offline: bool,
     rolling_window: u32,
     holdings_top: u32,
-) -> anyhow::Result<ResearchFundResult> {
-    let started = Instant::now();
+) -> anyhow::Result<FundResearchIo> {
     let (resolved_code, name) = resolve_fund_identifier(session, identifier, offline).await?;
     let navs = fetch_nav_series(session, &resolved_code, days, offline)
         .await
@@ -41,7 +51,7 @@ pub async fn gather_research_fund(
     let name_for = name.clone();
     let top = holdings_top.clamp(1, 50);
 
-    let (info_r, analyze_r, sectors_r, holdings_r) = tokio::join!(
+    let (overview, analyze, sectors, holdings) = tokio::join!(
         async {
             if offline {
                 Err(anyhow::anyhow!("`--offline` 无法获取 info（需联网）"))
@@ -68,20 +78,51 @@ pub async fn gather_research_fund(
         },
     );
 
+    Ok(FundResearchIo {
+        code: resolved_code,
+        name,
+        days,
+        analyze,
+        overview,
+        sectors,
+        holdings,
+    })
+}
+
+/// 单基金研究：一次 resolve + 一次净值，四步并行拉取/分析。
+pub async fn gather_research_fund(
+    session: &Session<'_>,
+    identifier: &str,
+    days: u32,
+    offline: bool,
+    rolling_window: u32,
+    holdings_top: u32,
+) -> anyhow::Result<ResearchFundResult> {
+    let started = Instant::now();
+    let io = gather_fund_research_io(
+        session,
+        identifier,
+        days,
+        offline,
+        rolling_window,
+        holdings_top,
+    )
+    .await?;
+
     let mut steps = Map::new();
     let mut any_error = false;
 
-    any_error |= push_info_step(&mut steps, info_r, offline);
+    any_error |= push_info_step(&mut steps, io.overview, offline);
     any_error |= push_analyze_step(
         &mut steps,
-        analyze_r,
-        &resolved_code,
+        io.analyze,
+        &io.code,
         days,
         offline,
-        rolling,
+        rolling_window,
     );
-    any_error |= push_sectors_step(&mut steps, sectors_r, offline);
-    any_error |= push_holdings_step(&mut steps, holdings_r, offline);
+    any_error |= push_sectors_step(&mut steps, io.sectors, offline);
+    any_error |= push_holdings_step(&mut steps, io.holdings, offline);
 
     Ok(ResearchFundResult {
         ok: !any_error,
