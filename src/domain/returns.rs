@@ -261,4 +261,79 @@ mod tests {
         assert_eq!(dr.len(), 1);
         assert!((dr[0].1 - 0.1).abs() < 1e-9);
     }
+
+    #[test]
+    fn correlation_perfect_negative() {
+        let a = vec![0.01, 0.02, -0.01, 0.015];
+        let b = vec![-0.01, -0.02, 0.01, -0.015];
+        assert!((pearson_correlation(&a, &b) - (-1.0)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn correlation_uncorrelated() {
+        let a = vec![0.01, -0.01, 0.01, -0.01];
+        let b = vec![1.0, -1.0, 1.0, -1.0];
+        // Perfectly correlated (b = 100 * a)
+        assert!((pearson_correlation(&a, &b).abs() - 1.0) < 1e-6);
+    }
+
+    #[test]
+    fn correlation_matrix_two_funds() {
+        let aligned = vec![vec![0.01, 0.02, -0.01], vec![-0.01, -0.02, 0.01]];
+        let mat = correlation_matrix(&aligned);
+        assert_eq!(mat.len(), 2);
+        assert_eq!(mat[0].len(), 2);
+        assert!((mat[0][0] - 1.0).abs() < 1e-6);
+        assert!((mat[1][1] - 1.0).abs() < 1e-6);
+        assert!((mat[0][1] - (-1.0)).abs() < 1e-6);
+        assert!((mat[1][0] - (-1.0)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn nav_price_uses_acc_nav_first() {
+        let nav = FundNav {
+            code: "000001".into(),
+            date: NaiveDate::from_ymd_opt(2026, 1, 2).unwrap(),
+            nav: 1.0,
+            acc_nav: 1.5,
+            daily_return: None,
+        };
+        assert!((nav_price(&nav) - 1.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn nav_price_falls_back_to_nav() {
+        let nav = FundNav {
+            code: "000001".into(),
+            date: NaiveDate::from_ymd_opt(2026, 1, 2).unwrap(),
+            nav: 1.0,
+            acc_nav: 0.0,
+            daily_return: None,
+        };
+        assert!((nav_price(&nav) - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn align_daily_returns_unequal_length() {
+        let a = (
+            "A".into(),
+            vec![
+                (NaiveDate::from_ymd_opt(2026, 1, 2).unwrap(), 0.01),
+                (NaiveDate::from_ymd_opt(2026, 1, 3).unwrap(), 0.02),
+                (NaiveDate::from_ymd_opt(2026, 1, 4).unwrap(), 0.03),
+            ],
+        );
+        let b = (
+            "B".into(),
+            vec![
+                (NaiveDate::from_ymd_opt(2026, 1, 3).unwrap(), 0.005),
+                (NaiveDate::from_ymd_opt(2026, 1, 4).unwrap(), -0.01),
+            ],
+        );
+        let (dates, aligned) = align_daily_returns(&[a, b]).unwrap();
+        assert_eq!(dates.len(), 2); // Only common dates
+        assert_eq!(aligned.len(), 2);
+        assert_eq!(aligned[0].len(), 2);
+        assert_eq!(aligned[1].len(), 2);
+    }
 }

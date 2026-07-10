@@ -1,4 +1,6 @@
 pub use crate::api::eastmoney_error::{into_anyhow, EastMoneyError};
+use crate::api::eastmoney_helpers;
+pub use crate::api::eastmoney_types::*;
 use crate::api::f10_jbgk;
 use crate::api::fund_holdings::{fetch_fund_stock_holdings_jjcc, FundStockHoldingsReport};
 use crate::api::fund_industry::{fetch_fund_industry_hypz, FundIndustryReport};
@@ -425,7 +427,7 @@ impl EastMoneyClient {
             .await?;
 
         // 从 JS 中提取 Data_currentFundManager 数组
-        let manager_json = Self::extract_js_variable(&resp, "Data_currentFundManager")
+        let manager_json = eastmoney_helpers::extract_js_variable(&resp, "Data_currentFundManager")
             .ok_or_else(|| EastMoneyError::ParseFailed("Manager data not found".to_string()))?;
 
         let managers: Vec<serde_json::Value> =
@@ -448,7 +450,7 @@ impl EastMoneyClient {
             .get("workTime")
             .and_then(|v| v.as_str())
             .unwrap_or("");
-        let tenure_days = Self::parse_work_time(work_time);
+        let tenure_days = eastmoney_helpers::parse_work_time(work_time);
 
         // 从 profit 中提取任期收益
         let total_return = manager
@@ -462,7 +464,7 @@ impl EastMoneyClient {
             .and_then(|item| item.get("y"))
             .and_then(|v| v.as_f64())
             .unwrap_or(0.0)
-            / 100.0; // 转换为小数
+            / 100.0;
 
         Ok(FundManagerInfo {
             name,
@@ -470,43 +472,6 @@ impl EastMoneyClient {
             tenure_days,
             total_return,
         })
-    }
-
-    fn extract_js_variable(js_content: &str, var_name: &str) -> Option<String> {
-        let pattern = format!("var {} =", var_name);
-        let start = js_content.find(&pattern)?;
-        let start = start + pattern.len();
-        let remaining = &js_content[start..];
-
-        // 找到变量值的结束位置（分号或换行）
-        let end = remaining.find(";").unwrap_or(remaining.len());
-        let value = &remaining[..end].trim();
-
-        Some(value.to_string())
-    }
-
-    fn parse_work_time(work_time: &str) -> i32 {
-        // 解析 "14年又138天" 格式的字符串
-        let mut days = 0i32;
-
-        // 提取年数
-        if let Some(year_idx) = work_time.find("年") {
-            if let Ok(years) = work_time[..year_idx].trim().parse::<i32>() {
-                days += years * 365;
-            }
-        }
-
-        // 提取天数
-        if let Some(day_start) = work_time.find("又") {
-            if let Some(day_end) = work_time.find("天") {
-                let day_str = &work_time[day_start + 3..day_end]; // "又" 是3字节UTF-8
-                if let Ok(d) = day_str.trim().parse::<i32>() {
-                    days += d;
-                }
-            }
-        }
-
-        days
     }
 
     pub async fn fetch_fund_fee(&self, fund_code: &str) -> Result<FundFeeInfo, EastMoneyError> {
@@ -524,10 +489,10 @@ impl EastMoneyClient {
 
         // 从 JS 变量中提取费率信息
         // fund_sourceRate 是原费率，fund_Rate 是现费率
-        let source_rate = Self::extract_js_string_value(&resp, "fund_sourceRate")
+        let source_rate = eastmoney_helpers::extract_js_string_value(&resp, "fund_sourceRate")
             .unwrap_or_else(|| "0".to_string());
-        let current_rate =
-            Self::extract_js_string_value(&resp, "fund_Rate").unwrap_or_else(|| "0".to_string());
+        let current_rate = eastmoney_helpers::extract_js_string_value(&resp, "fund_Rate")
+            .unwrap_or_else(|| "0".to_string());
 
         let management_fee = source_rate.parse::<f64>().unwrap_or(0.0);
         let purchase_fee = current_rate.parse::<f64>().unwrap_or(0.0);
@@ -558,12 +523,13 @@ impl EastMoneyClient {
             .await?;
 
         // 提取基金名称和代码
-        let name = Self::extract_js_string_value(&js_resp, "fS_name")
+        let name = eastmoney_helpers::extract_js_string_value(&js_resp, "fS_name")
             .unwrap_or_else(|| "未知".to_string());
 
         // 提取基金经理信息
-        let manager_json = Self::extract_js_variable(&js_resp, "Data_currentFundManager")
-            .ok_or_else(|| EastMoneyError::ParseFailed("Manager data not found".to_string()))?;
+        let manager_json =
+            eastmoney_helpers::extract_js_variable(&js_resp, "Data_currentFundManager")
+                .ok_or_else(|| EastMoneyError::ParseFailed("Manager data not found".to_string()))?;
 
         let managers: Vec<serde_json::Value> =
             serde_json::from_str(&manager_json).map_err(|e| {
@@ -584,7 +550,7 @@ impl EastMoneyClient {
             .get("workTime")
             .and_then(|v| v.as_str())
             .unwrap_or("");
-        let manager_tenure_days = Self::parse_work_time(work_time);
+        let manager_tenure_days = eastmoney_helpers::parse_work_time(work_time);
 
         let manager_total_return = manager
             .get("profit")
@@ -600,7 +566,7 @@ impl EastMoneyClient {
             / 100.0;
 
         // 提取费率信息
-        let source_rate = Self::extract_js_string_value(&js_resp, "fund_sourceRate")
+        let source_rate = eastmoney_helpers::extract_js_string_value(&js_resp, "fund_sourceRate")
             .unwrap_or_else(|| "0".to_string());
         let management_fee = source_rate.parse::<f64>().unwrap_or(0.0);
 
@@ -638,60 +604,6 @@ impl EastMoneyClient {
             benchmark: detail_info.benchmark,
         })
     }
-
-    fn extract_js_string_value(js_content: &str, var_name: &str) -> Option<String> {
-        // 去除可能的 UTF-8 BOM
-        let content = js_content.strip_prefix('\u{feff}').unwrap_or(js_content);
-
-        let pattern = format!("var {}=\"", var_name);
-        let start = content.find(&pattern)?;
-        let start = start + pattern.len();
-        let remaining = &content[start..];
-
-        // 找到引号结束位置
-        let end = remaining.find("\"")?;
-        Some(remaining[..end].to_string())
-    }
 }
 
-#[derive(Debug, Clone)]
-pub struct IndexData {
-    pub date: chrono::DateTime<FixedOffset>,
-    pub close: f64,
-}
-
-#[derive(Debug, Clone)]
-pub struct FundManagerInfo {
-    pub name: String,
-    pub start_date: String,
-    pub tenure_days: i32,
-    pub total_return: f64,
-}
-
-#[derive(Debug, Clone)]
-pub struct FundFeeInfo {
-    pub management_fee: f64,
-    pub custody_fee: f64,
-    pub purchase_fee: f64,
-    pub redemption_fee: f64,
-}
-
-#[derive(Debug, Clone)]
-pub struct FundProfile {
-    pub code: String,
-    pub name: String,
-    pub full_name: String,
-    pub fund_type: String,
-    pub establishment_date: String,
-    pub asset_size: String,
-    pub company: String,
-    pub manager_name: String,
-    pub manager_tenure_days: i32,
-    pub manager_total_return: f64,
-    pub management_fee: f64,
-    pub custody_fee: f64,
-    pub investment_target: String,
-    pub investment_scope: String,
-    pub investment_strategy: String,
-    pub benchmark: String,
-}
+// 以下类型已迁移至 eastmoney_types.rs，通过 pub use 重新导出

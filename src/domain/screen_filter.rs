@@ -90,4 +90,70 @@ mod tests {
         assert!(passes_screen(&sample(0.15, 0.6, 0.02, 0.12, 0.08), &f));
         assert!(!passes_screen(&sample(0.15, 0.6, 0.005, 0.12, 0.08), &f));
     }
+
+    #[test]
+    fn screen_default_passes_all() {
+        let f = ScreenFilters::default();
+        assert!(passes_screen(&sample(0.5, -10.0, -1.0, 0.5, -0.5), &f));
+    }
+
+    #[test]
+    fn screen_rejects_drawdown() {
+        let f = ScreenFilters {
+            max_drawdown_pct: Some(10.0),
+            ..Default::default()
+        };
+        assert!(passes_screen(&sample(0.08, 0.0, 0.0, 0.0, 0.0), &f));
+        assert!(!passes_screen(&sample(0.15, 0.0, 0.0, 0.0, 0.0), &f));
+    }
+
+    #[test]
+    fn screen_rejects_sharpe() {
+        let f = ScreenFilters {
+            min_sharpe: Some(1.0),
+            ..Default::default()
+        };
+        assert!(passes_screen(&sample(0.0, 1.5, 0.0, 0.0, 0.0), &f));
+        assert!(!passes_screen(&sample(0.0, 0.5, 0.0, 0.0, 0.0), &f));
+    }
+
+    #[test]
+    fn screen_rejects_volatility() {
+        let f = ScreenFilters {
+            max_volatility_pct: Some(20.0),
+            ..Default::default()
+        };
+        assert!(passes_screen(&sample(0.0, 0.0, 0.0, 0.18, 0.0), &f));
+        assert!(!passes_screen(&sample(0.0, 0.0, 0.0, 0.25, 0.0), &f));
+    }
+
+    #[test]
+    fn screen_rejects_return() {
+        let f = ScreenFilters {
+            min_total_return_pct: Some(10.0),
+            ..Default::default()
+        };
+        assert!(passes_screen(&sample(0.0, 0.0, 0.0, 0.0, 0.15), &f));
+        assert!(!passes_screen(&sample(0.0, 0.0, 0.0, 0.0, 0.05), &f));
+    }
+
+    #[test]
+    fn screen_all_filters_combined_boundary() {
+        let f = ScreenFilters {
+            max_drawdown_pct: Some(10.0),
+            min_sharpe: Some(0.5),
+            min_alpha_pct: Some(0.0),
+            max_volatility_pct: Some(20.0),
+            min_total_return_pct: Some(5.0),
+            ..Default::default()
+        };
+        // Exactly at boundary values
+        let a = sample(0.10, 0.5, 0.0, 0.20, 0.05);
+        assert!(passes_screen(&a, &f));
+
+        // Slightly above max_drawdown threshold
+        assert!(!passes_screen(&sample(0.101, 0.5, 0.0, 0.20, 0.05), &f));
+        // Slightly below min_sharpe threshold
+        assert!(!passes_screen(&sample(0.10, 0.499, 0.0, 0.20, 0.05), &f));
+    }
 }
