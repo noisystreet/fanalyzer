@@ -40,8 +40,11 @@ cd fanalyzer
 ```
 
 ```bash
-# 构建
+# 构建（默认仅 CLI，编译更快）
 cargo build
+
+# Web UI 需显式启用 feature
+cargo build --features web
 
 # 运行
 cargo run -- fetch --code 000001
@@ -53,6 +56,8 @@ cargo test
 # 代码检查
 cargo fmt -- --check && cargo clippy -- -D warnings
 ```
+
+日常 CLI / MCP 开发无需 `--features web`；仅 `serve` 或改 Web 页面时再启用。
 
 ## 使用指南
 

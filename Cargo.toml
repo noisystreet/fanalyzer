@@ -11,14 +11,14 @@ categories = ["finance"]
 
 [features]
 default = []
-web = ["dep:leptos", "dep:axum", "dep:tower", "dep:tower-http"]
+web = ["dep:leptos", "dep:axum", "dep:tower", "dep:tower-http", "tokio/net"]
 
 [dependencies]
 anyhow = "1"
 thiserror = "2"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 reqwest = { version = "0.12", features = ["json"] }
