@@ -59,6 +59,17 @@ cargo fmt -- --check && cargo clippy -- -D warnings
 
 日常 CLI / MCP 开发无需 `--features web`；仅 `serve` 或改 Web 页面时再启用。
 
+## 发布
+
+推送 `v*` tag 会触发 [`.github/workflows/release.yml`](.github/workflows/release.yml)，在 GitHub Release 中附带 Linux amd64 的 CLI 与 Web 构建包：
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Dependabot 每周一自动提交 Cargo 与 GitHub Actions 更新 PR（见 [`.github/dependabot.yml`](.github/dependabot.yml)）。
+
 ## 使用指南
 
 更完整的参数说明、全局选项与注意事项见 **[docs/MANUAL.md](docs/MANUAL.md)**。
