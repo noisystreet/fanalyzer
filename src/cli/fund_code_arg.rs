@@ -2,7 +2,6 @@
 
 use clap::Args;
 
-/// 单基金命令的代码参数（位置参数与 flag 二选一或一致）。
 #[derive(Args, Debug, Clone, Default)]
 pub struct FundCodeArg {
     /// 位置参数：基金代码或名称
