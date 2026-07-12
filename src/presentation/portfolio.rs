@@ -1,11 +1,12 @@
 //! 组合分析终端输出与导出。
 
 use crate::models::{CorrelationMatrix, OverlapPair, PortfolioInterpretation, PortfolioReport};
+use comfy_table::*;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
-use tabled::settings::{object::Columns, Alignment, Style};
-use tabled::{Table, Tabled};
+
+const ROUNDED_UTF8: &str = "││──╞═╪╡┆╌┼├┤┬┴╭╮╰╯";
 
 pub fn render_portfolio(
     report: &PortfolioReport,
@@ -63,46 +64,43 @@ pub fn print_portfolio_interpretation(interp: &PortfolioInterpretation) {
     }
 }
 
-#[derive(Tabled)]
-struct MemberRow {
-    #[tabled(rename = "代码")]
-    code: String,
-    #[tabled(rename = "名称")]
-    name: String,
-    #[tabled(rename = "权重")]
-    weight: String,
-    #[tabled(rename = "总收益")]
-    total_return: String,
-    #[tabled(rename = "波动率")]
-    volatility: String,
-    #[tabled(rename = "最大回撤")]
-    max_drawdown: String,
-    #[tabled(rename = "夏普")]
-    sharpe: String,
-    #[tabled(rename = "收益贡献")]
-    contribution: String,
-}
-
 fn print_members_table(s: &crate::models::PortfolioSummary) {
     println!("成分基金与静态贡献（weight × 单基总收益）");
-    let rows: Vec<MemberRow> = s
+    let header: Vec<String> = vec![
+        "代码".into(),
+        "名称".into(),
+        "权重".into(),
+        "总收益".into(),
+        "波动率".into(),
+        "最大回撤".into(),
+        "夏普".into(),
+        "收益贡献".into(),
+    ];
+    let rows: Vec<Vec<String>> = s
         .members
         .iter()
-        .map(|m| MemberRow {
-            code: m.code.clone(),
-            name: m.name.clone(),
-            weight: pct_ratio(m.weight),
-            total_return: pct(m.total_return),
-            volatility: pct(m.volatility),
-            max_drawdown: pct(m.max_drawdown),
-            sharpe: fmt(m.sharpe_ratio),
-            contribution: pct(m.return_contribution),
+        .map(|m| {
+            vec![
+                m.code.clone(),
+                m.name.clone(),
+                pct_ratio(m.weight),
+                pct(m.total_return),
+                pct(m.volatility),
+                pct(m.max_drawdown),
+                fmt(m.sharpe_ratio),
+                pct(m.return_contribution),
+            ]
         })
         .collect();
-    let mut table = Table::new(rows);
+    let mut table = Table::new();
+    table.load_preset(ROUNDED_UTF8);
+    table.set_header(header);
+    for row in rows {
+        table.add_row(row);
+    }
     table
-        .with(Style::rounded())
-        .modify(Columns::new(..), Alignment::right());
+        .column_iter_mut()
+        .for_each(|col| col.set_cell_alignment(CellAlignment::Right));
     println!("{table}");
 }
 
@@ -122,33 +120,34 @@ fn print_correlation_table(matrix: &CorrelationMatrix) {
     }
 }
 
-#[derive(Tabled)]
-struct OverlapRow {
-    #[tabled(rename = "基金A")]
-    fund_a: String,
-    #[tabled(rename = "基金B")]
-    fund_b: String,
-    #[tabled(rename = "加权重叠%")]
-    overlap: String,
-    #[tabled(rename = "共同持仓数")]
-    shared: String,
-}
-
 fn print_overlap_table(pairs: &[OverlapPair]) {
     println!("重仓股加权重叠（前 N 大重仓，min(占净值%) 之和）");
-    let rows: Vec<OverlapRow> = pairs
+    let header: Vec<String> = vec![
+        "基金A".into(),
+        "基金B".into(),
+        "加权重叠%".into(),
+        "共同持仓数".into(),
+    ];
+    let rows: Vec<Vec<String>> = pairs
         .iter()
-        .map(|p| OverlapRow {
-            fund_a: format!("{} {}", p.fund_a_code, p.fund_a_name),
-            fund_b: format!("{} {}", p.fund_b_code, p.fund_b_name),
-            overlap: format!("{:.2}", p.overlap_pct),
-            shared: p.shared_count.to_string(),
+        .map(|p| {
+            vec![
+                format!("{} {}", p.fund_a_code, p.fund_a_name),
+                format!("{} {}", p.fund_b_code, p.fund_b_name),
+                format!("{:.2}", p.overlap_pct),
+                p.shared_count.to_string(),
+            ]
         })
         .collect();
-    let mut table = Table::new(rows);
+    let mut table = Table::new();
+    table.load_preset(ROUNDED_UTF8);
+    table.set_header(header);
+    for row in rows {
+        table.add_row(row);
+    }
     table
-        .with(Style::rounded())
-        .modify(Columns::new(..), Alignment::right());
+        .column_iter_mut()
+        .for_each(|col| col.set_cell_alignment(CellAlignment::Right));
     println!("{table}");
 }
 

@@ -2,13 +2,22 @@
 
 use crate::models::{FundOverview, FundRankRow, IndustryAllocation, StockHoldings};
 use crate::presentation::truncate_string;
-use tabled::settings::{object::Columns, Alignment, Style};
-use tabled::{Table, Tabled};
+use comfy_table::*;
 
-fn print_rounded_table<T: Tabled>(rows: &[T], right_align_from_col: usize) {
-    let mut table = Table::new(rows);
-    table.with(Style::rounded());
-    table.modify(Columns::new(right_align_from_col..), Alignment::right());
+const ROUNDED_UTF8: &str = "││──╞═╪╡┆╌┼├┤┬┴╭╮╰╯";
+
+fn print_rounded_table(header: Vec<String>, rows: Vec<Vec<String>>, right_align_from_col: usize) {
+    let mut table = Table::new();
+    table.load_preset(ROUNDED_UTF8);
+    table.set_header(header);
+    for row in rows {
+        table.add_row(row);
+    }
+    for (idx, col) in table.column_iter_mut().enumerate() {
+        if idx >= right_align_from_col {
+            col.set_cell_alignment(CellAlignment::Right);
+        }
+    }
     println!("{table}");
 }
 
@@ -17,39 +26,33 @@ fn fmt_pct_opt(v: Option<f64>) -> String {
         .unwrap_or_else(|| "-".to_string())
 }
 
-#[derive(Tabled)]
-struct RankingTableRow {
-    #[tabled(rename = "代码")]
-    code: String,
-    #[tabled(rename = "简称")]
-    name: String,
-    #[tabled(rename = "近1周")]
-    week: String,
-    #[tabled(rename = "近1月")]
-    month: String,
-    #[tabled(rename = "近3月")]
-    three_m: String,
-    #[tabled(rename = "近6月")]
-    six_m: String,
-    #[tabled(rename = "近1年")]
-    one_y: String,
-    #[tabled(rename = "今年来")]
-    ytd: String,
-}
-
-fn ranking_table_rows(rows: &[FundRankRow]) -> Vec<RankingTableRow> {
-    rows.iter()
-        .map(|r| RankingTableRow {
-            code: r.code.clone(),
-            name: truncate_string(&r.name, 20),
-            week: fmt_pct_opt(r.pct_week),
-            month: fmt_pct_opt(r.pct_month),
-            three_m: fmt_pct_opt(r.pct_3m),
-            six_m: fmt_pct_opt(r.pct_6m),
-            one_y: fmt_pct_opt(r.pct_1y),
-            ytd: fmt_pct_opt(r.pct_this_year),
+fn ranking_table_rows(rows: &[FundRankRow]) -> (Vec<String>, Vec<Vec<String>>) {
+    let header = vec![
+        "代码".into(),
+        "简称".into(),
+        "近1周".into(),
+        "近1月".into(),
+        "近3月".into(),
+        "近6月".into(),
+        "近1年".into(),
+        "今年来".into(),
+    ];
+    let data = rows
+        .iter()
+        .map(|r| {
+            vec![
+                r.code.clone(),
+                truncate_string(&r.name, 20),
+                fmt_pct_opt(r.pct_week),
+                fmt_pct_opt(r.pct_month),
+                fmt_pct_opt(r.pct_3m),
+                fmt_pct_opt(r.pct_6m),
+                fmt_pct_opt(r.pct_1y),
+                fmt_pct_opt(r.pct_this_year),
+            ]
         })
-        .collect()
+        .collect();
+    (header, data)
 }
 
 pub fn print_ranking_table(rows: &[FundRankRow], kind: &str, sort: &str, universe_total: u32) {
@@ -61,72 +64,62 @@ pub fn print_ranking_table(rows: &[FundRankRow], kind: &str, sort: &str, univers
         rows.len()
     );
     println!();
-    print_rounded_table(&ranking_table_rows(rows), 2);
+    let (header, data) = ranking_table_rows(rows);
+    print_rounded_table(header, data, 2);
 }
 
-#[derive(Tabled)]
-struct IndustryTableRow {
-    #[tabled(rename = "序号")]
-    rank: u32,
-    #[tabled(rename = "行业类别")]
-    industry: String,
-    #[tabled(rename = "占净值比例")]
-    pct_nav: String,
-    #[tabled(rename = "市值(万元)")]
-    market_value_wan: String,
-}
-
-fn industry_display_rows(report: &IndustryAllocation) -> Vec<IndustryTableRow> {
-    report
+fn industry_display_rows(report: &IndustryAllocation) -> (Vec<String>, Vec<Vec<String>>) {
+    let header = vec![
+        "序号".into(),
+        "行业类别".into(),
+        "占净值比例".into(),
+        "市值(万元)".into(),
+    ];
+    let rows = report
         .rows
         .iter()
-        .map(|r| IndustryTableRow {
-            rank: r.rank,
-            industry: truncate_string(&r.industry, 36),
-            pct_nav: format!("{:.2}%", r.pct_nav),
-            market_value_wan: r
-                .market_value_wan
-                .map(|v| format!("{v:.2}"))
-                .unwrap_or_else(|| "-".to_string()),
+        .map(|r| {
+            vec![
+                r.rank.to_string(),
+                truncate_string(&r.industry, 36),
+                format!("{:.2}%", r.pct_nav),
+                r.market_value_wan
+                    .map(|v| format!("{v:.2}"))
+                    .unwrap_or_else(|| "-".to_string()),
+            ]
         })
-        .collect()
+        .collect();
+    (header, rows)
 }
 
-#[derive(Tabled)]
-struct HoldingTableRow {
-    #[tabled(rename = "序号")]
-    rank: u32,
-    #[tabled(rename = "股票代码")]
-    stock_code: String,
-    #[tabled(rename = "股票名称")]
-    stock_name: String,
-    #[tabled(rename = "占净值比例")]
-    pct_nav: String,
-    #[tabled(rename = "持股数(万股)")]
-    shares_wan: String,
-    #[tabled(rename = "持仓市值(万元)")]
-    market_value_wan: String,
-}
-
-fn holdings_display_rows(report: &StockHoldings) -> Vec<HoldingTableRow> {
-    report
+fn holdings_display_rows(report: &StockHoldings) -> (Vec<String>, Vec<Vec<String>>) {
+    let header = vec![
+        "序号".into(),
+        "股票代码".into(),
+        "股票名称".into(),
+        "占净值比例".into(),
+        "持股数(万股)".into(),
+        "持仓市值(万元)".into(),
+    ];
+    let rows = report
         .rows
         .iter()
-        .map(|r| HoldingTableRow {
-            rank: r.rank,
-            stock_code: r.stock_code.clone(),
-            stock_name: truncate_string(&r.stock_name, 16),
-            pct_nav: format!("{:.2}%", r.pct_nav),
-            shares_wan: r
-                .shares_wan
-                .map(|v| format!("{v:.2}"))
-                .unwrap_or_else(|| "-".to_string()),
-            market_value_wan: r
-                .market_value_wan
-                .map(|v| format!("{v:.2}"))
-                .unwrap_or_else(|| "-".to_string()),
+        .map(|r| {
+            vec![
+                r.rank.to_string(),
+                r.stock_code.clone(),
+                truncate_string(&r.stock_name, 16),
+                format!("{:.2}%", r.pct_nav),
+                r.shares_wan
+                    .map(|v| format!("{v:.2}"))
+                    .unwrap_or_else(|| "-".to_string()),
+                r.market_value_wan
+                    .map(|v| format!("{v:.2}"))
+                    .unwrap_or_else(|| "-".to_string()),
+            ]
         })
-        .collect()
+        .collect();
+    (header, rows)
 }
 
 pub fn print_holdings(code: &str, name: &str, report: &StockHoldings) {
@@ -140,7 +133,8 @@ pub fn print_holdings(code: &str, name: &str, report: &StockHoldings) {
         println!("暂无重仓股数据（常见于债券型、货币型或当季未持股）。");
         return;
     }
-    print_rounded_table(&holdings_display_rows(report), 3);
+    let (header, rows) = holdings_display_rows(report);
+    print_rounded_table(header, rows, 3);
 }
 
 pub fn print_industry(code: &str, name: &str, report: &IndustryAllocation) {
@@ -154,7 +148,8 @@ pub fn print_industry(code: &str, name: &str, report: &IndustryAllocation) {
         println!("暂无行业配置数据（常见于债券型、货币型或极低股票仓位）。");
         return;
     }
-    print_rounded_table(&industry_display_rows(report), 2);
+    let (header, rows) = industry_display_rows(report);
+    print_rounded_table(header, rows, 2);
 }
 
 pub fn print_fund_overview(profile: &FundOverview) {
@@ -230,6 +225,7 @@ mod tests {
 
     #[test]
     fn ranking_table_rows_empty_ok() {
-        assert!(ranking_table_rows(&[]).is_empty());
+        let (_, rows) = ranking_table_rows(&[]);
+        assert!(rows.is_empty());
     }
 }

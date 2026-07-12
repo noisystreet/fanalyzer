@@ -12,6 +12,7 @@ mod structured;
 use crate::models::FundAnalysis;
 pub use analysis::{export_analysis_json, render_analysis};
 pub use brief::{print_brief_separator, render_brief_terminal, write_brief_markdown};
+use comfy_table::*;
 pub use comparison::{export_comparison_csv, export_comparison_json, render_comparison};
 pub use fetch::print_fetch_result;
 pub use portfolio::{export_portfolio_json, print_portfolio_report, render_portfolio};
@@ -31,8 +32,9 @@ pub use structured::{
     RankMeta, RankPayload, ScreenMeta, ScreenPayload, SectorItem, StructuredEnvelope,
     StructuredError, StructuredFailureEnvelope, ENVELOPE_VERSION,
 };
-use tabled::settings::{object::Columns, Alignment, Style};
-use tabled::{Table, Tabled};
+
+/// Rounded-corner UTF8 preset, similar to tabled's `Style::rounded()`.
+const ROUNDED_UTF8: &str = "││──╞═╪╡┆╌┼├┤┬┴╭╮╰╯";
 
 pub fn print_analysis(analysis: &FundAnalysis) {
     println!("基金分析报告");
@@ -68,52 +70,23 @@ pub fn print_analysis(analysis: &FundAnalysis) {
     }
 }
 
-#[derive(Tabled)]
-struct ComparisonTableRow {
-    #[tabled(rename = "基金代码")]
-    code: String,
-    #[tabled(rename = "基金名称")]
-    name: String,
-    #[tabled(rename = "总收益率")]
-    total_return: String,
-    #[tabled(rename = "年化收益率")]
-    annualized_return: String,
-    #[tabled(rename = "波动率")]
-    volatility: String,
-    #[tabled(rename = "最大回撤")]
-    max_drawdown: String,
-    #[tabled(rename = "夏普比率")]
-    sharpe_ratio: String,
-    #[tabled(rename = "Sortino")]
-    sortino_ratio: String,
-    #[tabled(rename = "Calmar")]
-    calmar_ratio: String,
-    #[tabled(rename = "Alpha")]
-    alpha: String,
-    #[tabled(rename = "Beta")]
-    beta: String,
-    #[tabled(rename = "管理费")]
-    management_fee: String,
-    #[tabled(rename = "托管费")]
-    custody_fee: String,
-}
-
-#[derive(Tabled)]
-struct ManagerCompareRow {
-    #[tabled(rename = "代码")]
-    code: String,
-    #[tabled(rename = "简称")]
-    name: String,
-    #[tabled(rename = "经理")]
-    manager_name: String,
-    #[tabled(rename = "任期(年)")]
-    tenure_years: String,
-    #[tabled(rename = "任职回报")]
-    tenure_return: String,
-}
-
-fn comparison_rows(analyses: &[FundAnalysis]) -> Vec<ComparisonTableRow> {
-    analyses
+fn comparison_rows(analyses: &[FundAnalysis]) -> (Vec<String>, Vec<Vec<String>>) {
+    let header = vec![
+        "基金代码".into(),
+        "基金名称".into(),
+        "总收益率".into(),
+        "年化收益率".into(),
+        "波动率".into(),
+        "最大回撤".into(),
+        "夏普比率".into(),
+        "Sortino".into(),
+        "Calmar".into(),
+        "Alpha".into(),
+        "Beta".into(),
+        "管理费".into(),
+        "托管费".into(),
+    ];
+    let rows = analyses
         .iter()
         .map(|a| {
             let mgmt_fee = if a.management_fee > 0.0 {
@@ -126,60 +99,78 @@ fn comparison_rows(analyses: &[FundAnalysis]) -> Vec<ComparisonTableRow> {
             } else {
                 "-".to_string()
             };
-            ComparisonTableRow {
-                code: a.code.clone(),
-                name: truncate_string(&a.name, 14),
-                total_return: format!("{:.2}%", a.total_return * 100.0),
-                annualized_return: format!("{:.2}%", a.annualized_return * 100.0),
-                volatility: format!("{:.2}%", a.volatility * 100.0),
-                max_drawdown: format!("{:.2}%", a.max_drawdown * 100.0),
-                sharpe_ratio: format!("{:.2}", a.sharpe_ratio),
-                sortino_ratio: format!("{:.2}", a.sortino_ratio),
-                calmar_ratio: format!("{:.2}", a.calmar_ratio),
-                alpha: format!("{:.2}%", a.alpha * 100.0),
-                beta: format!("{:.2}", a.beta),
-                management_fee: mgmt_fee,
-                custody_fee: custody_fee_str,
-            }
+            vec![
+                a.code.clone(),
+                truncate_string(&a.name, 14),
+                format!("{:.2}%", a.total_return * 100.0),
+                format!("{:.2}%", a.annualized_return * 100.0),
+                format!("{:.2}%", a.volatility * 100.0),
+                format!("{:.2}%", a.max_drawdown * 100.0),
+                format!("{:.2}", a.sharpe_ratio),
+                format!("{:.2}", a.sortino_ratio),
+                format!("{:.2}", a.calmar_ratio),
+                format!("{:.2}%", a.alpha * 100.0),
+                format!("{:.2}", a.beta),
+                mgmt_fee,
+                custody_fee_str,
+            ]
         })
-        .collect()
+        .collect();
+    (header, rows)
 }
 
-fn manager_compare_rows(analyses: &[FundAnalysis]) -> Vec<ManagerCompareRow> {
-    analyses
+fn manager_compare_rows(analyses: &[FundAnalysis]) -> (Vec<String>, Vec<Vec<String>>) {
+    let header = vec![
+        "代码".into(),
+        "简称".into(),
+        "经理".into(),
+        "任期(年)".into(),
+        "任职回报".into(),
+    ];
+    let rows = analyses
         .iter()
         .filter(|a| !a.manager_name.is_empty())
         .map(|a| {
             let tenure_years = a.manager_tenure_days as f64 / 365.0;
-            ManagerCompareRow {
-                code: a.code.clone(),
-                name: truncate_string(&a.name, 14),
-                manager_name: a.manager_name.clone(),
-                tenure_years: format!("{tenure_years:.1}"),
-                tenure_return: format!("{:.2}%", a.manager_total_return * 100.0),
-            }
+            vec![
+                a.code.clone(),
+                truncate_string(&a.name, 14),
+                a.manager_name.clone(),
+                format!("{tenure_years:.1}"),
+                format!("{:.2}%", a.manager_total_return * 100.0),
+            ]
         })
-        .collect()
+        .collect();
+    (header, rows)
 }
 
-fn print_rounded_table<T: Tabled>(rows: &[T], right_align_from_col: usize) {
-    let mut table = Table::new(rows);
-    table.with(Style::rounded());
-    table.modify(Columns::new(right_align_from_col..), Alignment::right());
+fn print_rounded_table(header: Vec<String>, rows: Vec<Vec<String>>, right_align_from_col: usize) {
+    let mut table = Table::new();
+    table.load_preset(ROUNDED_UTF8);
+    table.set_header(header);
+    for row in rows {
+        table.add_row(row);
+    }
+    for (idx, col) in table.column_iter_mut().enumerate() {
+        if idx >= right_align_from_col {
+            col.set_cell_alignment(CellAlignment::Right);
+        }
+    }
     println!("{table}");
 }
 
 pub fn print_comparison(analyses: &[FundAnalysis]) {
     println!("基金对比分析");
     println!();
-    print_rounded_table(&comparison_rows(analyses), 2);
+    let (header, rows) = comparison_rows(analyses);
+    print_rounded_table(header, rows, 2);
     println!();
     println!("基金经理信息");
-    let mgr_rows = manager_compare_rows(analyses);
+    let (mgr_header, mgr_rows) = manager_compare_rows(analyses);
     if mgr_rows.is_empty() {
         println!("（无经理信息）");
     } else {
-        print_rounded_table(&mgr_rows, 3);
+        print_rounded_table(mgr_header, mgr_rows, 3);
     }
 }
 
@@ -247,16 +238,22 @@ mod tests {
 
     #[test]
     fn comparison_rows_formats_percent_columns() {
-        let rows = comparison_rows(&[sample_analysis()]);
+        let (_, rows) = comparison_rows(&[sample_analysis()]);
         assert_eq!(rows.len(), 1);
-        assert!(rows[0].total_return.ends_with('%'));
-        assert_eq!(manager_compare_rows(&[sample_analysis()]).len(), 1);
+        assert!(rows[0][2].ends_with('%'));
+        let (_, mgr_rows) = manager_compare_rows(&[sample_analysis()]);
+        assert_eq!(mgr_rows.len(), 1);
     }
 
     #[test]
     fn rounded_style_emits_unicode_table() {
-        let mut table = Table::new(comparison_rows(&[sample_analysis()]));
-        table.with(Style::rounded());
+        let (header, rows) = comparison_rows(&[sample_analysis()]);
+        let mut table = Table::new();
+        table.load_preset(ROUNDED_UTF8);
+        table.set_header(header);
+        for row in rows {
+            table.add_row(row);
+        }
         let rendered = table.to_string();
         assert!(
             rendered.contains('╭') && rendered.contains('╰'),
