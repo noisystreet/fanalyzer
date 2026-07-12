@@ -2,8 +2,8 @@
 
 use super::context::Session;
 use crate::domain::{
-    build_fund_analysis_series, normalize_rolling_window, resolve_benchmark, BenchmarkData,
-    FundAnalyzer, FundMetaInfo, IndexBenchmark, HS300,
+    BenchmarkData, FundAnalyzer, FundMetaInfo, HS300, IndexBenchmark, build_fund_analysis_series,
+    normalize_rolling_window, resolve_benchmark,
 };
 use crate::models::FundAnalysisReport;
 use crate::nav_cache::filter_covering_calendar_days;

@@ -1,7 +1,7 @@
 //! 自选列表结构化命令。
 
 use super::context::CommandContext;
-use crate::presentation::{base_meta, emit, BatchMeta, BatchPayload};
+use crate::presentation::{BatchMeta, BatchPayload, base_meta, emit};
 use crate::watchlist::{add_to_watchlist, load_watchlist, remove_from_watchlist};
 use schemars::JsonSchema;
 use serde::Serialize;

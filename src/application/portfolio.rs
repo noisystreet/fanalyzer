@@ -1,13 +1,13 @@
 //! 组合分析用例：加权收益、相关矩阵、重仓重叠。
 
-use super::concurrency::{map_concurrent, FUND_CONCURRENCY};
+use super::concurrency::{FUND_CONCURRENCY, map_concurrent};
 use super::context::CommandContext;
 use super::fund_service::{analyze_fund_with_navs, fetch_nav_series, resolve_fund_identifier};
 use super::queries::load_fund_holdings;
 use crate::domain::{
-    align_daily_returns, build_portfolio_series, correlation_matrix, daily_returns,
-    metrics_from_daily_returns, normalize_rolling_window, weighted_holdings_overlap,
-    weighted_portfolio_returns, EqualWeightComparison,
+    EqualWeightComparison, align_daily_returns, build_portfolio_series, correlation_matrix,
+    daily_returns, metrics_from_daily_returns, normalize_rolling_window, weighted_holdings_overlap,
+    weighted_portfolio_returns,
 };
 use crate::insight_config::load_portfolio_insights;
 use crate::models::{
@@ -15,7 +15,7 @@ use crate::models::{
     StockHoldings,
 };
 use crate::portfolio::PortfolioDefinition;
-use crate::presentation::{base_meta, compact_portfolio_report, emit, PortfolioMeta};
+use crate::presentation::{PortfolioMeta, base_meta, compact_portfolio_report, emit};
 use chrono::Local;
 use std::collections::HashMap;
 use std::path::Path;

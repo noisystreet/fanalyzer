@@ -7,8 +7,8 @@ mod responses;
 mod tools;
 
 pub use agent_tools::{
-    agent_tools_json, embed_output_schemas, filter_agent_tools, generate_agent_tools,
-    resolve_output_schema, write_agent_tools, ToolTier,
+    ToolTier, agent_tools_json, embed_output_schemas, filter_agent_tools, generate_agent_tools,
+    resolve_output_schema, write_agent_tools,
 };
 pub use export::export_all;
 pub use paths::{discover_schema_root, load_output_schema};

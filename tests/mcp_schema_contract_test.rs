@@ -51,9 +51,11 @@ fn mcp_resources_list_includes_schema_index() {
     let resources = rpc["result"]["resources"]
         .as_array()
         .expect("resources array");
-    assert!(resources
-        .iter()
-        .any(|r| r["uri"] == "fanalyzer://schemas/index"));
+    assert!(
+        resources
+            .iter()
+            .any(|r| r["uri"] == "fanalyzer://schemas/index")
+    );
 }
 
 #[test]

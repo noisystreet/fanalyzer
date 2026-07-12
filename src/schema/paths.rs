@@ -9,13 +9,13 @@ pub fn discover_schema_root() -> PathBuf {
         return cwd;
     }
 
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(exe_dir) = exe.parent() {
-            for rel in ["schemas", "../schemas", "../../schemas"] {
-                let candidate = exe_dir.join(rel);
-                if candidate.join("index.json").exists() {
-                    return candidate;
-                }
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(exe_dir) = exe.parent()
+    {
+        for rel in ["schemas", "../schemas", "../../schemas"] {
+            let candidate = exe_dir.join(rel);
+            if candidate.join("index.json").exists() {
+                return candidate;
             }
         }
     }

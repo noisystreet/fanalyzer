@@ -6,12 +6,12 @@ use crate::schema::responses::{
     AnalyzeSuccessEnvelope, BriefSuccessEnvelope, CompareSuccessEnvelope, ExportSuccessEnvelope,
     FetchSuccessEnvelope, HoldingsSuccessEnvelope, InfoSuccessEnvelope,
     PortfolioConfigSuccessEnvelope, PortfolioSuccessEnvelope, RankSuccessEnvelope,
-    ResearchFundSuccessEnvelope, ScreenSuccessEnvelope, SectorsSuccessEnvelope,
-    WatchlistSuccessEnvelope, SUCCESS_ENVELOPES,
+    ResearchFundSuccessEnvelope, SUCCESS_ENVELOPES, ScreenSuccessEnvelope, SectorsSuccessEnvelope,
+    WatchlistSuccessEnvelope,
 };
 use crate::schema::tools::write_tools;
-use schemars::{schema_for, JsonSchema};
-use serde_json::{json, Value};
+use schemars::{JsonSchema, schema_for};
+use serde_json::{Value, json};
 use std::path::Path;
 
 const SCHEMA_VERSION: &str = "1";

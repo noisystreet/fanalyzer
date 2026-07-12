@@ -2,8 +2,8 @@
 
 use super::Commands;
 use crate::application::{
-    run_analyze, run_compare, run_export, run_fetch, run_portfolio, AnalyzeRequest, CommandContext,
-    CompareRequest, ExportRequest, FetchRequest, PortfolioRequest,
+    AnalyzeRequest, CommandContext, CompareRequest, ExportRequest, FetchRequest, PortfolioRequest,
+    run_analyze, run_compare, run_export, run_fetch, run_portfolio,
 };
 
 pub async fn dispatch(ctx: &CommandContext<'_>, cmd: Commands) -> anyhow::Result<()> {

@@ -133,10 +133,12 @@ mod tests {
             &AppConfig::default(),
         )
         .unwrap();
-        assert!(result.contents[0]
-            .text
-            .as_ref()
-            .unwrap()
-            .contains("success_envelopes"));
+        assert!(
+            result.contents[0]
+                .text
+                .as_ref()
+                .unwrap()
+                .contains("success_envelopes")
+        );
     }
 }

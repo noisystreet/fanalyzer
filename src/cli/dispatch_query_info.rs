@@ -2,8 +2,8 @@
 
 use super::Commands;
 use crate::application::{
-    run_holdings, run_info, run_rank, run_sectors, CommandContext, HoldingsRequest, InfoRequest,
-    RankRequest, SectorsRequest,
+    CommandContext, HoldingsRequest, InfoRequest, RankRequest, SectorsRequest, run_holdings,
+    run_info, run_rank, run_sectors,
 };
 
 pub async fn dispatch(ctx: &CommandContext<'_>, cmd: Commands) -> anyhow::Result<()> {

@@ -1,13 +1,13 @@
 //! 单基金分析用例。
 
-use super::concurrency::{map_concurrent, FUND_CONCURRENCY};
-use super::context::{resolve_fund_ids, CommandContext};
+use super::concurrency::{FUND_CONCURRENCY, map_concurrent};
+use super::context::{CommandContext, resolve_fund_ids};
 use super::fund_service;
 use crate::domain::resolve_analysis_days;
 use crate::models::FundAnalysisReport;
 use crate::presentation::{
-    base_meta, compact_analysis_reports, emit, item_error_failed, item_error_insufficient,
-    print_analysis, render_analysis, AnalysisMeta, BatchPayload, ItemError,
+    AnalysisMeta, BatchPayload, ItemError, base_meta, compact_analysis_reports, emit,
+    item_error_failed, item_error_insufficient, print_analysis, render_analysis,
 };
 use chrono::Local;
 use std::path::PathBuf;
@@ -127,7 +127,7 @@ mod tests {
     use crate::application::output_profile::OutputProfile;
     use crate::application::test_support::{linear_nav_series, strip_volatile_envelope_fields};
     use crate::application::{
-        run_analyze, AnalyzeRequest, CommandContext, FundDataSource, StructuredOutput,
+        AnalyzeRequest, CommandContext, FundDataSource, StructuredOutput, run_analyze,
     };
     use crate::cache::FundCache;
     use crate::domain::DEFAULT_ROLLING_WINDOW;

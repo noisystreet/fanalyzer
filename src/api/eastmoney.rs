@@ -1,9 +1,9 @@
-pub use crate::api::eastmoney_error::{into_anyhow, EastMoneyError};
+pub use crate::api::eastmoney_error::{EastMoneyError, into_anyhow};
 use crate::api::eastmoney_helpers;
 pub use crate::api::eastmoney_types::*;
 use crate::api::f10_jbgk;
-use crate::api::fund_holdings::{fetch_fund_stock_holdings_jjcc, FundStockHoldingsReport};
-use crate::api::fund_industry::{fetch_fund_industry_hypz, FundIndustryReport};
+use crate::api::fund_holdings::{FundStockHoldingsReport, fetch_fund_stock_holdings_jjcc};
+use crate::api::fund_industry::{FundIndustryReport, fetch_fund_industry_hypz};
 use crate::api::fund_ranking::FundRankingPage;
 use crate::api::nav_merge::merge_navs_by_date;
 use crate::models::FundNav;
@@ -61,13 +61,13 @@ impl EastMoneyClient {
             .http1_only()
             .timeout(timeout);
 
-        if let Some(ref p) = opts.proxy {
-            if !p.is_empty() {
-                let proxy = reqwest::Proxy::all(p).map_err(|e| {
-                    EastMoneyError::ClientBuildFailed(format!("invalid proxy URL: {e}"))
-                })?;
-                builder = builder.proxy(proxy);
-            }
+        if let Some(ref p) = opts.proxy
+            && !p.is_empty()
+        {
+            let proxy = reqwest::Proxy::all(p).map_err(|e| {
+                EastMoneyError::ClientBuildFailed(format!("invalid proxy URL: {e}"))
+            })?;
+            builder = builder.proxy(proxy);
         }
 
         let client = builder.build().map_err(EastMoneyError::HttpFailed)?;
@@ -389,20 +389,18 @@ impl EastMoneyClient {
         for i in start_idx..end_idx {
             if let Some(line) = klines.get(i).and_then(|v| v.as_str()) {
                 let parts: Vec<&str> = line.split(',').collect();
-                if parts.len() >= 5 {
-                    if let (Ok(date_str), Ok(close)) =
+                if parts.len() >= 5
+                    && let (Ok(date_str), Ok(close)) =
                         (parts[0].parse::<String>(), parts[2].parse::<f64>())
-                    {
-                        if let Ok(date) = chrono::NaiveDate::parse_from_str(&date_str, "%Y-%m-%d") {
-                            index_data.push(IndexData {
-                                date: chrono::DateTime::from_naive_utc_and_offset(
-                                    date.and_hms_opt(0, 0, 0).unwrap(),
-                                    FixedOffset::east_opt(0).unwrap(),
-                                ),
-                                close,
-                            });
-                        }
-                    }
+                    && let Ok(date) = chrono::NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
+                {
+                    index_data.push(IndexData {
+                        date: chrono::DateTime::from_naive_utc_and_offset(
+                            date.and_hms_opt(0, 0, 0).unwrap(),
+                            FixedOffset::east_opt(0).unwrap(),
+                        ),
+                        close,
+                    });
                 }
             }
         }

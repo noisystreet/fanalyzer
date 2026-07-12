@@ -1,14 +1,14 @@
 //! MCP 工具执行：映射 tool name → CLI 命令 / 复合流程。
 
 use crate::api::eastmoney::EastMoneyClient;
-use crate::application::{gather_research_fund, FundDataSource, OutputProfile, Session};
+use crate::application::{FundDataSource, OutputProfile, Session, gather_research_fund};
 use crate::cache::FundCache;
+use crate::cli::Commands;
 use crate::cli::fund_code_arg::FundCodeArg;
 use crate::cli::structured_runner::run_structured_command;
-use crate::cli::Commands;
 use crate::domain::DEFAULT_ROLLING_WINDOW;
 use crate::nav_cache::NavCache;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;

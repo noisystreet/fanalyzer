@@ -1,6 +1,6 @@
 //! 分析窗口预设（与 `rank --sort` / 官网区间列对齐）。
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use chrono::{Datelike, NaiveDate};
 
 /// 将 `--period` 解析为日历天数；未指定时返回 `days`。

@@ -4,13 +4,13 @@ use crate::api::eastmoney::EastMoneyClient;
 use crate::application::{CommandContext, FundDataSource, OutputProfile, StructuredOutput};
 use crate::cache::FundCache;
 use crate::nav_cache::NavCache;
-use crate::presentation::{error_from_anyhow, print_failure_capture, StructuredError};
+use crate::presentation::{StructuredError, error_from_anyhow, print_failure_capture};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::dispatch;
 use super::Commands;
+use super::dispatch;
 
 /// 执行结构化命令并返回 JSON 信封字符串（成功或失败均有 JSON）。
 pub async fn run_structured_command(

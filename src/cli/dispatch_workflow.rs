@@ -1,7 +1,7 @@
 //! 选基工作流子命令分派。
 
 use super::Commands;
-use crate::application::{run_brief, run_screen, BriefRequest, CommandContext, ScreenRequest};
+use crate::application::{BriefRequest, CommandContext, ScreenRequest, run_brief, run_screen};
 use crate::domain::ScreenFilters;
 
 pub async fn dispatch(ctx: &CommandContext<'_>, cmd: Commands) -> anyhow::Result<()> {

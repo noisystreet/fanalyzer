@@ -14,11 +14,7 @@ pub struct PortfolioMetrics {
 }
 
 pub fn nav_price(n: &FundNav) -> f64 {
-    if n.acc_nav > 0.0 {
-        n.acc_nav
-    } else {
-        n.nav
-    }
+    if n.acc_nav > 0.0 { n.acc_nav } else { n.nav }
 }
 
 /// 按日期升序提取日收益；键为收益归属日（当日净值相对前一日）。
@@ -86,11 +82,7 @@ pub fn pearson_correlation(a: &[f64], b: &[f64]) -> f64 {
         var_b += dy * dy;
     }
     let denom = (var_a * var_b).sqrt();
-    if denom > 0.0 {
-        cov / denom
-    } else {
-        0.0
-    }
+    if denom > 0.0 { cov / denom } else { 0.0 }
 }
 
 pub fn correlation_matrix(data: &[Vec<f64>]) -> Vec<Vec<f64>> {

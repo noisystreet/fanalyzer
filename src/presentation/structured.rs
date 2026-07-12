@@ -311,11 +311,11 @@ fn meta_to_value<M: Serialize>(meta: Option<&M>) -> anyhow::Result<Option<serde_
 }
 
 fn write_json_output(ctx: Option<&CommandContext<'_>>, json: &str) -> anyhow::Result<()> {
-    if let Some(ctx) = ctx {
-        if ctx.capture_enabled() {
-            ctx.store_captured(json.to_string());
-            return Ok(());
-        }
+    if let Some(ctx) = ctx
+        && ctx.capture_enabled()
+    {
+        ctx.store_captured(json.to_string());
+        return Ok(());
     }
     let mut out = io::stdout().lock();
     out.write_all(json.as_bytes())?;

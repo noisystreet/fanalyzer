@@ -4,8 +4,8 @@ use crate::models::{FundAnalysisSeries, FundNav, PortfolioTimeSeries, SeriesPoin
 use chrono::NaiveDate;
 use std::collections::HashMap;
 
-use super::returns::{daily_returns, nav_price};
 use super::BenchmarkData;
+use super::returns::{daily_returns, nav_price};
 
 /// 默认滚动窗口（交易日，约 3 个月）。
 pub const DEFAULT_ROLLING_WINDOW: u32 = 60;

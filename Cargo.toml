@@ -1,7 +1,7 @@
 [package]
 name = "fanalyzer"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 description = "Fanalyzer — fund analysis CLI for personal research"
 license = "MIT"
 repository = "https://github.com/noisystreet/fanalyzer"
@@ -14,23 +14,22 @@ anyhow = "1"
 thiserror = "2"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["env-filter", "fmt"] }
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-reqwest = { version = "0.13", features = ["json"] }
+serde_json = { version = "1", default-features = false }
+reqwest = { version = "0.13", default-features = false, features = ["json"] }
 async-trait = "0.1"
-clap = { version = "4", features = ["derive", "env"] }
+clap = { version = "4", default-features = false, features = ["derive", "env", "std", "help", "usage", "error-context"] }
 toml = "1.1"
 chrono = { version = "0.4", features = ["serde"] }
 csv = "1"
 dirs = "5"
 regex = "1"
-comfy-table = { version = "7", default-features = false, features = ["default"] }
-schemars = { version = "1", features = ["chrono04"] }
+comfy-table = { version = "7", default-features = false }
+schemars = { version = "1", default-features = false, features = ["derive", "chrono04"] }
 
 [dev-dependencies]
 assert_cmd = "2"
 predicates = "3"
 tempfile = "3"
-chrono = { version = "0.4", features = ["serde"] }
 jsonschema = "0.29"

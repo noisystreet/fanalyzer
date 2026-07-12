@@ -1,7 +1,7 @@
 //! Agent 专用工具 schema（剥离 CLI 内部参数）。
 
 use super::paths::load_output_schema;
-use super::tools::{generate_tools, InputSchema, ToolDefinition, TOOL_PREFIX};
+use super::tools::{InputSchema, TOOL_PREFIX, ToolDefinition, generate_tools};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -262,14 +262,13 @@ pub fn embed_output_schemas(tools: &[ToolDefinition], schema_root: &Path) -> Vec
             if let Some(ref path) = tool.output_schema {
                 let rel = path.strip_prefix("schemas/").unwrap_or(path);
                 let full = schema_root.join(rel);
-                if full.exists() {
-                    if let Ok(raw) = std::fs::read_to_string(&full) {
-                        if let Ok(schema) = serde_json::from_str::<Value>(&raw) {
-                            v.as_object_mut()
-                                .expect("tool object")
-                                .insert("outputSchema".into(), schema);
-                        }
-                    }
+                if full.exists()
+                    && let Ok(raw) = std::fs::read_to_string(&full)
+                    && let Ok(schema) = serde_json::from_str::<Value>(&raw)
+                {
+                    v.as_object_mut()
+                        .expect("tool object")
+                        .insert("outputSchema".into(), schema);
                 }
             }
             v
@@ -289,10 +288,12 @@ mod tests {
             .find(|t| t.name == "fanalyzer_analyze")
             .expect("analyze");
         assert!(!analyze.input_schema.properties.contains_key("compact"));
-        assert!(!analyze
-            .input_schema
-            .properties
-            .contains_key("compact-series"));
+        assert!(
+            !analyze
+                .input_schema
+                .properties
+                .contains_key("compact-series")
+        );
         assert!(analyze.input_schema.properties.contains_key("code"));
     }
 
