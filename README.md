@@ -3,7 +3,7 @@
 [![CI](https://github.com/noisystreet/fanalyzer/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/noisystreet/fanalyzer/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/github/license/noisystreet/fanalyzer)](LICENSE)
 
-Fund analysis CLI & Web UI — 个人基金研究与选基工具（Rust）。
+Fund analysis CLI — 个人基金研究与选基工具（Rust）。
 
 仓库：<https://github.com/noisystreet/fanalyzer>
 
@@ -40,11 +40,8 @@ cd fanalyzer
 ```
 
 ```bash
-# 构建（默认仅 CLI，编译更快）
+# 构建
 cargo build
-
-# Web UI 需显式启用 feature
-cargo build --features web
 
 # 运行
 cargo run -- fetch --code 000001
@@ -57,11 +54,9 @@ cargo test
 cargo fmt -- --check && cargo clippy -- -D warnings
 ```
 
-日常 CLI / MCP 开发无需 `--features web`；仅 `serve` 或改 Web 页面时再启用。
-
 ## 发布
 
-推送 `v*` tag 会触发 [`.github/workflows/release.yml`](.github/workflows/release.yml)，在 GitHub Release 中附带 Linux amd64 的 CLI 与 Web 构建包：
+推送 `v*` tag 会触发 [`.github/workflows/release.yml`](.github/workflows/release.yml)，在 GitHub Release 中附带 Linux amd64 构建包：
 
 ```bash
 git tag v0.1.0
@@ -223,21 +218,6 @@ cargo run -- info --code "华夏成长混合"
 cargo run -- analyze --code "华夏成长混合" --days 90
 
 # 系统会自动搜索并匹配基金代码
-```
-
-### 11. Web 界面（Leptos SSR，可选）
-
-编译时需启用 `web` feature：
-
-```bash
-cargo run --features web -- serve
-# 浏览器打开 http://127.0.0.1:3000
-```
-
-页面：`/` 首页、`/analyze` 单基金分析、`/compare` 多基金对比、`/info` 基金概况、`/brief` 选基简报、`/disclaimer` 免责声明；与 CLI 共用 application 层与本地缓存。
-
-```bash
-cargo run --features web -- serve --host 0.0.0.0 --port 8080
 ```
 
 ## Agent 与 MCP 集成

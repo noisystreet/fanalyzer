@@ -153,7 +153,6 @@ cargo run -- json export 110011 --days 365
 | `rank` | 是 | 不适用 | 按天天基金官网排行接口拉取某类型全市场前 N 名 |
 | `brief` | 是 | 支持 | 单基金/自选综合简报：概况 + 分析 + 行业 + 重仓 |
 | `screen` | 是 | 不适用 | 从类型排行池中按回撤/夏普/费率筛选，并对比通过者 |
-| `serve` | 是 | 不适用 | 启动 Leptos SSR Web 界面（**须** `cargo run --features web -- serve`） |
 
 ---
 
@@ -198,7 +197,7 @@ cargo run -- analyze --watchlist --days 60
 - 收益、回撤、波动等优先使用 **累计净值 `acc_nav`**（若有效），以更好反映分红再投资；导出 CSV 仍保留 `nav` / `acc_nav` 两列。
 - **Alpha / Beta** 在线时按 F10 **业绩比较基准** 文案推断指数（如沪深300、中证500）；无法识别时按基金类型兜底，再不行用沪深300。
 - 新增 **索提诺比率**、**卡玛比率**（收益/最大回撤），与夏普一并输出。
-- **时间序列（v0.3）**：默认 60 交易日滚动窗口，输出归一化净值、回撤、滚动夏普/波动率/Beta（JSON 导出与 Web 图表共用）。
+- **时间序列（v0.3）**：默认 60 交易日滚动窗口，输出归一化净值、回撤、滚动夏普/波动率/Beta（JSON 导出）。
 
 `--offline` 时从本地净值缓存读取；无契约基准与经理/费率，Alpha/Beta 为 0。
 
@@ -269,7 +268,7 @@ weight = 0.5
 **输出说明：**
 
 - **组合指标**：按成分日收益加权合成组合曲线，再算总收益、年化、波动、回撤、夏普
-- **时间序列**：组合归一化净值、回撤、滚动夏普/波动率（JSON 与 Web 图表）
+- **时间序列**：组合归一化净值、回撤、滚动夏普/波动率（JSON）
 - **成分贡献**：静态近似 `weight × 单基总收益`
 - **相关矩阵**：成分日收益 Pearson 相关（日期取交集）
 - **重仓重叠**：对共同持仓取 `min(占净值%)` 之和；`--offline` 时跳过
@@ -483,34 +482,6 @@ cargo run -- rank --kind 混合 --top 100
 终端表格中会打印近 1 周、近 1 月、近 3 月、近 6 月、近 1 年、今年来等收益率（百分点，与解析列一致）。
 
 **说明：** `rank` 不支持 `--offline`；若接口返回异常，请检查网络与代理配置（`config/default.toml` 中的 `proxy`）。
-
----
-
-## `serve` — Web 界面（Leptos SSR）
-
-需编译时启用 feature：
-
-```bash
-cargo run --features web -- serve
-cargo run --features web -- serve --host 0.0.0.0 --port 8080
-```
-
-| 参数 | 说明 |
-|------|------|
-| `--host` | 监听地址，默认 `127.0.0.1` |
-| `-p` / `--port` | 端口，默认 `3000` |
-| `--portfolio-file` | Web 组合页**首次打开**时的预填来源（默认 `config/portfolio.toml`）；分析以页面表单为准 |
-
-浏览器访问：
-
-- `/` — 首页
-- `/analyze?code=000001&days=90` — 单基金分析（含净值/回撤/滚动指标 SVG 图表）
-- `/compare?codes=000001,110011&days=90&sort=sharpe` — 多基金对比
-- `/portfolio?run=1&days=90` — 组合分析（含组合净值与滚动指标图表；支持「从自选导入等权」、浏览器 localStorage 暂存草稿）
-- `/info?code=000001` — 基金概况（F10）
-- `/brief?code=000001&days=90&industry_top=5&holdings_top=10` — 选基综合简报
-
-**说明：** 纯 SSR（无 WASM  hydration）；需联网。HTTP 代理可配置 `config/default.toml` 的 `[api].proxy` 或环境变量 `http_proxy` / `https_proxy`。
 
 ---
 

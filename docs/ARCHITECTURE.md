@@ -2,7 +2,7 @@
 
 ## Project Identity
 
-**Fanalyzer** — Rust 基金分析 CLI 工具（可选 Web UI），面向个人投资者，提供基金数据获取、分析与报告生成。
+**Fanalyzer** — Rust 基金分析 CLI 工具，面向个人投资者，提供基金数据获取、分析与报告生成。
 
 ## Tech Stack
 
@@ -10,7 +10,6 @@
 - Async Runtime: Tokio
 - HTTP Client: Reqwest
 - CLI: Clap
-- Web (optional feature `web`): Leptos SSR + Axum + tower-http
 - Serialization: Serde + Serde JSON + TOML
 - Logging: tracing + tracing-subscriber
 - Error Handling: anyhow (app) + thiserror (library)
@@ -21,8 +20,6 @@
 ```
 ┌─────────────────────────────────────────┐
 │  cli/          Clap 定义 + dispatch      │  CLI 入口（无业务逻辑）
-├─────────────────────────────────────────┤
-│  web/          Axum 路由 + Leptos SSR     │  Web 入口（feature `web`）
 ├─────────────────────────────────────────┤
 │  application/  用例编排（Use Case）       │  应用层
 ├─────────────────────────────────────────┤
@@ -39,11 +36,10 @@
 ## Dependency Direction
 
 - `cli` → `application` → `domain` ← `models`
-- `web` → `application` → `domain`（Web 不得依赖 `cli`）
 - `application` → `presentation`（CLI 终端输出）
 - `application` → `api` / `cache` / `nav_cache`（通过 `Session`）
 - `api` → `models`
-- **禁止反向依赖**：`domain` / `models` 不依赖 `api`、`cli`、`web`
+- **禁止反向依赖**：`domain` / `models` 不依赖 `api`、`cli`
 
 `services/` 为兼容 re-export，新代码请使用 `domain` / `application`。
 
@@ -58,12 +54,6 @@ src/
 │   ├── dispatch.rs
 │   ├── dispatch_query.rs
 │   └── dispatch_workflow.rs
-├── web/                    # Leptos SSR + Axum（feature `web`）
-│   ├── mod.rs              # 启动 wiring
-│   ├── routes.rs           # HTTP 路由
-│   ├── components.rs       # Leptos 页面组件
-│   ├── services.rs         # 薄适配层 → application
-│   └── state.rs            # AppState / CommandContext 构造
 ├── application/            # 用例
 │   ├── context.rs          # Session / CommandContext
 │   ├── fund_service.rs     # 解析、净值、分析编排
@@ -97,8 +87,6 @@ src/
 
 CLI 子命令经 `dispatch` 构造 `CommandContext`，调用 `application::*` 用例，由 `presentation` 渲染。
 
-Web 路由经 `web/services.rs` 构造 `CommandContext`，复用同一套 `application` 用例，由 Leptos 组件渲染 HTML。
-
 ## 已实现能力
 
 ### CLI 子命令
@@ -109,23 +97,6 @@ Web 路由经 `web/services.rs` 构造 `CommandContext`，复用同一套 `appli
 | 分析 | `analyze`, `compare`, `portfolio` |
 | 查询 | `info`, `rank`, `sectors`, `holdings` |
 | 工作流 | `brief`, `screen` |
-| Web | `serve`（需 `--features web`） |
-
-### Web 页面（feature `web`）
-
-| 页面 | 对应 CLI 能力 |
-|------|---------------|
-| `/` | 首页导航 |
-| `/analyze` | `analyze` |
-| `/compare` | `compare` |
-| `/info` | `info` |
-| `/brief` | `brief` |
-| `/portfolio` | `portfolio` |
-| `/disclaimer` | 免责声明 |
-
-尚未覆盖：`screen`、`rank`、`export`、`fetch`（后续按需补齐）。
-
-Web 组合页在表单中编辑自选组合（每行「代码 权重」）；首次打开预填 `portfolio.toml` 或自选等权。CLI 仍使用 `--portfolio-file`。
 
 分析口径：优先 `acc_nav`；Alpha/Beta 按 F10 契约基准推断指数；支持 `--period` 与 Sortino/Calmar。
 
@@ -137,7 +108,7 @@ Web 组合页在表单中编辑自选组合（每行「代码 权重」）；首
 - **tests/schema_contract_test.rs**：离线 CLI 输出用 `jsonschema` 校验 `schemas/responses/*.success.json` 与 `envelope.failure.json`
 - **tests/mcp_schema_contract_test.rs**：MCP `tools/call` 工具结果校验同一套 response schema（离线 `--config` + 缓存 fixture）
 - **tests/integration_test.rs**：CLI/MCP 行为与 `--config` 路径
-- CI 默认构建 + `--features web` 分别跑 clippy / test
+- CI 默认构建跑 clippy / test
 - 外部 HTTP：`FundDataSource` trait + 离线缓存 fixture，核心路径 CI 无需联网
 
 ## Evolution Roadmap
@@ -146,14 +117,11 @@ Web 组合页在表单中编辑自选组合（每行「代码 权重」）；首
 2. **API trait** — `FundDataSource` async trait（✅ 已实现），便于 mock 与第二数据源
 3. **配置化筛选** — `screen` 规则 TOML 模板
 4. **组合分析** — 相关性、重仓重叠（v0.2 ✅ portfolio 子命令）
-5. **Web 功能追平** — screen、rank、导出等页面
-6. **滚动指标与图表** — 滚动 Sharpe/Beta、净值/回撤曲线（v0.3 ✅ analyze / portfolio Web + JSON）
 
 实现要点：
 
 - `domain/rolling.rs`：归一化净值、回撤、60 日滚动夏普/波动/Beta
 - `models/series.rs`：`FundAnalysisReport`、`PortfolioTimeSeries`
-- Web：`web/charts.rs` 内联 SVG；`chart_components.rs` 挂载于 `/analyze`、`/portfolio`
 - CLI：`analyze --output report.json` 导出完整时间序列
 
 ## Open Decisions

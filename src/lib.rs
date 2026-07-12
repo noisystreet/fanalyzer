@@ -14,6 +14,3 @@ pub mod schema;
 /// 兼容层：新代码请使用 `domain` / `application`。
 pub mod services;
 pub mod watchlist;
-
-#[cfg(feature = "web")]
-pub mod web;
