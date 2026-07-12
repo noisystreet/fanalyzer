@@ -425,8 +425,11 @@ impl EastMoneyClient {
             .await?;
 
         // 从 JS 中提取 Data_currentFundManager 数组
-        let manager_json = eastmoney_helpers::extract_js_variable(&resp, "Data_currentFundManager")
-            .ok_or_else(|| EastMoneyError::ParseFailed("Manager data not found".to_string()))?;
+        let Some(manager_json) =
+            eastmoney_helpers::extract_js_variable(&resp, "Data_currentFundManager")
+        else {
+            return Ok(FundManagerInfo::default());
+        };
 
         let managers: Vec<serde_json::Value> =
             serde_json::from_str(&manager_json).map_err(|e| {
@@ -525,33 +528,26 @@ impl EastMoneyClient {
             .unwrap_or_else(|| "未知".to_string());
 
         // 提取基金经理信息
-        let manager_json =
+        let manager_fields =
             eastmoney_helpers::extract_js_variable(&js_resp, "Data_currentFundManager")
-                .ok_or_else(|| EastMoneyError::ParseFailed("Manager data not found".to_string()))?;
+                .and_then(|json| serde_json::from_str::<Vec<serde_json::Value>>(&json).ok())
+                .and_then(|managers| managers.first().cloned());
 
-        let managers: Vec<serde_json::Value> =
-            serde_json::from_str(&manager_json).map_err(|e| {
-                EastMoneyError::ParseFailed(format!("Failed to parse manager data: {}", e))
-            })?;
-
-        let manager = managers
-            .first()
-            .ok_or_else(|| EastMoneyError::ParseFailed("No manager data".to_string()))?;
-
-        let manager_name = manager
-            .get("name")
-            .and_then(|v| v.as_str())
+        let manager_name = manager_fields
+            .as_ref()
+            .and_then(|m| m.get("name").and_then(|v| v.as_str()))
             .unwrap_or("未知")
             .to_string();
 
-        let work_time = manager
-            .get("workTime")
-            .and_then(|v| v.as_str())
+        let work_time = manager_fields
+            .as_ref()
+            .and_then(|m| m.get("workTime").and_then(|v| v.as_str()))
             .unwrap_or("");
         let manager_tenure_days = eastmoney_helpers::parse_work_time(work_time);
 
-        let manager_total_return = manager
-            .get("profit")
+        let manager_total_return = manager_fields
+            .as_ref()
+            .and_then(|m| m.get("profit"))
             .and_then(|p| p.get("series"))
             .and_then(|s| s.as_array())
             .and_then(|arr| arr.first())
