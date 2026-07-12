@@ -2,7 +2,7 @@
   "generator": "fanalyzer schema export",
   "tools": [
     {
-      "description": "单基金命令的代码参数",
+      "description": "结构化 JSON 输出",
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] fetch ...`",
         "properties": {
@@ -226,7 +226,7 @@
       }
     },
     {
-      "description": "单基金命令的代码参数",
+      "description": "结构化 JSON 输出",
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] analyze ...`",
         "properties": {
@@ -1354,7 +1354,7 @@
       }
     },
     {
-      "description": "单基金命令的代码参数",
+      "description": "结构化 JSON 输出",
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] export ...`",
         "properties": {
@@ -1578,7 +1578,7 @@
       }
     },
     {
-      "description": "单基金命令的代码参数",
+      "description": "结构化 JSON 输出",
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] info ...`",
         "properties": {
@@ -1801,7 +1801,7 @@
       }
     },
     {
-      "description": "单基金命令的代码参数",
+      "description": "结构化 JSON 输出",
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] sectors ...`",
         "properties": {
@@ -2023,7 +2023,7 @@
       }
     },
     {
-      "description": "单基金命令的代码参数",
+      "description": "结构化 JSON 输出",
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] holdings ...`",
         "properties": {
@@ -2466,7 +2466,7 @@
       }
     },
     {
-      "description": "单基金命令的代码参数",
+      "description": "结构化 JSON 输出",
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] brief ...`",
         "properties": {
