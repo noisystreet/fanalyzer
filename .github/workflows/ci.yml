@@ -40,20 +40,11 @@ jobs:
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings -W clippy::cognitive_complexity -W clippy::too_many_lines
 
-      - name: Clippy (web feature)
-        run: cargo clippy --all-targets --features web -- -D warnings -W clippy::too_many_lines -A clippy::cognitive_complexity
-
       - name: Build
         run: cargo build
 
-      - name: Build (web feature)
-        run: cargo build --features web
-
       - name: Run tests
         run: cargo test
-
-      - name: Run tests (web feature)
-        run: cargo test --features web
 
       - name: Check for vulnerabilities
         run: cargo install cargo-audit --locked && cargo audit

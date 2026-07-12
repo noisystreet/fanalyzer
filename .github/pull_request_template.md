@@ -21,9 +21,7 @@ cargo fmt -- --check
 python3 scripts/check_code_metrics.py
 python3 scripts/generate_schemas.py --check
 cargo clippy --all-targets -- -D warnings -W clippy::cognitive_complexity -W clippy::too_many_lines
-cargo clippy --all-targets --features web -- -D warnings -W clippy::too_many_lines -A clippy::cognitive_complexity
 cargo test
-cargo test --features web
 ```
 
 - [ ] 上述命令（或等效 CI）已通过

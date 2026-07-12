@@ -336,20 +336,6 @@ pub enum Commands {
         #[command(subcommand)]
         command: crate::mcp::McpCommands,
     },
-    /// 启动 Leptos SSR Web 界面（需编译 feature `web`）
-    Serve {
-        #[arg(long, default_value = "127.0.0.1", help = "监听地址")]
-        host: String,
-        #[arg(short, long, default_value_t = 3000, help = "监听端口")]
-        port: u16,
-        #[arg(
-            long = "portfolio-file",
-            default_value = "config/portfolio.toml",
-            value_name = "PATH",
-            help = "Web 组合分析默认权重文件"
-        )]
-        portfolio_file: PathBuf,
-    },
 }
 
 impl Commands {
@@ -374,7 +360,6 @@ impl Commands {
             Self::PortfolioConfig { .. } => "portfolio_config",
             Self::Schema { .. } => "schema",
             Self::Mcp { .. } => "mcp",
-            Self::Serve { .. } => "serve",
         }
     }
 }
@@ -435,18 +420,6 @@ pub async fn run(mut cli: Cli, config: AppConfig) -> anyhow::Result<()> {
     };
 
     match cmd {
-        #[cfg(feature = "web")]
-        Commands::Serve {
-            host,
-            port,
-            portfolio_file,
-        } => {
-            return crate::web::run(&host, port, config, cli.watchlist_file, portfolio_file).await;
-        }
-        #[cfg(not(feature = "web"))]
-        Commands::Serve { .. } => {
-            anyhow::bail!("Web 界面未编译进当前二进制；请使用: cargo run --features web -- serve");
-        }
         Commands::Schema { command } => crate::schema::run(command).await,
         Commands::Mcp { command } => crate::mcp::run(command, config).await,
         Commands::Json {

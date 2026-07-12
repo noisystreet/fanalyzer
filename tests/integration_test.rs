@@ -281,13 +281,3 @@ fn test_cli_json_profile_flag() {
         .success()
         .stdout(predicate::str::contains("--profile"));
 }
-
-#[cfg(feature = "web")]
-#[test]
-fn test_cli_serve_help() {
-    Command::cargo_bin("fanalyzer")
-        .unwrap()
-        .args(["serve", "--help"])
-        .assert()
-        .success();
-}
