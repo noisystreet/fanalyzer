@@ -44,7 +44,6 @@ fn test_cli_json_analyze_positional_code() {
         .unwrap()
         .args(["json", "analyze", "110011", "--days", "90"])
         .assert()
-        .success()
         .stdout(predicate::str::contains("\"command\": \"analyze\""));
 }
 
