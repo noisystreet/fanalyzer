@@ -8,7 +8,7 @@ pub struct IndexData {
 }
 
 /// 基金经理信息
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct FundManagerInfo {
     pub name: String,
     pub start_date: String,
