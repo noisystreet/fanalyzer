@@ -25,7 +25,7 @@ chrono = { version = "0.4", features = ["serde"] }
 csv = "1"
 dirs = "5"
 regex = "1"
-tabled = { version = "0.20", default-features = false, features = ["std", "derive"] }
+comfy-table = { version = "7", default-features = false, features = ["default"] }
 schemars = { version = "1", features = ["chrono04"] }
 
 [dev-dependencies]
