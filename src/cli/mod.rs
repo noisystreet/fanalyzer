@@ -24,11 +24,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 #[derive(Parser, Debug)]
-#[command(
-    name = "fanalyzer",
-    version,
-    about = "Fanalyzer — fund analysis CLI & Web UI"
-)]
+#[command(name = "fanalyzer", version, about = "Fanalyzer — 基金分析 CLI")]
 pub struct Cli {
     /// 配置文件路径（也可用环境变量 `FANALYZER_CONFIG`）
     #[arg(long, global = true, env = "FANALYZER_CONFIG", value_name = "PATH")]
@@ -36,11 +32,13 @@ pub struct Cli {
     /// 仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）
     #[arg(long, global = true)]
     pub offline: bool,
+    /// 自选列表文件路径
     #[arg(
         long,
         global = true,
         default_value = "config/watchlist.toml",
-        value_name = "PATH"
+        value_name = "PATH",
+        help = "自选基金列表 TOML 文件"
     )]
     pub watchlist_file: PathBuf,
     #[command(subcommand)]
@@ -68,6 +66,7 @@ pub enum Commands {
         #[command(subcommand)]
         command: JsonCommands,
     },
+    #[command(about = "拉取基金净值历史数据")]
     Fetch {
         #[command(flatten)]
         fund_code: FundCodeArg,
@@ -76,6 +75,7 @@ pub enum Commands {
         #[arg(short, long, default_value = "20", help = "拉取记录条数")]
         limit: u32,
     },
+    #[command(about = "综合分析：收益、风险、Alpha/Beta、经理评价")]
     Analyze {
         #[command(flatten)]
         fund_code: FundCodeArg,
@@ -109,6 +109,7 @@ pub enum Commands {
         )]
         rolling_window: u32,
     },
+    #[command(about = "多基金横向对比：指标并排、排序、CSV/JSON 导出")]
     Compare {
         #[arg(short, long, help = "逗号分隔的基金代码或名称", value_delimiter = ',')]
         codes: Vec<String>,
@@ -173,6 +174,7 @@ pub enum Commands {
         )]
         rolling_window: u32,
     },
+    #[command(about = "导出净值数据为 CSV / JSON")]
     Export {
         #[command(flatten)]
         fund_code: FundCodeArg,
@@ -187,20 +189,21 @@ pub enum Commands {
         #[arg(short, long, default_value = "csv", help = "csv 或 json")]
         format: String,
     },
+    #[command(about = "基金概况：类型、规模、经理、费率、投资范围等")]
     Info {
         #[command(flatten)]
         fund_code: FundCodeArg,
         #[arg(long = "watchlist", help = "输出自选文件中所有基金的概况")]
         pick_watchlist: bool,
     },
-    /// 季报披露的行业配置（证监会行业分类，板块维度；数据源 F10 hypz）
+    #[command(about = "季报行业配置（证监会行业分类）")]
     Sectors {
         #[command(flatten)]
         fund_code: FundCodeArg,
         #[arg(long = "watchlist", help = "输出自选文件中所有基金的行业配置")]
         pick_watchlist: bool,
     },
-    /// 季报股票投资明细（重仓股，`FundArchivesDatas type=jjcc`）
+    #[command(about = "季报重仓股明细")]
     Holdings {
         #[command(flatten)]
         fund_code: FundCodeArg,
@@ -214,7 +217,7 @@ pub enum Commands {
         )]
         top: u32,
     },
-    /// 按天天基金官网排行拉取某类型全市场前 N 名（数据源需网络与 Referer）
+    #[command(about = "按类型排行：取全市场前 N 名")]
     Rank {
         #[arg(short, long)]
         kind: String,
@@ -228,7 +231,7 @@ pub enum Commands {
         )]
         sort: String,
     },
-    /// 单基金选基综合简报（分析 + 行业 + 重仓，可导出 Markdown）
+    #[command(about = "选基简报：分析 + 行业 + 重仓，可导出 Markdown")]
     Brief {
         #[command(flatten)]
         fund_code: FundCodeArg,
@@ -250,7 +253,7 @@ pub enum Commands {
         #[arg(short, long, help = "同时写入 Markdown 报告路径")]
         output: Option<PathBuf>,
     },
-    /// 从类型排行池中按回撤/夏普/费率筛选，并对比通过者
+    #[command(about = "多条件筛选 + 深度分析：回撤/夏普/费率/Alpha/波动率")]
     Screen {
         #[arg(short, long, help = "排行类型，同 rank --kind")]
         kind: String,
