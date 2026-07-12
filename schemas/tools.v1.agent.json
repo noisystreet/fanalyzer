@@ -2,7 +2,7 @@
   "generator": "fanalyzer schema agent-tools",
   "tools": [
     {
-      "description": "单基金命令的代码参数",
+      "description": "结构化 JSON 输出",
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] fetch ...`",
         "properties": {
@@ -34,7 +34,7 @@
       "outputSchema": "schemas/responses/fetch.success.json"
     },
     {
-      "description": "单基金命令的代码参数",
+      "description": "结构化 JSON 输出",
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] analyze ...`",
         "properties": {
@@ -161,7 +161,7 @@
       "outputSchema": "schemas/responses/portfolio.success.json"
     },
     {
-      "description": "单基金命令的代码参数",
+      "description": "结构化 JSON 输出",
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] export ...`",
         "properties": {
@@ -193,7 +193,7 @@
       "outputSchema": "schemas/responses/export.success.json"
     },
     {
-      "description": "单基金命令的代码参数",
+      "description": "结构化 JSON 输出",
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] info ...`",
         "properties": {
@@ -220,7 +220,7 @@
       "outputSchema": "schemas/responses/info.success.json"
     },
     {
-      "description": "单基金命令的代码参数",
+      "description": "结构化 JSON 输出",
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] sectors ...`",
         "properties": {
@@ -247,7 +247,7 @@
       "outputSchema": "schemas/responses/sectors.success.json"
     },
     {
-      "description": "单基金命令的代码参数",
+      "description": "结构化 JSON 输出",
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] holdings ...`",
         "properties": {
@@ -314,7 +314,7 @@
       "outputSchema": "schemas/responses/rank.success.json"
     },
     {
-      "description": "单基金命令的代码参数",
+      "description": "结构化 JSON 输出",
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] brief ...`",
         "properties": {

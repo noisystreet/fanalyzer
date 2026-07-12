@@ -2,7 +2,7 @@
   "generator": "fanalyzer schema tools",
   "tools": [
     {
-      "description": "单基金命令的代码参数（位置参数与 flag 二选一或一致）。（stdout 为 JSON 信封，见 schemas/responses/fetch.success.json）",
+      "description": "结构化 JSON 输出（供 Agent 调用）（stdout 为 JSON 信封，见 schemas/responses/fetch.success.json）",
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] fetch ...`",
         "properties": {
@@ -41,6 +41,7 @@
           },
           "watchlist-file": {
             "default": "config/watchlist.toml",
+            "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
         },
@@ -50,7 +51,7 @@
       "outputSchema": "schemas/responses/fetch.success.json"
     },
     {
-      "description": "单基金命令的代码参数（位置参数与 flag 二选一或一致）。（stdout 为 JSON 信封，见 schemas/responses/analyze.success.json）",
+      "description": "结构化 JSON 输出（供 Agent 调用）（stdout 为 JSON 信封，见 schemas/responses/analyze.success.json）",
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] analyze ...`",
         "properties": {
@@ -107,6 +108,7 @@
           },
           "watchlist-file": {
             "default": "config/watchlist.toml",
+            "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
         },
@@ -175,6 +177,7 @@
           },
           "watchlist-file": {
             "default": "config/watchlist.toml",
+            "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
         },
@@ -243,6 +246,7 @@
           },
           "watchlist-file": {
             "default": "config/watchlist.toml",
+            "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
         },
@@ -252,7 +256,7 @@
       "outputSchema": "schemas/responses/portfolio.success.json"
     },
     {
-      "description": "单基金命令的代码参数（位置参数与 flag 二选一或一致）。（stdout 为 JSON 信封，见 schemas/responses/export.success.json）",
+      "description": "结构化 JSON 输出（供 Agent 调用）（stdout 为 JSON 信封，见 schemas/responses/export.success.json）",
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] export ...`",
         "properties": {
@@ -304,6 +308,7 @@
           },
           "watchlist-file": {
             "default": "config/watchlist.toml",
+            "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
         },
@@ -313,7 +318,7 @@
       "outputSchema": "schemas/responses/export.success.json"
     },
     {
-      "description": "单基金命令的代码参数（位置参数与 flag 二选一或一致）。（stdout 为 JSON 信封，见 schemas/responses/info.success.json）",
+      "description": "结构化 JSON 输出（供 Agent 调用）（stdout 为 JSON 信封，见 schemas/responses/info.success.json）",
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] info ...`",
         "properties": {
@@ -347,6 +352,7 @@
           },
           "watchlist-file": {
             "default": "config/watchlist.toml",
+            "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
         },
@@ -356,7 +362,7 @@
       "outputSchema": "schemas/responses/info.success.json"
     },
     {
-      "description": "单基金命令的代码参数（位置参数与 flag 二选一或一致）。（stdout 为 JSON 信封，见 schemas/responses/sectors.success.json）",
+      "description": "结构化 JSON 输出（供 Agent 调用）（stdout 为 JSON 信封，见 schemas/responses/sectors.success.json）",
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] sectors ...`",
         "properties": {
@@ -390,6 +396,7 @@
           },
           "watchlist-file": {
             "default": "config/watchlist.toml",
+            "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
         },
@@ -399,7 +406,7 @@
       "outputSchema": "schemas/responses/sectors.success.json"
     },
     {
-      "description": "单基金命令的代码参数（位置参数与 flag 二选一或一致）。（stdout 为 JSON 信封，见 schemas/responses/holdings.success.json）",
+      "description": "结构化 JSON 输出（供 Agent 调用）（stdout 为 JSON 信封，见 schemas/responses/holdings.success.json）",
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] holdings ...`",
         "properties": {
@@ -438,6 +445,7 @@
           },
           "watchlist-file": {
             "default": "config/watchlist.toml",
+            "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
         },
@@ -486,6 +494,7 @@
           },
           "watchlist-file": {
             "default": "config/watchlist.toml",
+            "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
         },
@@ -498,7 +507,7 @@
       "outputSchema": "schemas/responses/rank.success.json"
     },
     {
-      "description": "单基金命令的代码参数（位置参数与 flag 二选一或一致）。（stdout 为 JSON 信封，见 schemas/responses/brief.success.json）",
+      "description": "结构化 JSON 输出（供 Agent 调用）（stdout 为 JSON 信封，见 schemas/responses/brief.success.json）",
       "inputSchema": {
         "description": "参数对应 CLI：`fanalyzer json [--compact] [--compact-series] brief ...`",
         "properties": {
@@ -555,6 +564,7 @@
           },
           "watchlist-file": {
             "default": "config/watchlist.toml",
+            "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
         },
@@ -667,6 +677,7 @@
           },
           "watchlist-file": {
             "default": "config/watchlist.toml",
+            "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
         },
@@ -705,6 +716,7 @@
           },
           "watchlist-file": {
             "default": "config/watchlist.toml",
+            "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
         },
@@ -744,6 +756,7 @@
           },
           "watchlist-file": {
             "default": "config/watchlist.toml",
+            "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
         },
