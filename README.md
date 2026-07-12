@@ -1,7 +1,11 @@
 # Fanalyzer
 
-[![CI](https://github.com/noisystreet/fanalyzer/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/noisystreet/fanalyzer/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/noisystreet/fanalyzer/ci.yml?branch=main&logo=github&label=CI)](https://github.com/noisystreet/fanalyzer/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/github/license/noisystreet/fanalyzer)](LICENSE)
+[![GitHub release](https://img.shields.io/github/v/release/noisystreet/fanalyzer?logo=github)](https://github.com/noisystreet/fanalyzer/releases)
+[![Rust](https://img.shields.io/badge/rust-1.85%2B-dea584?logo=rust)](https://www.rust-lang.org)
+[![GitHub last commit](https://img.shields.io/github/last-commit/noisystreet/fanalyzer?logo=github)](https://github.com/noisystreet/fanalyzer/commits/main)
+[![GitHub stars](https://img.shields.io/github/stars/noisystreet/fanalyzer?style=social&label=Stars)](https://github.com/noisystreet/fanalyzer)
 
 Fund analysis CLI — 个人基金研究与选基工具（Rust）。
 
