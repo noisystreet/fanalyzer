@@ -18,19 +18,19 @@ pub use fetch::print_fetch_result;
 pub use portfolio::{export_portfolio_json, print_portfolio_report, render_portfolio};
 pub use query_output::{print_fund_overview, print_holdings, print_industry, print_ranking_table};
 pub use screen_output::{
-    print_deep_limit_hint, print_filter_hint, print_insufficient_candidates, print_rank_prefilter,
-    print_screen_header, print_screen_passed, ScreenHeaderContext,
+    ScreenHeaderContext, print_deep_limit_hint, print_filter_hint, print_insufficient_candidates,
+    print_rank_prefilter, print_screen_header, print_screen_passed,
 };
 use std::fs::File;
 use std::io::Write;
 pub use structured::{
-    base_meta, compact_analysis_reports, compact_brief_summary, compact_portfolio_report, emit,
-    error_from_anyhow, failure_envelope_json, item_error, item_error_failed,
-    item_error_insufficient, print_failure_capture, print_failure_from_anyhow,
-    success_envelope_json, write_file, AnalysisMeta, BaseMeta, BatchMeta, BatchPayload, CodedError,
-    ExportMeta, ExportPayload, FetchPayload, HoldingsItem, ItemError, ItemsPayload, PortfolioMeta,
-    RankMeta, RankPayload, ScreenMeta, ScreenPayload, SectorItem, StructuredEnvelope,
-    StructuredError, StructuredFailureEnvelope, ENVELOPE_VERSION,
+    AnalysisMeta, BaseMeta, BatchMeta, BatchPayload, CodedError, ENVELOPE_VERSION, ExportMeta,
+    ExportPayload, FetchPayload, HoldingsItem, ItemError, ItemsPayload, PortfolioMeta, RankMeta,
+    RankPayload, ScreenMeta, ScreenPayload, SectorItem, StructuredEnvelope, StructuredError,
+    StructuredFailureEnvelope, base_meta, compact_analysis_reports, compact_brief_summary,
+    compact_portfolio_report, emit, error_from_anyhow, failure_envelope_json, item_error,
+    item_error_failed, item_error_insufficient, print_failure_capture, print_failure_from_anyhow,
+    success_envelope_json, write_file,
 };
 
 /// Rounded-corner UTF8 preset, similar to tabled's `Style::rounded()`.

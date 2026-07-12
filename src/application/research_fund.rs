@@ -7,11 +7,11 @@ use super::queries::{
 };
 use crate::models::FundAnalysisReport;
 use crate::presentation::{
-    error_from_anyhow, failure_envelope_json, item_error_insufficient, success_envelope_json,
-    AnalysisMeta, BaseMeta, BatchMeta, BatchPayload, HoldingsItem, SectorItem,
+    AnalysisMeta, BaseMeta, BatchMeta, BatchPayload, HoldingsItem, SectorItem, error_from_anyhow,
+    failure_envelope_json, item_error_insufficient, success_envelope_json,
 };
 use anyhow::Context;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use std::time::Instant;
 
 /// 单基金研究 IO 结果（info / analyze / sectors / holdings 四步并行）。

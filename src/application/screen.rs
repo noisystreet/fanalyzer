@@ -1,18 +1,18 @@
 //! 从全市场排行池中按风险/费率规则筛选候选基金。
 
-use super::concurrency::{map_concurrent, FUND_CONCURRENCY};
-use super::context::{require_online, CommandContext};
+use super::concurrency::{FUND_CONCURRENCY, map_concurrent};
+use super::context::{CommandContext, require_online};
 use super::fund_service::analyze_fund;
-use crate::api::fund_ranking::{rank_return_for_sort, FundRankEntry};
+use crate::api::fund_ranking::{FundRankEntry, rank_return_for_sort};
 use crate::domain::{
-    days_for_rank_sort, parse_sort_key, passes_screen, rank_ft_code, resolve_analysis_days,
-    sort_analyses, AnalysisSortKey, ScreenFilters,
+    AnalysisSortKey, ScreenFilters, days_for_rank_sort, parse_sort_key, passes_screen,
+    rank_ft_code, resolve_analysis_days, sort_analyses,
 };
 use crate::models::FundAnalysis;
 use crate::presentation::{
-    emit, print_deep_limit_hint, print_filter_hint, print_insufficient_candidates,
-    print_rank_prefilter, print_screen_header, print_screen_passed, render_comparison,
-    ScreenHeaderContext, ScreenPayload,
+    ScreenHeaderContext, ScreenPayload, emit, print_deep_limit_hint, print_filter_hint,
+    print_insufficient_candidates, print_rank_prefilter, print_screen_header, print_screen_passed,
+    render_comparison,
 };
 use chrono::Local;
 use std::path::PathBuf;
@@ -151,10 +151,10 @@ pub async fn run_screen(ctx: &CommandContext<'_>, req: ScreenRequest) -> anyhow:
     }
 
     let candidates = filter_rank_pool(&page.rows, sc, req.filters.min_rank_return_pct);
-    if !ctx.structured() {
-        if let Some(min_rr) = req.filters.min_rank_return_pct {
-            print_rank_prefilter(sc, min_rr, candidates.len());
-        }
+    if !ctx.structured()
+        && let Some(min_rr) = req.filters.min_rank_return_pct
+    {
+        print_rank_prefilter(sc, min_rr, candidates.len());
     }
 
     let to_analyze = if req.full_scan {

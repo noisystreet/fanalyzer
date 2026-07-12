@@ -1,13 +1,13 @@
 //! 单基金选基综合简报：分析 + 行业 + 重仓。
 
-use super::concurrency::{map_concurrent, FUND_CONCURRENCY};
-use super::context::{require_online, resolve_fund_ids, CommandContext};
+use super::concurrency::{FUND_CONCURRENCY, map_concurrent};
+use super::context::{CommandContext, require_online, resolve_fund_ids};
 use super::research_fund::gather_fund_research_io;
 use crate::domain::resolve_analysis_days;
 use crate::models::FundBrief;
 use crate::presentation::{
-    base_meta, compact_brief_summary, emit, item_error_failed, print_brief_separator,
-    render_brief_terminal, write_brief_markdown, AnalysisMeta, BatchPayload, ItemError,
+    AnalysisMeta, BatchPayload, ItemError, base_meta, compact_brief_summary, emit,
+    item_error_failed, print_brief_separator, render_brief_terminal, write_brief_markdown,
 };
 use chrono::Local;
 

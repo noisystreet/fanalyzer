@@ -116,11 +116,7 @@ impl FundAnalyzer {
 }
 
 fn price_at(n: &FundNav) -> f64 {
-    if n.acc_nav > 0.0 {
-        n.acc_nav
-    } else {
-        n.nav
-    }
+    if n.acc_nav > 0.0 { n.acc_nav } else { n.nav }
 }
 
 fn daily_returns_from_prices(prices: &[f64], sorted: &[&FundNav]) -> Vec<f64> {
@@ -156,11 +152,11 @@ fn align_returns_by_date(
 
     for (i, nav) in navs.iter().enumerate().skip(1) {
         let idx = i - 1;
-        if let Some(&bm_return) = bm_map.get(&nav.date) {
-            if let Some(&fund_return) = fund_daily.get(idx) {
-                fund_returns.push(fund_return);
-                bm_returns.push(bm_return);
-            }
+        if let Some(&bm_return) = bm_map.get(&nav.date)
+            && let Some(&fund_return) = fund_daily.get(idx)
+        {
+            fund_returns.push(fund_return);
+            bm_returns.push(bm_return);
         }
     }
 

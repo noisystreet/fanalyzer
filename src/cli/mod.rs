@@ -13,7 +13,7 @@ pub mod structured_runner;
 use fund_code_arg::FundCodeArg;
 use json_commands::JsonCommands;
 
-use crate::api::eastmoney::{into_anyhow, EastMoneyClient, EastMoneyClientOptions};
+use crate::api::eastmoney::{EastMoneyClient, EastMoneyClientOptions, into_anyhow};
 use crate::application::{CommandContext, FundDataSource, OutputProfile, StructuredOutput};
 use crate::cache::FundCache;
 use crate::config::AppConfig;

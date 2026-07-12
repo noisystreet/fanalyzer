@@ -436,14 +436,18 @@ mod tests {
         };
         let interp =
             interpret_portfolio(&sample_summary(), &corr, &[], &default_thresholds(), None);
-        assert!(interp
-            .insights
-            .iter()
-            .any(|i| i.category == "concentration"));
-        assert!(interp
-            .insights
-            .iter()
-            .any(|i| i.category == "contribution" && i.level == InsightLevel::Caution));
+        assert!(
+            interp
+                .insights
+                .iter()
+                .any(|i| i.category == "concentration")
+        );
+        assert!(
+            interp
+                .insights
+                .iter()
+                .any(|i| i.category == "contribution" && i.level == InsightLevel::Caution)
+        );
     }
 
     #[test]
@@ -454,10 +458,12 @@ mod tests {
             values: vec![vec![1.0, 0.9], vec![0.9, 1.0]],
         };
         let interp = interpret_portfolio(&summary, &corr, &[], &default_thresholds(), None);
-        assert!(interp
-            .insights
-            .iter()
-            .any(|i| i.category == "diversification" && i.level == InsightLevel::Caution));
+        assert!(
+            interp
+                .insights
+                .iter()
+                .any(|i| i.category == "diversification" && i.level == InsightLevel::Caution)
+        );
     }
 
     #[test]
@@ -473,10 +479,12 @@ mod tests {
             max_drawdown: 0.12,
         };
         let interp = interpret_portfolio(&summary, &corr, &[], &default_thresholds(), Some(eq));
-        assert!(interp
-            .insights
-            .iter()
-            .any(|i| i.category == "equal_weight" && i.level == InsightLevel::Positive));
+        assert!(
+            interp
+                .insights
+                .iter()
+                .any(|i| i.category == "equal_weight" && i.level == InsightLevel::Positive)
+        );
     }
 
     #[test]
@@ -496,9 +504,11 @@ mod tests {
             max_drawdown: 0.08,
         };
         let interp = interpret_portfolio(&summary, &corr, &[], &default_thresholds(), Some(eq));
-        assert!(interp
-            .insights
-            .iter()
-            .any(|i| i.category == "equal_weight" && i.level == InsightLevel::Caution));
+        assert!(
+            interp
+                .insights
+                .iter()
+                .any(|i| i.category == "equal_weight" && i.level == InsightLevel::Caution)
+        );
     }
 }

@@ -5,7 +5,7 @@ mod protocol;
 mod resources;
 mod server;
 
-use crate::api::eastmoney::{into_anyhow, EastMoneyClient, EastMoneyClientOptions};
+use crate::api::eastmoney::{EastMoneyClient, EastMoneyClientOptions, into_anyhow};
 use crate::application::OutputProfile;
 use crate::cache::FundCache;
 use crate::config::AppConfig;

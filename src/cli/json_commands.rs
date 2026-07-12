@@ -1,7 +1,7 @@
 //! `json` 子命令组：与顶层业务子命令同参，输出结构化 JSON 信封。
 
-use super::fund_code_arg::FundCodeArg;
 use super::Commands;
+use super::fund_code_arg::FundCodeArg;
 use clap::Subcommand;
 use std::path::PathBuf;
 

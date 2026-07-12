@@ -2,8 +2,8 @@
 
 use super::Commands;
 use crate::application::{
-    run_portfolio_config, run_watchlist_add, run_watchlist_list, run_watchlist_remove,
-    CommandContext,
+    CommandContext, run_portfolio_config, run_watchlist_add, run_watchlist_list,
+    run_watchlist_remove,
 };
 
 pub async fn dispatch(ctx: &CommandContext<'_>, cmd: Commands) -> anyhow::Result<()> {

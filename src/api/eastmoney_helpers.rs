@@ -34,19 +34,19 @@ pub(crate) fn parse_work_time(work_time: &str) -> i32 {
     let mut days = 0i32;
 
     // 提取年数
-    if let Some(year_idx) = work_time.find("年") {
-        if let Ok(years) = work_time[..year_idx].trim().parse::<i32>() {
-            days += years * 365;
-        }
+    if let Some(year_idx) = work_time.find("年")
+        && let Ok(years) = work_time[..year_idx].trim().parse::<i32>()
+    {
+        days += years * 365;
     }
 
     // 提取天数
-    if let Some(day_start) = work_time.find("又") {
-        if let Some(day_end) = work_time.find("天") {
-            let day_str = &work_time[day_start + 3..day_end]; // "又" 是3字节UTF-8
-            if let Ok(d) = day_str.trim().parse::<i32>() {
-                days += d;
-            }
+    if let Some(day_start) = work_time.find("又")
+        && let Some(day_end) = work_time.find("天")
+    {
+        let day_str = &work_time[day_start + 3..day_end]; // "又" 是3字节UTF-8
+        if let Ok(d) = day_str.trim().parse::<i32>() {
+            days += d;
         }
     }
 

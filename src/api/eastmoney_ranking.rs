@@ -1,7 +1,7 @@
 //! 开放式基金排行 HTTP（需与浏览器一致的 Referer）。
 
 use crate::api::eastmoney_error::EastMoneyError;
-use crate::api::fund_ranking::{parse_rankhandler_body, FundRankingPage};
+use crate::api::fund_ranking::{FundRankingPage, parse_rankhandler_body};
 use reqwest::Client;
 use std::time::Duration as StdDuration;
 

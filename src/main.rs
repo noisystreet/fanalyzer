@@ -1,5 +1,5 @@
 use clap::Parser;
-use fanalyzer::cli::{run, Cli};
+use fanalyzer::cli::{Cli, run};
 use fanalyzer::config::AppConfig;
 
 fn init_tracing() {

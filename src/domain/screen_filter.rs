@@ -14,42 +14,43 @@ pub struct ScreenFilters {
 }
 
 pub fn passes_screen(a: &FundAnalysis, f: &ScreenFilters) -> bool {
-    if let Some(max_dd) = f.max_drawdown_pct {
-        if a.max_drawdown * 100.0 > max_dd {
-            return false;
-        }
+    if let Some(max_dd) = f.max_drawdown_pct
+        && a.max_drawdown * 100.0 > max_dd
+    {
+        return false;
     }
-    if let Some(min_s) = f.min_sharpe {
-        if a.sharpe_ratio < min_s {
-            return false;
-        }
+    if let Some(min_s) = f.min_sharpe
+        && a.sharpe_ratio < min_s
+    {
+        return false;
     }
-    if let Some(max_fee) = f.max_mgmt_fee_pct {
-        if a.management_fee > 0.0 && a.management_fee > max_fee {
-            return false;
-        }
+    if let Some(max_fee) = f.max_mgmt_fee_pct
+        && a.management_fee > 0.0
+        && a.management_fee > max_fee
+    {
+        return false;
     }
-    if let Some(min_a) = f.min_alpha_pct {
-        if a.alpha * 100.0 < min_a {
-            return false;
-        }
+    if let Some(min_a) = f.min_alpha_pct
+        && a.alpha * 100.0 < min_a
+    {
+        return false;
     }
-    if let Some(max_vol) = f.max_volatility_pct {
-        if a.volatility * 100.0 > max_vol {
-            return false;
-        }
+    if let Some(max_vol) = f.max_volatility_pct
+        && a.volatility * 100.0 > max_vol
+    {
+        return false;
     }
-    if let Some(min_ret) = f.min_total_return_pct {
-        if a.total_return * 100.0 < min_ret {
-            return false;
-        }
+    if let Some(min_ret) = f.min_total_return_pct
+        && a.total_return * 100.0 < min_ret
+    {
+        return false;
     }
     true
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{passes_screen, ScreenFilters};
+    use super::{ScreenFilters, passes_screen};
     use crate::models::FundAnalysis;
 
     fn sample(max_dd: f64, sharpe: f64, alpha: f64, vol: f64, ret: f64) -> FundAnalysis {

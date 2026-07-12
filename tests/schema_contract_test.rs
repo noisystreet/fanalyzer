@@ -3,8 +3,8 @@
 mod test_fixtures;
 
 use test_fixtures::{
-    parse_stdout_json, run_json_cli, run_json_cli_expect_failure, setup_offline_two_fund_env,
-    validate_envelope, validate_success_command, OfflineContractEnv,
+    OfflineContractEnv, parse_stdout_json, run_json_cli, run_json_cli_expect_failure,
+    setup_offline_two_fund_env, validate_envelope, validate_success_command,
 };
 
 fn run_offline_json(env: &OfflineContractEnv, tail: &[&str]) -> serde_json::Value {

@@ -5,14 +5,14 @@ use crate::application::OutputProfile;
 use crate::cache::FundCache;
 use crate::config::AppConfig;
 use crate::nav_cache::NavCache;
-use crate::schema::{discover_schema_root, filter_agent_tools, resolve_output_schema, ToolTier};
-use serde_json::{json, Value};
+use crate::schema::{ToolTier, discover_schema_root, filter_agent_tools, resolve_output_schema};
+use serde_json::{Value, json};
 use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::executor::{execute_tool, McpEnv};
+use super::executor::{McpEnv, execute_tool};
 use super::protocol::{
     InitializeCapabilities, InitializeResult, JsonRpcRequest, JsonRpcResponse, McpTool, ServerInfo,
     ToolCallResult, ToolContent, ToolsListResult,
@@ -85,7 +85,7 @@ impl<'a> McpServer<'a> {
                     Value::Null,
                     -32700,
                     format!("Parse error: {e}"),
-                ))
+                ));
             }
         };
         let id = req.id.clone().unwrap_or(Value::Null);
@@ -106,7 +106,7 @@ impl<'a> McpServer<'a> {
                     id,
                     -32601,
                     format!("Method not found: {}", req.method),
-                ))
+                ));
             }
         };
 

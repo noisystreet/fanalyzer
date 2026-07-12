@@ -142,16 +142,16 @@ pub fn default_editor_content(portfolio_path: &Path, watchlist_path: &Path) -> (
     if let Ok(def) = load_portfolio(portfolio_path) {
         return (def.name, format_holdings_text(&def.holdings));
     }
-    if let Ok(funds) = crate::watchlist::load_watchlist(watchlist_path) {
-        if funds.len() >= 2 {
-            let w = 1.0 / funds.len() as f64;
-            let text = funds
-                .iter()
-                .map(|c| format!("{c} {w:.4}"))
-                .collect::<Vec<_>>()
-                .join("\n");
-            return ("watchlist-equal".to_string(), text);
-        }
+    if let Ok(funds) = crate::watchlist::load_watchlist(watchlist_path)
+        && funds.len() >= 2
+    {
+        let w = 1.0 / funds.len() as f64;
+        let text = funds
+            .iter()
+            .map(|c| format!("{c} {w:.4}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        return ("watchlist-equal".to_string(), text);
     }
     (
         "my-portfolio".to_string(),

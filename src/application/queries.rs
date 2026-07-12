@@ -1,14 +1,14 @@
 //! fetch / info / rank / sectors / holdings 查询用例。
 
-use super::concurrency::{map_concurrent, FUND_CONCURRENCY};
-use super::context::{require_online, resolve_fund_ids, CommandContext};
+use super::concurrency::{FUND_CONCURRENCY, map_concurrent};
+use super::context::{CommandContext, require_online, resolve_fund_ids};
 use super::fund_service::resolve_fund_identifier;
 use super::mappers::{map_holdings, map_industry, map_profile, map_rank_rows};
 use crate::domain::rank_ft_code;
 use crate::presentation::{
+    BatchMeta, BatchPayload, FetchPayload, HoldingsItem, RankMeta, RankPayload, SectorItem,
     base_meta, emit, item_error_failed, print_fetch_result, print_fund_overview, print_holdings,
-    print_industry, print_ranking_table, BatchMeta, BatchPayload, FetchPayload, HoldingsItem,
-    RankMeta, RankPayload, SectorItem,
+    print_industry, print_ranking_table,
 };
 
 pub struct FetchRequest {

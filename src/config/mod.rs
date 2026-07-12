@@ -104,17 +104,17 @@ impl AppConfig {
             return Some(cwd_config);
         }
 
-        if let Ok(exe) = std::env::current_exe() {
-            if let Some(exe_dir) = exe.parent() {
-                for rel in [
-                    "config/default.toml",
-                    "../config/default.toml",
-                    "../../config/default.toml",
-                ] {
-                    let candidate = exe_dir.join(rel);
-                    if candidate.exists() {
-                        return candidate.canonicalize().ok().or(Some(candidate));
-                    }
+        if let Ok(exe) = std::env::current_exe()
+            && let Some(exe_dir) = exe.parent()
+        {
+            for rel in [
+                "config/default.toml",
+                "../config/default.toml",
+                "../../config/default.toml",
+            ] {
+                let candidate = exe_dir.join(rel);
+                if candidate.exists() {
+                    return candidate.canonicalize().ok().or(Some(candidate));
                 }
             }
         }

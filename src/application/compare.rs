@@ -1,13 +1,13 @@
 //! 多基金对比用例。
 
-use super::concurrency::{map_concurrent, FUND_CONCURRENCY};
-use super::context::{resolve_many_fund_ids, CommandContext, Session};
+use super::concurrency::{FUND_CONCURRENCY, map_concurrent};
+use super::context::{CommandContext, Session, resolve_many_fund_ids};
 use super::fund_service;
-use crate::domain::{parse_sort_key, resolve_analysis_days, sort_analyses, AnalysisSortKey};
+use crate::domain::{AnalysisSortKey, parse_sort_key, resolve_analysis_days, sort_analyses};
 use crate::models::FundAnalysis;
 use crate::presentation::{
-    base_meta, emit, item_error_failed, item_error_insufficient, render_comparison, AnalysisMeta,
-    BatchPayload, ItemError,
+    AnalysisMeta, BatchPayload, ItemError, base_meta, emit, item_error_failed,
+    item_error_insufficient, render_comparison,
 };
 use chrono::Local;
 use std::path::PathBuf;

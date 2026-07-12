@@ -2,7 +2,7 @@
 
 use crate::cli::Cli;
 use clap::{Arg, ArgAction, Command, CommandFactory};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -120,22 +120,22 @@ fn merge_command_args(cmd: &Command, properties: &mut BTreeMap<String, Value>) {
 }
 
 fn merge_property(properties: &mut BTreeMap<String, Value>, key: String, prop: Value) {
-    if key == "code" {
-        if let Some(existing) = properties.get("code") {
-            let desc = prop
-                .get("description")
-                .or_else(|| existing.get("description"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("基金代码或名称");
-            properties.insert(
-                "code".into(),
-                json!({
-                    "type": "string",
-                    "description": desc,
-                }),
-            );
-            return;
-        }
+    if key == "code"
+        && let Some(existing) = properties.get("code")
+    {
+        let desc = prop
+            .get("description")
+            .or_else(|| existing.get("description"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("基金代码或名称");
+        properties.insert(
+            "code".into(),
+            json!({
+                "type": "string",
+                "description": desc,
+            }),
+        );
+        return;
     }
     properties.entry(key).or_insert(prop);
 }
@@ -143,12 +143,11 @@ fn merge_property(properties: &mut BTreeMap<String, Value>, key: String, prop: V
 fn required_keys(properties: &BTreeMap<String, Value>, leaf: &Command) -> Vec<String> {
     let mut required = Vec::new();
     for arg in leaf.get_arguments() {
-        if arg.is_required_set() {
-            if let Some(key) = property_key(arg) {
-                if properties.contains_key(&key) {
-                    required.push(key);
-                }
-            }
+        if arg.is_required_set()
+            && let Some(key) = property_key(arg)
+            && properties.contains_key(&key)
+        {
+            required.push(key);
         }
     }
     required.sort();
