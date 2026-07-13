@@ -23,7 +23,7 @@ clap = { version = "4", default-features = false, features = ["derive", "env", "
 toml = "1.1"
 chrono = { version = "0.4", features = ["serde"] }
 csv = "1"
-dirs = "5"
+dirs = "6"
 regex = "1"
 comfy-table = { version = "7", default-features = false }
 schemars = { version = "1", default-features = false, features = ["derive", "chrono04"] }
