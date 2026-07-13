@@ -32,4 +32,4 @@ schemars = { version = "1", default-features = false, features = ["derive", "chr
 assert_cmd = "2"
 predicates = "3"
 tempfile = "3"
-jsonschema = "0.29"
+jsonschema = "0.47"
