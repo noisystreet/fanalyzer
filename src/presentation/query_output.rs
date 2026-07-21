@@ -173,6 +173,16 @@ pub fn print_fund_overview(profile: &FundOverview) {
     if !profile.company.is_empty() {
         println!("管理公司: {}", profile.company);
     }
+    if let (Some(rank), Some(count)) = (profile.peer_rank.rank, profile.peer_rank.peer_count) {
+        let mut line = format!("同类排名(近3月): {rank}/{count}");
+        if let Some(pct) = profile.peer_rank.percentile {
+            line.push_str(&format!("（前 {pct:.1}%）"));
+        }
+        if let Some(ref as_of) = profile.peer_rank.as_of {
+            line.push_str(&format!("  截至 {as_of}"));
+        }
+        println!("{line}");
+    }
 
     if !profile.benchmark.is_empty() {
         println!();

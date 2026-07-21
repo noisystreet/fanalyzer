@@ -187,6 +187,7 @@ pub mod mock {
                 investment_scope: String::new(),
                 investment_strategy: String::new(),
                 benchmark: String::new(),
+                peer_rank: Default::default(),
             }
         }
     }

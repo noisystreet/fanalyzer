@@ -1,12 +1,22 @@
 //! API DTO → models 视图映射（应用层边界）。
 
-use crate::api::eastmoney::FundProfile;
+use crate::api::eastmoney::{FundProfile, PeerRankSnapshot};
 use crate::api::fund_holdings::{FundStockHoldingRow, FundStockHoldingsReport};
 use crate::api::fund_industry::{FundIndustryReport, FundIndustryRow};
 use crate::api::fund_ranking::FundRankEntry;
 use crate::models::reports::{
-    FundOverview, FundRankRow, IndustryAllocation, IndustryRow, StockHoldingRow, StockHoldings,
+    FundOverview, FundRankRow, IndustryAllocation, IndustryRow, PeerRankInfo, StockHoldingRow,
+    StockHoldings,
 };
+
+pub fn map_peer_rank(p: &PeerRankSnapshot) -> PeerRankInfo {
+    PeerRankInfo {
+        as_of: p.as_of.clone(),
+        rank: p.rank,
+        peer_count: p.peer_count,
+        percentile: p.percentile,
+    }
+}
 
 pub fn map_profile(p: &FundProfile) -> FundOverview {
     FundOverview {
@@ -25,6 +35,7 @@ pub fn map_profile(p: &FundProfile) -> FundOverview {
         investment_target: p.investment_target.clone(),
         investment_scope: p.investment_scope.clone(),
         benchmark: p.benchmark.clone(),
+        peer_rank: map_peer_rank(&p.peer_rank),
     }
 }
 

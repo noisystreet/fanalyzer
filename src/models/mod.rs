@@ -7,8 +7,8 @@ pub use portfolio::{
     PortfolioMember, PortfolioReport, PortfolioSummary,
 };
 pub use reports::{
-    FundBrief, FundOverview, FundRankRow, IndustryAllocation, IndustryRow, StockHoldingRow,
-    StockHoldings,
+    FundBrief, FundOverview, FundRankRow, IndustryAllocation, IndustryRow, PeerRankInfo,
+    StockHoldingRow, StockHoldings,
 };
 pub use series::{FundAnalysisReport, FundAnalysisSeries, PortfolioTimeSeries, SeriesPoint};
 

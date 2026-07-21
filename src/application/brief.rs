@@ -170,6 +170,7 @@ pub async fn gather_brief(
         holdings: io.holdings.map(|h| h.holdings).unwrap_or_default(),
         industry_top: industry_top as usize,
         holdings_top: holdings_top as usize,
+        peer_rank: overview.map(|o| o.peer_rank).unwrap_or_default(),
     })
 }
 
