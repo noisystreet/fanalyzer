@@ -209,4 +209,25 @@ fn mcp_research_fund_missing_code_matches_failure_schema() {
     let env = setup_offline_two_fund_env(temp.path());
     let envelope = mcp_offline_envelope(&env, "fanalyzer_research_fund", json!({}));
     validate_failure_envelope(&envelope);
+    assert_eq!(envelope["error"]["code"], "INVALID_ARGS");
+    assert!(envelope["error"]["hint"].as_str().is_some());
+}
+
+#[test]
+fn mcp_unknown_tool_sets_is_error_and_structured_content() {
+    let temp = tempfile::tempdir().unwrap();
+    let env = setup_offline_two_fund_env(temp.path());
+    let rpc = mcp_rpc_result(
+        offline_mcp_serve_args(&env),
+        "tools/call",
+        json!({
+            "name": "fanalyzer_not_a_real_tool",
+            "arguments": {}
+        }),
+    );
+    assert_eq!(rpc["result"]["isError"], true);
+    let structured = &rpc["result"]["structuredContent"];
+    assert_eq!(structured["ok"], false);
+    assert_eq!(structured["error"]["code"], "UNKNOWN_TOOL");
+    validate_failure_envelope(structured);
 }

@@ -15,7 +15,7 @@ use tokio::sync::Mutex;
 use super::executor::{McpEnv, execute_tool};
 use super::protocol::{
     InitializeCapabilities, InitializeResult, JsonRpcRequest, JsonRpcResponse, McpTool, ServerInfo,
-    ToolCallResult, ToolContent, ToolsListResult,
+    ToolCallResult, ToolsListResult,
 };
 use super::resources;
 
@@ -156,13 +156,7 @@ impl<'a> McpServer<'a> {
             nav_store: self.nav_store,
         };
         let (text, is_error) = execute_tool(&env, name, args).await;
-        let result = ToolCallResult {
-            content: vec![ToolContent {
-                content_type: "text",
-                text,
-            }],
-            is_error: is_error.then_some(true),
-        };
+        let result = ToolCallResult::from_envelope_json(text, is_error);
         serde_json::to_value(result).expect("tool call serializes")
     }
 

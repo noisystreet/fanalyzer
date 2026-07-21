@@ -22,11 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - MCP `tools/call` 返回 `NO_OUTPUT`（JSON 捕获上下文不一致）
+- MCP 声明 `outputSchema` 但未返回 `structuredContent`，导致客户端校验失败；现与 `content[0].text` 对齐，且 `ok: false` 时统一设置 `isError`
+- MCP / 捕获路径失败信封统一为 `envelope.failure.json`（含 `warnings`、`error.hint` / `retryable`）
 
 ### Changed
 - 项目重命名为 **Fanalyzer**（crate / CLI 二进制：`fanalyzer`）；本地缓存目录改为 `fanalyzer`
 - `docs/AGENT.md` / README MCP 章节与 Trae、Cursor 示例对齐
 - 重构 `eastmoney.rs`：拆分为 `eastmoney_types` 和 `eastmoney_helpers`，文件体积减少约 100 行
+- MCP 失败码补充 `INVALID_ARGS` / `UNKNOWN_TOOL` / `INVALID_OUTPUT` 等与文档对齐
 
 ### Added (initial)
 - Initial project scaffold

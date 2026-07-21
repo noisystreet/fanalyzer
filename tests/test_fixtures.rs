@@ -209,7 +209,16 @@ pub fn parse_mcp_tool_envelope(stdout: &[u8]) -> Value {
     let text = rpc["result"]["content"][0]["text"]
         .as_str()
         .expect("tool result text");
-    serde_json::from_str(text).expect("tool envelope json")
+    let from_text: Value = serde_json::from_str(text).expect("tool envelope json");
+    let structured = rpc["result"]
+        .get("structuredContent")
+        .cloned()
+        .expect("structuredContent required when tools declare outputSchema");
+    assert_eq!(
+        structured, from_text,
+        "structuredContent must match content[0].text JSON"
+    );
+    from_text
 }
 
 pub fn offline_mcp_serve_args(env: &OfflineContractEnv) -> Vec<String> {

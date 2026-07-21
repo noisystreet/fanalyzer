@@ -4,7 +4,9 @@ use crate::api::eastmoney::EastMoneyClient;
 use crate::application::{CommandContext, FundDataSource, OutputProfile, StructuredOutput};
 use crate::cache::FundCache;
 use crate::nav_cache::NavCache;
-use crate::presentation::{StructuredError, error_from_anyhow, print_failure_capture};
+use crate::presentation::{
+    StructuredError, error_from_anyhow, failure_envelope_json, print_failure_capture,
+};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -65,13 +67,16 @@ fn missing_capture_json(command: &str) -> String {
 }
 
 fn fallback_failure_json(command: &str, error: &StructuredError) -> String {
-    serde_json::json!({
-        "v": 1,
-        "command": command,
-        "ok": false,
-        "error": error,
+    failure_envelope_json(command, error, &[]).unwrap_or_else(|_| {
+        serde_json::json!({
+            "v": 1,
+            "command": command,
+            "ok": false,
+            "warnings": [],
+            "error": error,
+        })
+        .to_string()
     })
-    .to_string()
 }
 
 #[cfg(test)]
@@ -91,5 +96,7 @@ mod tests {
         );
         let v: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(v["ok"], false);
+        assert!(v["warnings"].as_array().is_some());
+        assert_eq!(v["error"]["code"], "TEST");
     }
 }

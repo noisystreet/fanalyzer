@@ -8,7 +8,8 @@ use crate::cli::fund_code_arg::FundCodeArg;
 use crate::cli::structured_runner::run_structured_command;
 use crate::domain::DEFAULT_ROLLING_WINDOW;
 use crate::nav_cache::NavCache;
-use serde_json::{Value, json};
+use crate::presentation::{StructuredError, error_from_anyhow, failure_envelope_json};
+use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -54,10 +55,18 @@ pub async fn execute_tool(env: &McpEnv<'_>, name: &str, args: Value) -> (String,
             let sub = other.strip_prefix("fanalyzer_").unwrap_or(other);
             match build_command(sub, args) {
                 Ok(cmd) => run_and_classify(env, cmd).await,
-                Err(e) => (error_envelope(sub, &e.to_string()), true),
+                Err(e) => failure_result(sub, &error_from_anyhow(&e)),
             }
         }
-        _ => (error_envelope("mcp", &format!("未知工具：{name}")), true),
+        _ => failure_result(
+            "mcp",
+            &StructuredError {
+                code: "UNKNOWN_TOOL".into(),
+                message: format!("未知工具：{name}"),
+                retryable: Some(false),
+                hint: Some("使用 tools/list 查看可用工具名".into()),
+            },
+        ),
     }
 }
 
@@ -82,7 +91,17 @@ async fn run_and_classify(env: &McpEnv<'_>, cmd: Commands) -> (String, bool) {
 async fn research_fund(env: &McpEnv<'_>, args: Value) -> (String, bool) {
     let code = match args.get("code").and_then(|v| v.as_str()) {
         Some(c) => c.to_string(),
-        None => return (error_envelope("research_fund", "缺少 code"), true),
+        None => {
+            return failure_result(
+                "research_fund",
+                &StructuredError {
+                    code: "INVALID_ARGS".into(),
+                    message: "缺少 code".into(),
+                    retryable: Some(false),
+                    hint: Some("请传入基金代码，例如 {\"code\":\"110011\"}".into()),
+                },
+            );
+        }
     };
     let days = arg_u32(&args, "days", 90);
     let holdings_top = arg_u32(&args, "top", 10);
@@ -97,12 +116,11 @@ async fn research_fund(env: &McpEnv<'_>, args: Value) -> (String, bool) {
     )
     .await
     {
-        Ok(result) => {
-            let is_error = !result.ok;
-            let text = result.to_envelope_json().unwrap_or_default();
-            (text, is_error)
-        }
-        Err(e) => (error_envelope("research_fund", &e.to_string()), true),
+        Ok(result) => match result.to_envelope_json() {
+            Ok(text) => (text, !result.ok),
+            Err(e) => failure_result("research_fund", &error_from_anyhow(&e)),
+        },
+        Err(e) => failure_result("research_fund", &error_from_anyhow(&e)),
     }
 }
 
@@ -262,13 +280,43 @@ fn arg_path(args: &Value, key: &str, default: &str) -> PathBuf {
         .unwrap_or_else(|| PathBuf::from(default))
 }
 
-fn error_envelope(command: &str, message: &str) -> String {
-    json!({
-        "v": 1,
-        "command": command,
-        "ok": false,
-        "warnings": [],
-        "error": {"code": "MCP_TOOL_ERROR", "message": message}
-    })
-    .to_string()
+fn failure_result(command: &str, error: &StructuredError) -> (String, bool) {
+    (
+        failure_envelope_json(command, error, &[]).unwrap_or_else(|_| {
+            serde_json::json!({
+                "v": 1,
+                "command": command,
+                "ok": false,
+                "warnings": [],
+                "error": error,
+            })
+            .to_string()
+        }),
+        true,
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn failure_result_matches_failure_envelope_shape() {
+        let (text, is_error) = failure_result(
+            "research_fund",
+            &StructuredError {
+                code: "INVALID_ARGS".into(),
+                message: "缺少 code".into(),
+                retryable: Some(false),
+                hint: Some("请传入基金代码".into()),
+            },
+        );
+        assert!(is_error);
+        let v: Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(v["ok"], false);
+        assert_eq!(v["command"], "research_fund");
+        assert_eq!(v["error"]["code"], "INVALID_ARGS");
+        assert!(v["error"]["hint"].as_str().is_some());
+        assert!(v["warnings"].as_array().is_some());
+    }
 }

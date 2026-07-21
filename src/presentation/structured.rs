@@ -297,8 +297,22 @@ fn classify_error(message: &str) -> (&'static str, bool, Option<String>) {
             Some("去掉 --offline 或先在线 fetch 所需基金".into()),
         );
     }
-    if message.contains("自选列表为空") || message.contains("请指定") {
-        return ("INVALID_ARGS", false, None);
+    if message.contains("自选列表为空")
+        || message.contains("请指定")
+        || message.contains("缺少 code")
+    {
+        return (
+            "INVALID_ARGS",
+            false,
+            Some("检查参数是否符合工具 inputSchema / CLI 帮助".into()),
+        );
+    }
+    if message.contains("未知工具") || message.contains("未知子命令") {
+        return (
+            "UNKNOWN_TOOL",
+            false,
+            Some("使用 tools/list 或 `fanalyzer json --help` 查看可用命令".into()),
+        );
     }
     ("COMMAND_FAILED", false, None)
 }
