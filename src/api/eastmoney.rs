@@ -2,6 +2,7 @@ pub use crate::api::eastmoney_error::{EastMoneyError, into_anyhow};
 use crate::api::eastmoney_helpers;
 pub use crate::api::eastmoney_types::*;
 use crate::api::f10_jbgk;
+use crate::api::f10_jjjl;
 use crate::api::fund_holdings::{FundStockHoldingsReport, fetch_fund_stock_holdings_jjcc};
 use crate::api::fund_industry::{FundIndustryReport, fetch_fund_industry_hypz};
 use crate::api::fund_ranking::FundRankingPage;
@@ -511,9 +512,7 @@ impl EastMoneyClient {
     }
 
     pub async fn fetch_fund_profile(&self, fund_code: &str) -> Result<FundProfile, EastMoneyError> {
-        // 从 pingzhongdata JS 数据源获取基本信息
         let js_url = format!("https://fund.eastmoney.com/pingzhongdata/{}.js", fund_code);
-
         let js_resp = self
             .client
             .get(&js_url)
@@ -523,50 +522,15 @@ impl EastMoneyClient {
             .text()
             .await?;
 
-        // 提取基金名称和代码
         let name = eastmoney_helpers::extract_js_string_value(&js_resp, "fS_name")
             .unwrap_or_else(|| "未知".to_string());
-
-        // 提取基金经理信息
-        let manager_fields =
-            eastmoney_helpers::extract_js_variable(&js_resp, "Data_currentFundManager")
-                .and_then(|json| serde_json::from_str::<Vec<serde_json::Value>>(&json).ok())
-                .and_then(|managers| managers.first().cloned());
-
-        let manager_name = manager_fields
-            .as_ref()
-            .and_then(|m| m.get("name").and_then(|v| v.as_str()))
-            .unwrap_or("未知")
-            .to_string();
-
-        let work_time = manager_fields
-            .as_ref()
-            .and_then(|m| m.get("workTime").and_then(|v| v.as_str()))
-            .unwrap_or("");
-        let manager_tenure_days = eastmoney_helpers::parse_work_time(work_time);
-
-        let manager_total_return = manager_fields
-            .as_ref()
-            .and_then(|m| m.get("profit"))
-            .and_then(|p| p.get("series"))
-            .and_then(|s| s.as_array())
-            .and_then(|arr| arr.first())
-            .and_then(|item| item.get("data"))
-            .and_then(|d| d.as_array())
-            .and_then(|arr| arr.first())
-            .and_then(|item| item.get("y"))
-            .and_then(|v| v.as_f64())
-            .unwrap_or(0.0)
-            / 100.0;
-
-        // 提取费率信息
+        let mut managers = eastmoney_helpers::parse_managers_from_pingzhong(&js_resp);
+        let peer_rank = eastmoney_helpers::parse_peer_rank_snapshot(&js_resp);
         let source_rate = eastmoney_helpers::extract_js_string_value(&js_resp, "fund_sourceRate")
             .unwrap_or_else(|| "0".to_string());
         let management_fee = source_rate.parse::<f64>().unwrap_or(0.0);
 
-        // 从 fundf10.eastmoney.com 获取详细基金概况
         let detail_url = format!("https://fundf10.eastmoney.com/jbgk_{}.html", fund_code);
-
         let detail_resp = self
             .client
             .get(&detail_url)
@@ -575,10 +539,14 @@ impl EastMoneyClient {
             .await?
             .text()
             .await?;
-
-        // 解析详细基金信息
         let detail_info = f10_jbgk::parse_fund_detail(&detail_resp);
-        let peer_rank = eastmoney_helpers::parse_peer_rank_snapshot(&js_resp);
+
+        if let Ok(jjjl_html) = self.fetch_jjjl_html(fund_code).await {
+            merge_manager_start_dates(&mut managers, &f10_jjjl::parse_current_managers(&jjjl_html));
+        }
+
+        let (manager_name, manager_tenure_days, manager_total_return) =
+            primary_manager_fields(&managers);
 
         Ok(FundProfile {
             code: fund_code.to_string(),
@@ -588,6 +556,7 @@ impl EastMoneyClient {
             establishment_date: detail_info.establishment_date,
             asset_size: detail_info.asset_size,
             company: detail_info.company,
+            managers,
             manager_name,
             manager_tenure_days,
             manager_total_return,
@@ -600,6 +569,53 @@ impl EastMoneyClient {
             peer_rank,
         })
     }
+
+    async fn fetch_jjjl_html(&self, fund_code: &str) -> Result<String, EastMoneyError> {
+        let url = format!("https://fundf10.eastmoney.com/jjjl_{}.html", fund_code);
+        Ok(self
+            .client
+            .get(&url)
+            .header("Referer", "https://fund.eastmoney.com/")
+            .send()
+            .await?
+            .text()
+            .await?)
+    }
+}
+
+fn merge_manager_start_dates(
+    managers: &mut Vec<FundManagerInfo>,
+    appointments: &[f10_jjjl::ManagerAppointment],
+) {
+    for mgr in managers.iter_mut() {
+        if let Some(appt) = appointments.iter().find(|a| a.name == mgr.name) {
+            mgr.start_date = appt.start_date.clone();
+        }
+    }
+    for appt in appointments {
+        if managers.iter().any(|m| m.name == appt.name) {
+            continue;
+        }
+        managers.push(FundManagerInfo {
+            name: appt.name.clone(),
+            start_date: appt.start_date.clone(),
+            tenure_days: 0,
+            total_return: 0.0,
+        });
+    }
+}
+
+fn primary_manager_fields(managers: &[FundManagerInfo]) -> (String, i32, f64) {
+    if managers.is_empty() {
+        return ("未知".into(), 0, 0.0);
+    }
+    let names = managers
+        .iter()
+        .map(|m| m.name.as_str())
+        .collect::<Vec<_>>()
+        .join("、");
+    let first = &managers[0];
+    (names, first.tenure_days, first.total_return)
 }
 
 // 以下类型已迁移至 eastmoney_types.rs，通过 pub use 重新导出

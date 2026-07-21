@@ -1,13 +1,14 @@
 //! API DTO → models 视图映射（应用层边界）。
 
-use crate::api::eastmoney::{FundProfile, PeerRankSnapshot};
+use crate::api::eastmoney::{FundManagerInfo, FundProfile, PeerRankSnapshot};
 use crate::api::fund_holdings::{FundStockHoldingRow, FundStockHoldingsReport};
 use crate::api::fund_industry::{FundIndustryReport, FundIndustryRow};
 use crate::api::fund_ranking::FundRankEntry;
 use crate::models::reports::{
-    FundOverview, FundRankRow, IndustryAllocation, IndustryRow, PeerRankInfo, StockHoldingRow,
-    StockHoldings,
+    FundManagerView, FundOverview, FundRankRow, IndustryAllocation, IndustryRow, PeerRankInfo,
+    StockHoldingRow, StockHoldings,
 };
+use chrono::{Local, NaiveDate};
 
 pub fn map_peer_rank(p: &PeerRankSnapshot) -> PeerRankInfo {
     PeerRankInfo {
@@ -18,7 +19,37 @@ pub fn map_peer_rank(p: &PeerRankSnapshot) -> PeerRankInfo {
     }
 }
 
+fn map_manager(m: &FundManagerInfo, today: NaiveDate) -> FundManagerView {
+    let tenure_days = NaiveDate::parse_from_str(&m.start_date, "%Y-%m-%d")
+        .ok()
+        .map(|start| (today - start).num_days() as i32)
+        .filter(|&d| d >= 0)
+        .unwrap_or(m.tenure_days);
+    FundManagerView {
+        name: m.name.clone(),
+        start_date: m.start_date.clone(),
+        tenure_days,
+        total_return: m.total_return,
+    }
+}
+
 pub fn map_profile(p: &FundProfile) -> FundOverview {
+    let today = Local::now().date_naive();
+    let managers: Vec<FundManagerView> = p.managers.iter().map(|m| map_manager(m, today)).collect();
+    let (manager_name, manager_tenure_days, manager_total_return) = if managers.is_empty() {
+        (
+            p.manager_name.clone(),
+            p.manager_tenure_days,
+            p.manager_total_return,
+        )
+    } else {
+        let names = managers
+            .iter()
+            .map(|m| m.name.as_str())
+            .collect::<Vec<_>>()
+            .join("、");
+        (names, managers[0].tenure_days, managers[0].total_return)
+    };
     FundOverview {
         code: p.code.clone(),
         name: p.name.clone(),
@@ -27,9 +58,10 @@ pub fn map_profile(p: &FundProfile) -> FundOverview {
         establishment_date: p.establishment_date.clone(),
         asset_size: p.asset_size.clone(),
         company: p.company.clone(),
-        manager_name: p.manager_name.clone(),
-        manager_tenure_days: p.manager_tenure_days,
-        manager_total_return: p.manager_total_return,
+        managers,
+        manager_name,
+        manager_tenure_days,
+        manager_total_return,
         management_fee: p.management_fee,
         custody_fee: p.custody_fee,
         investment_target: p.investment_target.clone(),

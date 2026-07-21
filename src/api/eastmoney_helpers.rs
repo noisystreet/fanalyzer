@@ -90,6 +90,50 @@ pub(crate) fn parse_peer_rank_snapshot(js_content: &str) -> PeerRankSnapshot {
     out
 }
 
+/// 从 pingzhongdata 解析现任经理（姓名、从业时长、任期收益）。
+pub(crate) fn parse_managers_from_pingzhong(
+    js_content: &str,
+) -> Vec<super::eastmoney_types::FundManagerInfo> {
+    let Some(raw) = extract_js_variable(js_content, "Data_currentFundManager") else {
+        return Vec::new();
+    };
+    let Ok(arr) = serde_json::from_str::<Vec<serde_json::Value>>(&raw) else {
+        return Vec::new();
+    };
+    arr.iter()
+        .filter_map(|manager| {
+            let name = manager
+                .get("name")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())?
+                .to_string();
+            let work_time = manager
+                .get("workTime")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let tenure_days = parse_work_time(work_time);
+            let total_return = manager
+                .get("profit")
+                .and_then(|p| p.get("series"))
+                .and_then(|s| s.as_array())
+                .and_then(|series| series.first())
+                .and_then(|item| item.get("data"))
+                .and_then(|d| d.as_array())
+                .and_then(|data| data.first())
+                .and_then(|item| item.get("y"))
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0)
+                / 100.0;
+            Some(super::eastmoney_types::FundManagerInfo {
+                name,
+                start_date: String::new(),
+                tenure_days,
+                total_return,
+            })
+        })
+        .collect()
+}
+
 fn json_u32(v: Option<&serde_json::Value>) -> Option<u32> {
     let v = v?;
     if let Some(n) = v.as_u64() {
@@ -182,6 +226,23 @@ var Data_rateInSimilarPersent=[[1,88.5]];
         assert_eq!(snap.rank, Some(2));
         assert_eq!(snap.peer_count, Some(3));
         assert_eq!(snap.percentile, Some(88.5));
+    }
+
+    #[test]
+    fn parse_managers_from_pingzhong_all_entries() {
+        let js = r#"
+var Data_currentFundManager = [
+  {"name":"甲","workTime":"1年又10天","profit":{"series":[{"data":[{"y":12.5}]}]}},
+  {"name":"乙","workTime":"2年","profit":{"series":[{"data":[{"y":-3.0}]}]}}
+];
+"#;
+        let managers = parse_managers_from_pingzhong(js);
+        assert_eq!(managers.len(), 2);
+        assert_eq!(managers[0].name, "甲");
+        assert_eq!(managers[0].tenure_days, 365 + 10);
+        assert!((managers[0].total_return - 0.125).abs() < 1e-9);
+        assert_eq!(managers[1].name, "乙");
+        assert!((managers[1].total_return + 0.03).abs() < 1e-9);
     }
 
     #[test]

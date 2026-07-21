@@ -155,7 +155,32 @@ pub fn print_industry(code: &str, name: &str, report: &IndustryAllocation) {
 pub fn print_fund_overview(profile: &FundOverview) {
     println!("基金概况");
     println!("{}", "=".repeat(60));
+    print_overview_identity(profile);
+    print_peer_rank_line(&profile.peer_rank);
 
+    if !profile.benchmark.is_empty() {
+        println!();
+        println!("业绩比较基准");
+        println!("{}", "-".repeat(60));
+        println!("{}", profile.benchmark);
+    }
+
+    println!();
+    println!("基金经理");
+    println!("{}", "-".repeat(60));
+    print_managers_section(profile);
+
+    println!("费率信息");
+    println!("{}", "-".repeat(60));
+    println!("管理费率: {:.2}%", profile.management_fee);
+    if profile.custody_fee > 0.0 {
+        println!("托管费率: {:.2}%", profile.custody_fee);
+    }
+
+    print_overview_investment_texts(profile);
+}
+
+fn print_overview_identity(profile: &FundOverview) {
     if !profile.full_name.is_empty() {
         println!("基金全称: {}", profile.full_name);
     }
@@ -173,40 +198,9 @@ pub fn print_fund_overview(profile: &FundOverview) {
     if !profile.company.is_empty() {
         println!("管理公司: {}", profile.company);
     }
-    if let (Some(rank), Some(count)) = (profile.peer_rank.rank, profile.peer_rank.peer_count) {
-        let mut line = format!("同类排名(近3月): {rank}/{count}");
-        if let Some(pct) = profile.peer_rank.percentile {
-            line.push_str(&format!("（前 {pct:.1}%）"));
-        }
-        if let Some(ref as_of) = profile.peer_rank.as_of {
-            line.push_str(&format!("  截至 {as_of}"));
-        }
-        println!("{line}");
-    }
+}
 
-    if !profile.benchmark.is_empty() {
-        println!();
-        println!("业绩比较基准");
-        println!("{}", "-".repeat(60));
-        println!("{}", profile.benchmark);
-    }
-
-    println!();
-    println!("基金经理");
-    println!("{}", "-".repeat(60));
-    println!("姓名: {}", profile.manager_name);
-    let tenure_years = profile.manager_tenure_days as f64 / 365.0;
-    println!("任期: {:.1} 年", tenure_years);
-    println!("任职回报: {:.2}%", profile.manager_total_return * 100.0);
-
-    println!();
-    println!("费率信息");
-    println!("{}", "-".repeat(60));
-    println!("管理费率: {:.2}%", profile.management_fee);
-    if profile.custody_fee > 0.0 {
-        println!("托管费率: {:.2}%", profile.custody_fee);
-    }
-
+fn print_overview_investment_texts(profile: &FundOverview) {
     if !profile.investment_target.is_empty() {
         println!();
         println!("投资目标");
@@ -214,18 +208,55 @@ pub fn print_fund_overview(profile: &FundOverview) {
         println!("{}", profile.investment_target);
     }
 
-    if !profile.investment_scope.is_empty() {
-        println!();
-        println!("投资范围");
-        println!("{}", "-".repeat(60));
-        let scope = &profile.investment_scope;
-        if scope.len() > 80 {
-            for sentence in scope.split('。').filter(|s| !s.is_empty()) {
-                println!("{}", sentence.trim());
-            }
-        } else {
-            println!("{}", scope);
+    if profile.investment_scope.is_empty() {
+        return;
+    }
+    println!();
+    println!("投资范围");
+    println!("{}", "-".repeat(60));
+    let scope = &profile.investment_scope;
+    if scope.len() > 80 {
+        for sentence in scope.split('。').filter(|s| !s.is_empty()) {
+            println!("{}", sentence.trim());
         }
+    } else {
+        println!("{scope}");
+    }
+}
+
+fn print_peer_rank_line(peer_rank: &crate::models::PeerRankInfo) {
+    let (Some(rank), Some(count)) = (peer_rank.rank, peer_rank.peer_count) else {
+        return;
+    };
+    let mut line = format!("同类排名(近3月): {rank}/{count}");
+    if let Some(pct) = peer_rank.percentile {
+        line.push_str(&format!("（前 {pct:.1}%）"));
+    }
+    if let Some(ref as_of) = peer_rank.as_of {
+        line.push_str(&format!("  截至 {as_of}"));
+    }
+    println!("{line}");
+}
+
+fn print_managers_section(profile: &FundOverview) {
+    if profile.managers.is_empty() {
+        println!("姓名: {}", profile.manager_name);
+        println!("任期: {:.1} 年", profile.manager_tenure_days as f64 / 365.0);
+        println!("任职回报: {:.2}%", profile.manager_total_return * 100.0);
+        return;
+    }
+    for m in &profile.managers {
+        println!("姓名: {}", m.name);
+        if !m.start_date.is_empty() {
+            println!("上任日期: {}", m.start_date);
+        }
+        if m.tenure_days > 0 {
+            println!("任期: {:.1} 年", m.tenure_days as f64 / 365.0);
+        }
+        if m.total_return != 0.0 {
+            println!("任职回报: {:.2}%", m.total_return * 100.0);
+        }
+        println!();
     }
 }
 
