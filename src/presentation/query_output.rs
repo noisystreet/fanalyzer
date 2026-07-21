@@ -181,6 +181,29 @@ pub fn print_fund_overview(profile: &FundOverview) {
     if profile.custody_fee > 0.0 {
         println!("托管费率: {:.2}%", profile.custody_fee);
     }
+    if profile.purchase_fee > 0.0 {
+        println!(
+            "申购费率: {:.2}%（优惠档，以销售渠道为准）",
+            profile.purchase_fee
+        );
+    }
+    if profile.redemption_fee > 0.0 {
+        println!(
+            "最高赎回费率: {:.2}%（阶梯费率最高档，通常对应短持有期）",
+            profile.redemption_fee
+        );
+    }
+    if !profile.subscribe_status.is_empty() || !profile.redeem_status.is_empty() {
+        println!();
+        println!("交易状态");
+        println!("{}", "-".repeat(60));
+        if !profile.subscribe_status.is_empty() {
+            println!("申购状态: {}", profile.subscribe_status);
+        }
+        if !profile.redeem_status.is_empty() {
+            println!("赎回状态: {}", profile.redeem_status);
+        }
+    }
 
     print_overview_investment_texts(profile);
 }

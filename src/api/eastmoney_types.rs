@@ -57,6 +57,14 @@ pub struct FundProfile {
     pub manager_total_return: f64,
     pub management_fee: f64,
     pub custody_fee: f64,
+    /// 申购费率（百分点；优先天天基金优惠档）
+    pub purchase_fee: f64,
+    /// 最高赎回费率（百分点；阶梯费率取最高档）
+    pub redemption_fee: f64,
+    /// 申购/交易状态（如「限大额」）
+    pub subscribe_status: String,
+    /// 赎回状态（如「开放赎回」）
+    pub redeem_status: String,
     pub investment_target: String,
     pub investment_scope: String,
     pub investment_strategy: String,

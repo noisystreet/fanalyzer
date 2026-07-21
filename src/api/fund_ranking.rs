@@ -129,7 +129,9 @@ pub fn rank_return_for_sort(entry: &FundRankEntry, sort: &str) -> Option<f64> {
         "1yzf" => entry.pct_month,
         "3yzf" => entry.pct_3m,
         "6yzf" => entry.pct_6m,
-        "1n" | "1nzf" | "2nzf" | "3nzf" => entry.pct_1y,
+        "1n" | "1nzf" => entry.pct_1y,
+        "2nzf" => entry.pct_2y,
+        "3nzf" => entry.pct_3y,
         "jnzf" => entry.pct_this_year,
         "lnzf" | "qjzf" => entry.pct_since_start,
         _ => entry.pct_1y.or(entry.pct_6m),
@@ -154,13 +156,16 @@ mod tests {
             pct_3m: Some(4.0),
             pct_6m: Some(5.0),
             pct_1y: Some(6.0),
-            pct_2y: None,
-            pct_3y: None,
+            pct_2y: Some(9.0),
+            pct_3y: Some(10.0),
             pct_this_year: Some(7.0),
             pct_since_start: Some(8.0),
         };
         assert_eq!(rank_return_for_sort(&r, "zzf"), Some(2.0));
+        assert_eq!(rank_return_for_sort(&r, "1n"), Some(6.0));
         assert_eq!(rank_return_for_sort(&r, "1nzf"), Some(6.0));
+        assert_eq!(rank_return_for_sort(&r, "2nzf"), Some(9.0));
+        assert_eq!(rank_return_for_sort(&r, "3nzf"), Some(10.0));
     }
 
     #[test]

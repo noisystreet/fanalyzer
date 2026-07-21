@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 基金概况 `info`：展示 F10 管理/托管费率、申购优惠费率、最高赎回费率，以及申购/赎回交易状态
 - 基金概况 `info`：展示 F10 资产配置（股/债/现占净值、净资产、股票仓位环比）
 - `holdings`：较上一报告期占净值变化（`pct_nav_chg`）；兼容非 6 位股票代码解析
 - 基金概况 `info`：现任经理支持多人，并展示 F10 `jjjl` 上任日期
@@ -25,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `FundDataSource` trait + `MockFundDataSource`（单元/集成测试，CI 无需联网）
 
 ### Fixed
+- `screen`/`rank` 按 `--sort 2nzf`/`3nzf` 取区间收益时误用近 1 年列；现分别映射到近 2 年 / 近 3 年收益；分析窗口对应 730/1095 天
+- 管理费率不再误用 pingzhongdata 的 `fund_sourceRate`（原申购费率）；改从 F10 jbgk「管理费率」读取，并补齐托管费率
 - MCP `tools/call` 返回 `NO_OUTPUT`（JSON 捕获上下文不一致）
 - MCP 声明 `outputSchema` 但未返回 `structuredContent`，导致客户端校验失败；现与 `content[0].text` 对齐，且 `ok: false` 时统一设置 `isError`
 - MCP / 捕获路径失败信封统一为 `envelope.failure.json`（含 `warnings`、`error.hint` / `retryable`）

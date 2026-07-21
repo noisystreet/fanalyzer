@@ -54,6 +54,16 @@ pub struct FundOverview {
     pub manager_total_return: f64,
     pub management_fee: f64,
     pub custody_fee: f64,
+    /// 申购费率（百分点；优先天天基金优惠档）
+    #[serde(default, skip_serializing_if = "is_zero_f64")]
+    pub purchase_fee: f64,
+    /// 最高赎回费率（百分点）
+    #[serde(default, skip_serializing_if = "is_zero_f64")]
+    pub redemption_fee: f64,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub subscribe_status: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub redeem_status: String,
     pub investment_target: String,
     pub investment_scope: String,
     pub benchmark: String,
@@ -61,6 +71,10 @@ pub struct FundOverview {
     pub peer_rank: PeerRankInfo,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub allocation: Option<AssetAllocationSnapshot>,
+}
+
+fn is_zero_f64(v: &f64) -> bool {
+    *v == 0.0
 }
 
 /// 最新资产配置快照（来自 F10 zcpz）。
