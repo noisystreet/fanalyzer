@@ -19,6 +19,13 @@ pub fn render_brief_terminal(b: &FundBrief) {
     if !b.asset_size.is_empty() {
         println!("规模: {}", b.asset_size);
     }
+    if let (Some(rank), Some(count)) = (b.peer_rank.rank, b.peer_rank.peer_count) {
+        let mut line = format!("同类排名(近3月): {rank}/{count}");
+        if let Some(pct) = b.peer_rank.percentile {
+            line.push_str(&format!("（前 {pct:.1}%）"));
+        }
+        println!("{line}");
+    }
     println!();
 
     if let Some(ref a) = b.analysis {
@@ -55,6 +62,16 @@ pub fn write_brief_markdown(b: &FundBrief, path: &Path) -> anyhow::Result<()> {
     }
     if !b.asset_size.is_empty() {
         md.push_str(&format!("- **规模**: {}\n", b.asset_size));
+    }
+    if let (Some(rank), Some(count)) = (b.peer_rank.rank, b.peer_rank.peer_count) {
+        let mut line = format!("- **同类排名(近3月)**: {rank}/{count}");
+        if let Some(pct) = b.peer_rank.percentile {
+            line.push_str(&format!("（前 {pct:.1}%）"));
+        }
+        if let Some(ref as_of) = b.peer_rank.as_of {
+            line.push_str(&format!("，截至 {as_of}"));
+        }
+        md.push_str(&format!("{line}\n"));
     }
     md.push_str(&format!("- **分析窗口**: {} 日历天\n\n", b.days));
 

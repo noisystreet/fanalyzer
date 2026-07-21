@@ -5,6 +5,28 @@ use super::FundAnalysis;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+/// 同类排名（近 3 月，来自天天基金 pingzhongdata）。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct PeerRankInfo {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub as_of: Option<String>,
+    /// 名次（1 最好）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rank: Option<u32>,
+    /// 同类基金数
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub peer_count: Option<u32>,
+    /// 百分位 0–100（越高越好）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub percentile: Option<f64>,
+}
+
+impl PeerRankInfo {
+    pub fn is_empty(&self) -> bool {
+        self.rank.is_none() && self.peer_count.is_none() && self.percentile.is_none()
+    }
+}
+
 /// 基金概况（F10 / info 命令）。
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct FundOverview {
@@ -23,6 +45,8 @@ pub struct FundOverview {
     pub investment_target: String,
     pub investment_scope: String,
     pub benchmark: String,
+    #[serde(default, skip_serializing_if = "PeerRankInfo::is_empty")]
+    pub peer_rank: PeerRankInfo,
 }
 
 /// 行业配置一行。
@@ -86,4 +110,6 @@ pub struct FundBrief {
     pub holdings: StockHoldings,
     pub industry_top: usize,
     pub holdings_top: usize,
+    #[serde(default, skip_serializing_if = "PeerRankInfo::is_empty")]
+    pub peer_rank: PeerRankInfo,
 }

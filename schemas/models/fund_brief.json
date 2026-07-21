@@ -49,6 +49,9 @@
     },
     "name": {
       "type": "string"
+    },
+    "peer_rank": {
+      "$ref": "#/$defs/PeerRankInfo"
     }
   },
   "required": [
@@ -219,6 +222,44 @@
         "industry",
         "pct_nav"
       ]
+    },
+    "PeerRankInfo": {
+      "description": "同类排名（近 3 月，来自天天基金 pingzhongdata）。",
+      "type": "object",
+      "properties": {
+        "as_of": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "peer_count": {
+          "description": "同类基金数",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "percentile": {
+          "description": "百分位 0–100（越高越好）",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "rank": {
+          "description": "名次（1 最好）",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        }
+      }
     },
     "StockHoldingRow": {
       "description": "重仓股一行。",

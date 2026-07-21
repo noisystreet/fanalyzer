@@ -1712,6 +1712,9 @@
               },
               "name": {
                 "type": "string"
+              },
+              "peer_rank": {
+                "$ref": "#/$defs/PeerRankInfo"
               }
             },
             "required": [
@@ -1753,6 +1756,44 @@
               "code",
               "message"
             ],
+            "type": "object"
+          },
+          "PeerRankInfo": {
+            "description": "同类排名（近 3 月，来自天天基金 pingzhongdata）。",
+            "properties": {
+              "as_of": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "peer_count": {
+                "description": "同类基金数",
+                "format": "uint32",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "percentile": {
+                "description": "百分位 0–100（越高越好）",
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "rank": {
+                "description": "名次（1 最好）",
+                "format": "uint32",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
             "type": "object"
           }
         },
@@ -2741,6 +2782,9 @@
               },
               "name": {
                 "type": "string"
+              },
+              "peer_rank": {
+                "$ref": "#/$defs/PeerRankInfo"
               }
             },
             "required": [
@@ -2828,6 +2872,44 @@
               "code",
               "message"
             ],
+            "type": "object"
+          },
+          "PeerRankInfo": {
+            "description": "同类排名（近 3 月，来自天天基金 pingzhongdata）。",
+            "properties": {
+              "as_of": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "peer_count": {
+                "description": "同类基金数",
+                "format": "uint32",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "percentile": {
+                "description": "百分位 0–100（越高越好）",
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "rank": {
+                "description": "名次（1 最好）",
+                "format": "uint32",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
             "type": "object"
           },
           "StockHoldingRow": {

@@ -578,6 +578,7 @@ impl EastMoneyClient {
 
         // 解析详细基金信息
         let detail_info = f10_jbgk::parse_fund_detail(&detail_resp);
+        let peer_rank = eastmoney_helpers::parse_peer_rank_snapshot(&js_resp);
 
         Ok(FundProfile {
             code: fund_code.to_string(),
@@ -596,6 +597,7 @@ impl EastMoneyClient {
             investment_scope: detail_info.investment_scope,
             investment_strategy: detail_info.investment_strategy,
             benchmark: detail_info.benchmark,
+            peer_rank,
         })
     }
 }
