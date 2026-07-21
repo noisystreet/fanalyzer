@@ -1604,6 +1604,54 @@
       "name": "fanalyzer_info",
       "outputSchema": {
         "$defs": {
+          "AssetAllocationSnapshot": {
+            "description": "最新资产配置快照（来自 F10 zcpz）。",
+            "properties": {
+              "as_of": {
+                "type": "string"
+              },
+              "bond_pct": {
+                "format": "double",
+                "type": "number"
+              },
+              "cash_pct": {
+                "format": "double",
+                "type": "number"
+              },
+              "net_asset_yi": {
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "stock_pct": {
+                "format": "double",
+                "type": "number"
+              },
+              "stock_pct_chg": {
+                "description": "相对上一期股票仓位变化（百分点）",
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "summary": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "as_of",
+              "stock_pct",
+              "bond_pct",
+              "cash_pct"
+            ],
+            "type": "object"
+          },
           "BatchMeta": {
             "description": "批量查询 meta。",
             "properties": {
@@ -1689,6 +1737,16 @@
           "FundOverview": {
             "description": "基金概况（F10 / info 命令）。",
             "properties": {
+              "allocation": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/AssetAllocationSnapshot"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "asset_size": {
                 "type": "string"
               },
@@ -2238,6 +2296,14 @@
               "pct_nav": {
                 "format": "double",
                 "type": "number"
+              },
+              "pct_nav_chg": {
+                "description": "较上一报告期占净值变化（百分点）；未知时省略",
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
               },
               "rank": {
                 "format": "uint32",
@@ -2956,6 +3022,14 @@
               "pct_nav": {
                 "format": "double",
                 "type": "number"
+              },
+              "pct_nav_chg": {
+                "description": "较上一报告期占净值变化（百分点）；未知时省略",
+                "format": "double",
+                "type": [
+                  "number",
+                  "null"
+                ]
               },
               "rank": {
                 "format": "uint32",

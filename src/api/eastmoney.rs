@@ -3,6 +3,7 @@ use crate::api::eastmoney_helpers;
 pub use crate::api::eastmoney_types::*;
 use crate::api::f10_jbgk;
 use crate::api::f10_jjjl;
+use crate::api::fund_allocation::{FundAllocationReport, fetch_fund_allocation_zcpz};
 use crate::api::fund_holdings::{FundStockHoldingsReport, fetch_fund_stock_holdings_jjcc};
 use crate::api::fund_industry::{FundIndustryReport, fetch_fund_industry_hypz};
 use crate::api::fund_ranking::FundRankingPage;
@@ -271,6 +272,13 @@ impl EastMoneyClient {
         topline: u32,
     ) -> Result<FundStockHoldingsReport, EastMoneyError> {
         fetch_fund_stock_holdings_jjcc(&self.client, fund_code, topline).await
+    }
+
+    pub async fn fetch_fund_allocation(
+        &self,
+        fund_code: &str,
+    ) -> Result<FundAllocationReport, EastMoneyError> {
+        fetch_fund_allocation_zcpz(&self.client, fund_code).await
     }
 
     pub async fn fetch_fund_name(&self, fund_code: &str) -> Result<String, EastMoneyError> {

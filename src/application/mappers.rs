@@ -1,12 +1,13 @@
 //! API DTO → models 视图映射（应用层边界）。
 
 use crate::api::eastmoney::{FundManagerInfo, FundProfile, PeerRankSnapshot};
+use crate::api::fund_allocation::FundAllocationReport;
 use crate::api::fund_holdings::{FundStockHoldingRow, FundStockHoldingsReport};
 use crate::api::fund_industry::{FundIndustryReport, FundIndustryRow};
 use crate::api::fund_ranking::FundRankEntry;
 use crate::models::reports::{
-    FundManagerView, FundOverview, FundRankRow, IndustryAllocation, IndustryRow, PeerRankInfo,
-    StockHoldingRow, StockHoldings,
+    AssetAllocationSnapshot, FundManagerView, FundOverview, FundRankRow, IndustryAllocation,
+    IndustryRow, PeerRankInfo, StockHoldingRow, StockHoldings,
 };
 use chrono::{Local, NaiveDate};
 
@@ -68,7 +69,25 @@ pub fn map_profile(p: &FundProfile) -> FundOverview {
         investment_scope: p.investment_scope.clone(),
         benchmark: p.benchmark.clone(),
         peer_rank: map_peer_rank(&p.peer_rank),
+        allocation: None,
     }
+}
+
+pub fn map_allocation(report: &FundAllocationReport) -> Option<AssetAllocationSnapshot> {
+    let latest = report.rows.first()?;
+    let stock_pct_chg = report
+        .rows
+        .get(1)
+        .map(|prev| latest.stock_pct - prev.stock_pct);
+    Some(AssetAllocationSnapshot {
+        as_of: latest.as_of.clone(),
+        stock_pct: latest.stock_pct,
+        bond_pct: latest.bond_pct,
+        cash_pct: latest.cash_pct,
+        net_asset_yi: latest.net_asset_yi,
+        stock_pct_chg,
+        summary: report.summary.clone(),
+    })
 }
 
 fn map_industry_row(r: &FundIndustryRow) -> IndustryRow {
@@ -95,6 +114,7 @@ fn map_holding_row(r: &FundStockHoldingRow) -> StockHoldingRow {
         pct_nav: r.pct_nav,
         shares_wan: r.shares_wan,
         market_value_wan: r.market_value_wan,
+        pct_nav_chg: r.pct_nav_chg,
     }
 }
 

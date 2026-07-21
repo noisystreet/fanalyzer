@@ -4,6 +4,16 @@
   "description": "基金概况（F10 / info 命令）。",
   "type": "object",
   "properties": {
+    "allocation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AssetAllocationSnapshot"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "asset_size": {
       "type": "string"
     },
@@ -81,6 +91,54 @@
     "benchmark"
   ],
   "$defs": {
+    "AssetAllocationSnapshot": {
+      "description": "最新资产配置快照（来自 F10 zcpz）。",
+      "type": "object",
+      "properties": {
+        "as_of": {
+          "type": "string"
+        },
+        "bond_pct": {
+          "type": "number",
+          "format": "double"
+        },
+        "cash_pct": {
+          "type": "number",
+          "format": "double"
+        },
+        "net_asset_yi": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "stock_pct": {
+          "type": "number",
+          "format": "double"
+        },
+        "stock_pct_chg": {
+          "description": "相对上一期股票仓位变化（百分点）",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "summary": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "as_of",
+        "stock_pct",
+        "bond_pct",
+        "cash_pct"
+      ]
+    },
     "FundManagerView": {
       "description": "单个现任基金经理（呈现层）。",
       "type": "object",

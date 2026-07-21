@@ -37,6 +37,7 @@ mod tests {
             pct_nav: pct,
             shares_wan: None,
             market_value_wan: None,
+            pct_nav_chg: None,
         }
     }
 

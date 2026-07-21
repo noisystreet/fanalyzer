@@ -59,6 +59,24 @@ pub struct FundOverview {
     pub benchmark: String,
     #[serde(default, skip_serializing_if = "PeerRankInfo::is_empty")]
     pub peer_rank: PeerRankInfo,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allocation: Option<AssetAllocationSnapshot>,
+}
+
+/// 最新资产配置快照（来自 F10 zcpz）。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct AssetAllocationSnapshot {
+    pub as_of: String,
+    pub stock_pct: f64,
+    pub bond_pct: f64,
+    pub cash_pct: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub net_asset_yi: Option<f64>,
+    /// 相对上一期股票仓位变化（百分点）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stock_pct_chg: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
 }
 
 /// 行业配置一行。
@@ -86,6 +104,9 @@ pub struct StockHoldingRow {
     pub pct_nav: f64,
     pub shares_wan: Option<f64>,
     pub market_value_wan: Option<f64>,
+    /// 较上一报告期占净值变化（百分点）；未知时省略
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pct_nav_chg: Option<f64>,
 }
 
 /// 重仓股报告。
