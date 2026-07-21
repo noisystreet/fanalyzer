@@ -276,6 +276,14 @@
           "type": "number",
           "format": "double"
         },
+        "pct_nav_chg": {
+          "description": "较上一报告期占净值变化（百分点）；未知时省略",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
         "rank": {
           "type": "integer",
           "format": "uint32",

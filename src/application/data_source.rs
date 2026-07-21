@@ -3,6 +3,7 @@
 use crate::api::eastmoney::{
     EastMoneyClient, EastMoneyError, FundFeeInfo, FundManagerInfo, FundProfile, IndexData,
 };
+use crate::api::fund_allocation::FundAllocationReport;
 use crate::api::fund_holdings::FundStockHoldingsReport;
 use crate::api::fund_industry::FundIndustryReport;
 use crate::api::fund_ranking::FundRankingPage;
@@ -42,6 +43,11 @@ pub trait FundDataSource: Send + Sync {
         fund_code: &str,
         topline: u32,
     ) -> Result<FundStockHoldingsReport, EastMoneyError>;
+
+    async fn fetch_fund_allocation(
+        &self,
+        fund_code: &str,
+    ) -> Result<FundAllocationReport, EastMoneyError>;
 
     async fn fetch_fund_name(&self, fund_code: &str) -> Result<String, EastMoneyError>;
 
@@ -103,6 +109,13 @@ impl FundDataSource for EastMoneyClient {
         topline: u32,
     ) -> Result<FundStockHoldingsReport, EastMoneyError> {
         self.fetch_fund_stock_holdings(fund_code, topline).await
+    }
+
+    async fn fetch_fund_allocation(
+        &self,
+        fund_code: &str,
+    ) -> Result<FundAllocationReport, EastMoneyError> {
+        self.fetch_fund_allocation(fund_code).await
     }
 
     async fn fetch_fund_name(&self, fund_code: &str) -> Result<String, EastMoneyError> {
@@ -262,6 +275,13 @@ pub mod mock {
                 .get(fund_code)
                 .cloned()
                 .unwrap_or_default())
+        }
+
+        async fn fetch_fund_allocation(
+            &self,
+            _: &str,
+        ) -> Result<FundAllocationReport, EastMoneyError> {
+            Ok(FundAllocationReport::default())
         }
 
         async fn search_fund(&self, _: &str) -> Result<Vec<(String, String)>, EastMoneyError> {

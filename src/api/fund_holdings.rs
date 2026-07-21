@@ -17,6 +17,8 @@ pub struct FundStockHoldingRow {
     pub shares_wan: Option<f64>,
     /// 持仓市值（万元）
     pub market_value_wan: Option<f64>,
+    /// 较上期占净值变化（百分点）
+    pub pct_nav_chg: Option<f64>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -28,13 +30,16 @@ pub struct FundStockHoldingsReport {
 static AS_OF_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"截止至：<font[^>]*>([^<]+)</font>").expect("as_of regex"));
 
-/// 股票投资明细表一行：`序号 | 代码 | 名称 | … | 占净值 | 持股数 | 市值`。
+/// 股票投资明细表一行：兼容旧版简表与现行 `tzxq` 表；代码支持 4～8 位。
 static JJCC_ROW_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(concat!(
-        r"<tr><td>(\d+)</td><td><a[^>]*>([0-9]{6})</a></td>",
-        r"<td class='tol'><a[^>]*>([^<]+)</a></td>",
+        r"<tr><td>(\d+)</td>",
+        r"<td(?: class='toc')?><a[^>]*>([0-9A-Za-z]{4,8})</a></td>",
+        r"<td class='t(?:ol|oc)'[^>]*><a[^>]*>([^<]+)</a></td>",
         r"[\s\S]*?<td class='xglj'>[\s\S]*?</td>",
-        r"<td class='tor'>([^<]+)</td><td class='tor'>([^<]+)</td><td class='tor'>([^<]+)</td></tr>"
+        r"<td class='t(?:or|oc)'>([^<]+)</td>",
+        r"<td class='t(?:or|oc)'>([^<]+)</td>",
+        r"<td class='t(?:or|oc)'>([^<]+)</td></tr>"
     ))
     .expect("jjcc row regex")
 });
@@ -77,13 +82,22 @@ pub fn parse_jjcc_apidata(body: &str) -> Result<FundStockHoldingsReport, String>
             pct_nav,
             shares_wan,
             market_value_wan,
+            pct_nav_chg: None,
         });
     }
 
     Ok(FundStockHoldingsReport { as_of, rows })
 }
 
+fn prior_report_year_month(as_of: &str) -> Option<(u32, u32)> {
+    use chrono::{Datelike, Months, NaiveDate};
+    let d = NaiveDate::parse_from_str(as_of.trim(), "%Y-%m-%d").ok()?;
+    let prev = d.checked_sub_months(Months::new(3))?;
+    Some((prev.year() as u32, prev.month()))
+}
+
 /// 拉取季报披露的股票投资明细（重仓）；`topline` 为接口请求条数上限（官网常用 10～50）。
+/// 若能解析截止日，会再拉上一季报告并填充 `pct_nav_chg`。
 pub async fn fetch_fund_stock_holdings_jjcc(
     http: &Client,
     fund_code: &str,
@@ -97,15 +111,60 @@ pub async fn fetch_fund_stock_holdings_jjcc(
     );
 
     let text = http
-        .get(url)
-        .header("Referer", referer)
+        .get(&url)
+        .header("Referer", &referer)
         .header("Accept", "*/*")
         .send()
         .await?
         .text()
         .await?;
 
-    parse_jjcc_apidata(&text).map_err(EastMoneyError::ParseFailed)
+    let mut report = parse_jjcc_apidata(&text).map_err(EastMoneyError::ParseFailed)?;
+    fill_holdings_pct_chg(http, fund_code, top, &referer, &mut report).await;
+    Ok(report)
+}
+
+async fn fill_holdings_pct_chg(
+    http: &Client,
+    fund_code: &str,
+    top: u32,
+    referer: &str,
+    report: &mut FundStockHoldingsReport,
+) {
+    let Some(as_of) = report.as_of.as_deref() else {
+        return;
+    };
+    let Some((year, month)) = prior_report_year_month(as_of) else {
+        return;
+    };
+    let url = format!(
+        "https://fundf10.eastmoney.com/FundArchivesDatas.aspx?type=jjcc&code={fund_code}&topline={top}&year={year}&month={month}"
+    );
+    let Ok(text) = http
+        .get(url)
+        .header("Referer", referer)
+        .header("Accept", "*/*")
+        .send()
+        .await
+    else {
+        return;
+    };
+    let Ok(text) = text.text().await else {
+        return;
+    };
+    let Ok(prev) = parse_jjcc_apidata(&text) else {
+        return;
+    };
+    let prev_map: std::collections::HashMap<&str, f64> = prev
+        .rows
+        .iter()
+        .map(|r| (r.stock_code.as_str(), r.pct_nav))
+        .collect();
+    for row in &mut report.rows {
+        if let Some(prev_pct) = prev_map.get(row.stock_code.as_str()) {
+            row.pct_nav_chg = Some(row.pct_nav - prev_pct);
+        }
+    }
 }
 
 #[cfg(test)]

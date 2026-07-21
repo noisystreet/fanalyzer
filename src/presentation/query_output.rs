@@ -98,6 +98,7 @@ fn holdings_display_rows(report: &StockHoldings) -> (Vec<String>, Vec<Vec<String
         "股票代码".into(),
         "股票名称".into(),
         "占净值比例".into(),
+        "较上期".into(),
         "持股数(万股)".into(),
         "持仓市值(万元)".into(),
     ];
@@ -110,6 +111,9 @@ fn holdings_display_rows(report: &StockHoldings) -> (Vec<String>, Vec<Vec<String
                 r.stock_code.clone(),
                 truncate_string(&r.stock_name, 16),
                 format!("{:.2}%", r.pct_nav),
+                r.pct_nav_chg
+                    .map(|v| format!("{v:+.2}"))
+                    .unwrap_or_else(|| "-".to_string()),
                 r.shares_wan
                     .map(|v| format!("{v:.2}"))
                     .unwrap_or_else(|| "-".to_string()),
@@ -157,6 +161,7 @@ pub fn print_fund_overview(profile: &FundOverview) {
     println!("{}", "=".repeat(60));
     print_overview_identity(profile);
     print_peer_rank_line(&profile.peer_rank);
+    print_allocation_section(profile.allocation.as_ref());
 
     if !profile.benchmark.is_empty() {
         println!();
@@ -236,6 +241,29 @@ fn print_peer_rank_line(peer_rank: &crate::models::PeerRankInfo) {
         line.push_str(&format!("  截至 {as_of}"));
     }
     println!("{line}");
+}
+
+fn print_allocation_section(allocation: Option<&crate::models::AssetAllocationSnapshot>) {
+    let Some(a) = allocation else {
+        return;
+    };
+    println!();
+    println!("资产配置");
+    println!("{}", "-".repeat(60));
+    println!("报告期: {}", a.as_of);
+    println!(
+        "股票 {:.2}%  债券 {:.2}%  现金 {:.2}%",
+        a.stock_pct, a.bond_pct, a.cash_pct
+    );
+    if let Some(nav) = a.net_asset_yi {
+        println!("净资产: {nav:.2} 亿元");
+    }
+    if let Some(chg) = a.stock_pct_chg {
+        println!("股票仓位较上期: {chg:+.2} pct");
+    }
+    if let Some(ref summary) = a.summary {
+        println!("{summary}");
+    }
 }
 
 fn print_managers_section(profile: &FundOverview) {

@@ -3,7 +3,7 @@
 use super::concurrency::{FUND_CONCURRENCY, map_concurrent};
 use super::context::{CommandContext, require_online, resolve_fund_ids};
 use super::fund_service::resolve_fund_identifier;
-use super::mappers::{map_holdings, map_industry, map_profile, map_rank_rows};
+use super::mappers::{map_allocation, map_holdings, map_industry, map_profile, map_rank_rows};
 use crate::domain::rank_ft_code;
 use crate::presentation::{
     BatchMeta, BatchPayload, FetchPayload, HoldingsItem, RankMeta, RankPayload, SectorItem,
@@ -160,12 +160,17 @@ pub async fn load_fund_overview_resolved(
     resolved_code: &str,
 ) -> anyhow::Result<crate::models::FundOverview> {
     tracing::info!(code = %resolved_code, "Fetching fund info");
-    let profile = session
-        .source
-        .fetch_fund_profile(resolved_code)
-        .await
-        .map_err(|e| anyhow::anyhow!("获取基金概况失败：{e}"))?;
-    Ok(map_profile(&profile))
+    let (profile_res, allocation_res) = tokio::join!(
+        session.source.fetch_fund_profile(resolved_code),
+        session.source.fetch_fund_allocation(resolved_code),
+    );
+    let profile = profile_res.map_err(|e| anyhow::anyhow!("获取基金概况失败：{e}"))?;
+    let mut overview = map_profile(&profile);
+    match allocation_res {
+        Ok(report) => overview.allocation = map_allocation(&report),
+        Err(e) => tracing::warn!(code = %resolved_code, error = %e, "资产配置获取失败，已跳过"),
+    }
+    Ok(overview)
 }
 
 pub async fn load_fund_holdings(
