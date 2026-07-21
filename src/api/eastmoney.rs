@@ -485,38 +485,47 @@ impl EastMoneyClient {
     }
 
     pub async fn fetch_fund_fee(&self, fund_code: &str) -> Result<FundFeeInfo, EastMoneyError> {
-        // 复用同一个 JS 数据源
-        let url = format!("https://fund.eastmoney.com/pingzhongdata/{}.js", fund_code);
-
-        let resp = self
+        // 管理/托管/最高赎回等以 F10 jbgk 为准；申购优惠费率可回退 pingzhongdata.fund_Rate
+        let detail_url = format!("https://fundf10.eastmoney.com/jbgk_{}.html", fund_code);
+        let detail_resp = self
             .client
-            .get(&url)
+            .get(&detail_url)
             .header("Referer", "https://fund.eastmoney.com/")
             .send()
             .await?
             .text()
             .await?;
-
-        // 从 JS 变量中提取费率信息
-        // fund_sourceRate 是原费率，fund_Rate 是现费率
-        let source_rate = eastmoney_helpers::extract_js_string_value(&resp, "fund_sourceRate")
-            .unwrap_or_else(|| "0".to_string());
-        let current_rate = eastmoney_helpers::extract_js_string_value(&resp, "fund_Rate")
-            .unwrap_or_else(|| "0".to_string());
-
-        let management_fee = source_rate.parse::<f64>().unwrap_or(0.0);
-        let purchase_fee = current_rate.parse::<f64>().unwrap_or(0.0);
-
-        // 托管费率通常在 0.1%-0.25% 之间，JS 中没有直接提供，使用默认值
-        // 可以通过其他 API 获取，这里先设为 0
-        let custody_fee = 0.0;
+        let detail = f10_jbgk::parse_fund_detail(&detail_resp);
+        let purchase_fee = match detail.purchase_fee.filter(|v| *v > 0.0) {
+            Some(v) => v,
+            None => self.fetch_pingzhong_purchase_fee(fund_code).await,
+        };
 
         Ok(FundFeeInfo {
-            management_fee,
-            custody_fee,
+            management_fee: detail.management_fee.unwrap_or(0.0),
+            custody_fee: detail.custody_fee.unwrap_or(0.0),
             purchase_fee,
-            redemption_fee: 0.0, // 赎回费通常是阶梯式的，这里简化处理
+            redemption_fee: detail.redemption_fee.unwrap_or(0.0),
         })
+    }
+
+    async fn fetch_pingzhong_purchase_fee(&self, fund_code: &str) -> f64 {
+        let js_url = format!("https://fund.eastmoney.com/pingzhongdata/{}.js", fund_code);
+        let Ok(resp) = self
+            .client
+            .get(&js_url)
+            .header("Referer", "https://fund.eastmoney.com/")
+            .send()
+            .await
+        else {
+            return 0.0;
+        };
+        let Ok(text) = resp.text().await else {
+            return 0.0;
+        };
+        eastmoney_helpers::extract_js_string_value(&text, "fund_Rate")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0.0)
     }
 
     pub async fn fetch_fund_profile(&self, fund_code: &str) -> Result<FundProfile, EastMoneyError> {
@@ -534,9 +543,8 @@ impl EastMoneyClient {
             .unwrap_or_else(|| "未知".to_string());
         let mut managers = eastmoney_helpers::parse_managers_from_pingzhong(&js_resp);
         let peer_rank = eastmoney_helpers::parse_peer_rank_snapshot(&js_resp);
-        let source_rate = eastmoney_helpers::extract_js_string_value(&js_resp, "fund_sourceRate")
-            .unwrap_or_else(|| "0".to_string());
-        let management_fee = source_rate.parse::<f64>().unwrap_or(0.0);
+        let js_purchase = eastmoney_helpers::extract_js_string_value(&js_resp, "fund_Rate")
+            .and_then(|s| s.parse::<f64>().ok());
 
         let detail_url = format!("https://fundf10.eastmoney.com/jbgk_{}.html", fund_code);
         let detail_resp = self
@@ -568,8 +576,12 @@ impl EastMoneyClient {
             manager_name,
             manager_tenure_days,
             manager_total_return,
-            management_fee,
-            custody_fee: 0.0,
+            management_fee: detail_info.management_fee.unwrap_or(0.0),
+            custody_fee: detail_info.custody_fee.unwrap_or(0.0),
+            purchase_fee: detail_info.purchase_fee.or(js_purchase).unwrap_or(0.0),
+            redemption_fee: detail_info.redemption_fee.unwrap_or(0.0),
+            subscribe_status: detail_info.subscribe_status,
+            redeem_status: detail_info.redeem_status,
             investment_target: detail_info.investment_target,
             investment_scope: detail_info.investment_scope,
             investment_strategy: detail_info.investment_strategy,

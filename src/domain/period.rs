@@ -21,10 +21,10 @@ pub fn resolve_analysis_days(
         "30d" | "1m" | "month" | "1yzf" => Ok(30),
         "90d" | "3m" | "3yzf" => Ok(90),
         "180d" | "6m" | "6yzf" => Ok(180),
-        "365d" | "1y" | "1n" | "1nzf" | "2nzf" | "3nzf" => Ok(365),
+        "365d" | "1y" | "1n" | "1nzf" => Ok(365),
+        "730d" | "2y" | "2nzf" => Ok(730),
+        "1095d" | "3y" | "3nzf" => Ok(1095),
         "ytd" | "jnzf" => Ok(ytd_calendar_days(today)),
-        "730d" | "2y" => Ok(730),
-        "1095d" | "3y" => Ok(1095),
         other if other.chars().all(|c| c.is_ascii_digit()) => other
             .parse::<u32>()
             .with_context(|| format!("无法解析 period `{raw}`")),
@@ -76,5 +76,7 @@ mod tests {
     fn rank_sort_days() {
         assert_eq!(days_for_rank_sort("zzf", SAMPLE_TODAY), 7);
         assert_eq!(days_for_rank_sort("3yzf", SAMPLE_TODAY), 90);
+        assert_eq!(days_for_rank_sort("2nzf", SAMPLE_TODAY), 730);
+        assert_eq!(days_for_rank_sort("3nzf", SAMPLE_TODAY), 1095);
     }
 }

@@ -71,6 +71,22 @@
     },
     "peer_rank": {
       "$ref": "#/$defs/PeerRankInfo"
+    },
+    "purchase_fee": {
+      "description": "申购费率（百分点；优先天天基金优惠档）",
+      "type": "number",
+      "format": "double"
+    },
+    "redeem_status": {
+      "type": "string"
+    },
+    "redemption_fee": {
+      "description": "最高赎回费率（百分点）",
+      "type": "number",
+      "format": "double"
+    },
+    "subscribe_status": {
+      "type": "string"
     }
   },
   "required": [
