@@ -99,6 +99,31 @@
         "items"
       ]
     },
+    "FundManagerView": {
+      "description": "单个现任基金经理（呈现层）。",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "start_date": {
+          "type": "string"
+        },
+        "tenure_days": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "total_return": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "name",
+        "tenure_days",
+        "total_return"
+      ]
+    },
     "FundOverview": {
       "description": "基金概况（F10 / info 命令）。",
       "type": "object",
@@ -148,6 +173,12 @@
         "manager_total_return": {
           "type": "number",
           "format": "double"
+        },
+        "managers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FundManagerView"
+          }
         },
         "name": {
           "type": "string"

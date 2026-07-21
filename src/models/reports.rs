@@ -5,6 +5,16 @@ use super::FundAnalysis;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+/// 单个现任基金经理（呈现层）。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct FundManagerView {
+    pub name: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub start_date: String,
+    pub tenure_days: i32,
+    pub total_return: f64,
+}
+
 /// 同类排名（近 3 月，来自天天基金 pingzhongdata）。
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct PeerRankInfo {
@@ -37,6 +47,8 @@ pub struct FundOverview {
     pub establishment_date: String,
     pub asset_size: String,
     pub company: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub managers: Vec<FundManagerView>,
     pub manager_name: String,
     pub manager_tenure_days: i32,
     pub manager_total_return: f64,

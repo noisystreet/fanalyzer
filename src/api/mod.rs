@@ -5,6 +5,7 @@ pub mod eastmoney_ranking;
 pub mod eastmoney_types;
 pub mod f10_apidata;
 pub mod f10_jbgk;
+pub mod f10_jjjl;
 pub mod fund_holdings;
 pub mod fund_industry;
 pub mod fund_ranking;

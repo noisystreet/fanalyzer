@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 基金概况 `info`：现任经理支持多人，并展示 F10 `jjjl` 上任日期
 - 基金概况 `info` / `brief`：展示近 3 月同类排名（名次、同类数、百分位，来自 pingzhongdata）
 - 基金概况 `info` 命令：展示基金全称、成立日期、资产规模、投资目标、投资范围、业绩比较基准等详细信息
 - `eastmoney_types` 模块：提取 IndexData、FundManagerInfo、FundFeeInfo、FundProfile 等 5 个数据模型

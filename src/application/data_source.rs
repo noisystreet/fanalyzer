@@ -178,6 +178,7 @@ pub mod mock {
                 establishment_date: String::new(),
                 asset_size: "10.00亿".to_string(),
                 company: "测试基金公司".to_string(),
+                managers: Vec::new(),
                 manager_name: String::new(),
                 manager_tenure_days: 0,
                 manager_total_return: 0.0,

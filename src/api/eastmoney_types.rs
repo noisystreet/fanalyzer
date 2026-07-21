@@ -11,6 +11,7 @@ pub struct IndexData {
 #[derive(Debug, Clone, Default)]
 pub struct FundManagerInfo {
     pub name: String,
+    /// 本基金上任日期（YYYY-MM-DD），未知时为空
     pub start_date: String,
     pub tenure_days: i32,
     pub total_return: f64,
@@ -48,6 +49,9 @@ pub struct FundProfile {
     pub establishment_date: String,
     pub asset_size: String,
     pub company: String,
+    /// 现任经理列表（可多人）
+    pub managers: Vec<FundManagerInfo>,
+    /// 兼容字段：经理姓名拼接（顿号分隔）
     pub manager_name: String,
     pub manager_tenure_days: i32,
     pub manager_total_return: f64,
