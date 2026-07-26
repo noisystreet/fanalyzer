@@ -6,7 +6,7 @@
 
 ## Tech Stack
 
-- Language: Rust 2021 Edition (MSRV 1.85)
+- Language: Rust 2024 Edition (MSRV 1.85)
 - Async Runtime: Tokio
 - HTTP Client: Reqwest
 - CLI: Clap

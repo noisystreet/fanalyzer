@@ -40,7 +40,7 @@ pub fn days_for_rank_sort(sort: &str, today: NaiveDate) -> u32 {
 }
 
 fn ytd_calendar_days(today: NaiveDate) -> u32 {
-    let jan1 = chrono::NaiveDate::from_ymd_opt(today.year(), 1, 1).unwrap();
+    let jan1 = chrono::NaiveDate::from_ymd_opt(today.year(), 1, 1).unwrap_or(today);
     (today - jan1).num_days().max(1) as u32
 }
 
