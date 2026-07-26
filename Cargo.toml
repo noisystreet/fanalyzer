@@ -1,6 +1,6 @@
 [package]
 name = "fanalyzer"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Fanalyzer — fund analysis CLI for personal research"
 license = "MIT"

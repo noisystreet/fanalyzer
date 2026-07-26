@@ -5,7 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.1] - 2026-07-26
+
+### Added
+- Debian 打包支持：`cargo deb` 生成 `.deb` 包，含 `LICENSE`、Shell 补全、man page，发布时自动上传
+- Shell 自动补全：`fanalyzer completions {bash,zsh,fish}` 子命令
+- man page：`fanalyzer man` 子命令，生成 roff 格式文档
+- `build.rs`：构建时自动生成补全脚本和 man page（供 `cargo deb` 本地使用）
+- XDG 默认路径：`--watchlist-file`、`--portfolio-file`、配置发现均支持 `~/.config/fanalyzer/`
+- 自选文件自动创建：`watchlist.toml` 不存在时自动生成空文件
+- 解读阈值自动创建：`portfolio_insights.toml` 不存在时使用默认值写入 XDG 路径
+
+### Changed
+- MCP 配置不再需要 `cwd` 参数（路径默认走 XDG）
+
+### Fixed
+- `ytd_calendar_days` 生产路径 `unwrap()` → `unwrap_or(today)` 安全兜底
+- 删除 `analyzer` 中未使用的 `use_acc` 变量
+- `docs/ARCHITECTURE.md` Rust Edition 同步为 2024
+- `api/mod.rs` `FundClient` 预留 stub 添加注释说明
+
+## [0.1.0] - 2026-03-19
 
 ### Added
 - 基金概况 `info`：展示 F10 管理/托管费率、申购优惠费率、最高赎回费率，以及申购/赎回交易状态
