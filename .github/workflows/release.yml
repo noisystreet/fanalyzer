@@ -43,9 +43,31 @@ jobs:
           install -Dm755 target/release/fanalyzer "dist/fanalyzer-${GITHUB_REF_NAME}-linux-amd64"
           tar -czf "fanalyzer-${GITHUB_REF_NAME}-linux-amd64.tar.gz" -C dist "fanalyzer-${GITHUB_REF_NAME}-linux-amd64"
 
+      - name: Generate shell completions and man page
+        run: |
+          mkdir -p completions
+          ./target/release/fanalyzer completions bash > completions/fanalyzer.bash
+          ./target/release/fanalyzer completions zsh > completions/_fanalyzer
+          ./target/release/fanalyzer completions fish > completions/fanalyzer.fish
+          ./target/release/fanalyzer man > completions/fanalyzer.1
+
+      - name: Install cargo-deb
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deb
+
+      - name: Build .deb package
+        run: cargo deb --no-build
+
+      - name: Rename .deb package
+        run: |
+          cp "target/debian/fanalyzer_${GITHUB_REF_NAME#v}_amd64.deb" \
+             "fanalyzer-${GITHUB_REF_NAME}-linux-amd64.deb"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
           files: |
             fanalyzer-*-linux-amd64.tar.gz
+            fanalyzer-*-linux-amd64.deb
