@@ -9,6 +9,21 @@ readme = "README.md"
 keywords = ["fund", "finance", "analysis", "fanalyzer"]
 categories = ["finance"]
 
+[package.metadata.deb]
+maintainer = "noisystreet <noisystreet@users.noreply.github.com>"
+section = "utils"
+priority = "optional"
+extended-description = "Fanalyzer is a command-line tool for analyzing Chinese mutual fund data from East Money (东方财富). It provides fund ranking, analysis, comparison, and portfolio management features."
+depends = "$auto"
+assets = [
+    ["target/release/fanalyzer", "usr/bin/", "755"],
+    ["LICENSE", "usr/share/doc/fanalyzer/", "644"],
+    ["completions/fanalyzer.bash", "usr/share/bash-completion/completions/fanalyzer", "644"],
+    ["completions/_fanalyzer", "usr/share/zsh/vendor-completions/_fanalyzer", "644"],
+    ["completions/fanalyzer.fish", "usr/share/fish/vendor_completions.d/fanalyzer.fish", "644"],
+    ["completions/fanalyzer.1", "usr/share/man/man1/fanalyzer.1", "644"],
+]
+
 [dependencies]
 anyhow = "1"
 thiserror = "2"
@@ -20,6 +35,8 @@ serde_json = { version = "1", default-features = false }
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 async-trait = "0.1"
 clap = { version = "4", default-features = false, features = ["derive", "env", "std", "help", "usage", "error-context"] }
+clap_complete = "4"
+clap_mangen = "0.2"
 toml = "1.1"
 chrono = { version = "0.4", features = ["serde"] }
 csv = "1"

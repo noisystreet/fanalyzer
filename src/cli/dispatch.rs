@@ -32,7 +32,7 @@ pub async fn dispatch_with_command(
             super::dispatch_workflow::dispatch(&ctx, cmd).await
         }
         Commands::Json { .. } => unreachable!("json handled in cli::run"),
-        Commands::Schema { .. } | Commands::Mcp { .. } => {
+        Commands::Schema { .. } | Commands::Mcp { .. } | Commands::Completions { .. } => {
             unreachable!("schema/mcp handled in cli::run")
         }
         Commands::WatchlistList

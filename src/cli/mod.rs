@@ -18,7 +18,8 @@ use crate::application::{CommandContext, FundDataSource, OutputProfile, Structur
 use crate::cache::FundCache;
 use crate::config::AppConfig;
 use crate::nav_cache::NavCache;
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
+use clap_complete::Shell;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -329,6 +330,16 @@ pub enum Commands {
         )]
         portfolio_file: PathBuf,
     },
+    /// 生成 Shell 自动补全脚本（bash/zsh/fish）
+    #[command(about = "生成 Shell 自动补全脚本")]
+    Completions {
+        /// 目标 Shell
+        #[arg(value_enum)]
+        shell: Shell,
+    },
+    /// 生成 man page（roff 格式，可用 `man fanalyzer.1` 查看）
+    #[command(about = "生成 man page（roff 格式）")]
+    Man,
     /// 导出 Agent JSON Schema（Clap 工具入参 + schemars 响应模型；无需联网）
     Schema {
         #[command(subcommand)]
@@ -361,6 +372,8 @@ impl Commands {
             Self::WatchlistAdd { .. } => "watchlist",
             Self::WatchlistRemove { .. } => "watchlist",
             Self::PortfolioConfig { .. } => "portfolio_config",
+            Self::Completions { .. } => "completions",
+            Self::Man => "man",
             Self::Schema { .. } => "schema",
             Self::Mcp { .. } => "mcp",
         }
@@ -423,6 +436,18 @@ pub async fn run(mut cli: Cli, config: AppConfig) -> anyhow::Result<()> {
     };
 
     match cmd {
+        Commands::Completions { shell } => {
+            let mut cmd = Cli::command();
+            let name = cmd.get_name().to_string();
+            clap_complete::generate(shell, &mut cmd, name, &mut std::io::stdout());
+            Ok(())
+        }
+        Commands::Man => {
+            let cmd = Cli::command();
+            let man = clap_mangen::Man::new(cmd);
+            man.render(&mut std::io::stdout())?;
+            Ok(())
+        }
         Commands::Schema { command } => crate::schema::run(command).await,
         Commands::Mcp { command } => crate::mcp::run(command, config).await,
         Commands::Json {
