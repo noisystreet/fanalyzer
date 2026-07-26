@@ -932,8 +932,7 @@
             "type": "string"
           },
           "portfolio-file": {
-            "default": "config/portfolio.toml",
-            "description": "组合权重 TOML 路径",
+            "description": "组合权重 TOML 路径（默认 XDG）",
             "type": "string"
           },
           "rolling-window": {
@@ -3639,7 +3638,7 @@
             "type": "boolean"
           },
           "portfolio-file": {
-            "default": "config/portfolio.toml",
+            "description": "组合权重 TOML 路径（默认 XDG）",
             "type": "string"
           }
         },
@@ -4567,8 +4566,7 @@
       "inputSchema": {
         "properties": {
           "portfolio-file": {
-            "default": "config/portfolio.toml",
-            "description": "组合 TOML 路径",
+            "description": "组合 TOML 路径（默认 XDG）",
             "type": "string"
           }
         },
