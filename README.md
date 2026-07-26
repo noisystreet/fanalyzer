@@ -56,15 +56,38 @@ cargo test
 
 # 代码检查
 cargo fmt -- --check && cargo clippy -- -D warnings
+
+# 生成 Shell 自动补全脚本
+cargo run -- completions bash > fanalyzer.bash && source fanalyzer.bash
+cargo run -- completions zsh > _fanalyzer
+cargo run -- completions fish > fanalyzer.fish
+
+# 生成 man page
+cargo run -- man > fanalyzer.1 && man ./fanalyzer.1
 ```
 
 ## 发布
 
-推送 `v*` tag 会触发 [`.github/workflows/release.yml`](.github/workflows/release.yml)，在 GitHub Release 中附带 Linux amd64 构建包：
+推送 `v*` tag 会触发 [`.github/workflows/release.yml`](.github/workflows/release.yml)，在 GitHub Release 中附带以下构建产物：
+
+- **`fanalyzer-*-linux-amd64.tar.gz`** — 二进制压缩包
+- **`fanalyzer-*-linux-amd64.deb`** — Debian 包（含 man page、Shell 补全、LICENSE）
 
 ```bash
 git tag v0.1.0
 git push origin v0.1.0
+```
+
+### 从 .deb 安装
+
+```bash
+# 从 GitHub Release 下载 .deb 后
+sudo dpkg -i fanalyzer-*-linux-amd64.deb
+# 安装后即可直接使用
+fanalyzer --help
+man fanalyzer
+# Bash 补全（重新登录 shell 后自动生效）
+source /usr/share/bash-completion/completions/fanalyzer
 ```
 
 Dependabot 每周一自动提交 Cargo 与 GitHub Actions 更新 PR（见 [`.github/dependabot.yml`](.github/dependabot.yml)）。
