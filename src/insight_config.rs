@@ -1,10 +1,10 @@
 //! 组合解读阈值配置（TOML，缺失时使用默认值）。
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 /// 解读规则阈值。
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PortfolioInsightThresholds {
     #[serde(default = "default_high_correlation")]
     pub high_correlation: f64,
@@ -28,7 +28,7 @@ pub struct PortfolioInsightThresholds {
     pub equal_weight_sharpe_delta: f64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct InsightConfigToml {
     #[serde(default)]
     thresholds: PortfolioInsightThresholds,
@@ -82,9 +82,20 @@ fn default_equal_weight_sharpe_delta() -> f64 {
     0.05
 }
 
-/// 读取解读阈值；文件不存在或解析失败时回退默认值。
+/// 读取解读阈值；文件不存在时自动创建默认配置文件并返回默认值。
 pub fn load_portfolio_insights(path: &Path) -> PortfolioInsightThresholds {
     if !path.exists() {
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let content = format!(
+            "# 组合解读规则阈值（自动生成，可编辑调优）\n\n{}",
+            toml::to_string_pretty(&InsightConfigToml {
+                thresholds: PortfolioInsightThresholds::default(),
+            })
+            .unwrap_or_default()
+        );
+        let _ = std::fs::write(path, content);
         return PortfolioInsightThresholds::default();
     }
     match std::fs::read_to_string(path) {

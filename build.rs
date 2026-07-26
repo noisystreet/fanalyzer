@@ -188,7 +188,7 @@ fn build_cli() -> clap::Command {
                     Arg::new("portfolio-file")
                         .long("portfolio-file")
                         .value_name("PATH")
-                        .default_value("config/portfolio.toml"),
+                        .help("组合权重 TOML 路径（默认 XDG）"),
                 )
                 .arg(Arg::new("days").short('d').long("days").default_value("90"))
                 .arg(Arg::new("period").long("period"))
@@ -328,7 +328,7 @@ fn build_cli() -> clap::Command {
                     Arg::new("portfolio-file")
                         .long("portfolio-file")
                         .value_name("PATH")
-                        .default_value("config/portfolio.toml"),
+                        .help("组合权重 TOML 路径（默认 XDG）"),
                 ),
         )
         .subcommand(

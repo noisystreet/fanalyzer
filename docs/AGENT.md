@@ -186,16 +186,16 @@ cargo run -- mcp serve --profile standard --tools minimal
 |------|------|
 | `command` | 二进制绝对路径；Trae/Cursor 可用 `${workspaceFolder}/target/debug/fanalyzer` |
 | `args` | 推荐 `--profile summary`（最省 token） |
-| `cwd` | 可选；未设置时若找不到 `config/default.toml`，会尝试相对可执行文件目录解析（见下 `--config`） |
+| `cwd` | 通常不需要；安装后 `fanalyzer` 在 `$PATH` 中，配置/自选/组合文件默认走 XDG 路径（`~/.config/fanalyzer/`） |
 | `env` | 可选；`RUST_LOG=warn` 减少 stderr |
 
-**配置文件解析**（与 MCP `cwd` 解耦）：
+**配置文件解析**（与 `cwd` 解耦）：
 
 ```bash
 # 显式指定（或环境变量 FANALYZER_CONFIG）
 fanalyzer --config /path/to/config/default.toml mcp serve
 
-# 自动查找顺序：--config → ./config/default.toml → 可执行文件旁 ../config/default.toml
+# 自动查找顺序：--config → ./config/default.toml → ~/.config/fanalyzer/default.toml → 可执行文件相对路径
 ```
 
 MCP 工具列表来自 `schemas/tools.v1.agent.json`（已剥离 `compact` 等内部参数）。复合工具：

@@ -18,9 +18,23 @@ use crate::portfolio::PortfolioDefinition;
 use crate::presentation::{PortfolioMeta, base_meta, compact_portfolio_report, emit};
 use chrono::Local;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::PathBuf;
 
-const DEFAULT_INSIGHTS_PATH: &str = "config/portfolio_insights.toml";
+/// 解读阈值配置文件搜索顺序：XDG → 项目本地。
+fn resolve_insights_path() -> PathBuf {
+    let xdg = dirs::config_dir().map(|p| p.join("fanalyzer").join("portfolio_insights.toml"));
+    match xdg {
+        Some(ref p) if p.exists() => p.clone(),
+        _ => {
+            let local = PathBuf::from("config/portfolio_insights.toml");
+            if local.exists() {
+                local
+            } else {
+                xdg.unwrap_or(local)
+            }
+        }
+    }
+}
 
 pub struct PortfolioRequest {
     pub portfolio_path: std::path::PathBuf,
@@ -247,7 +261,7 @@ async fn build_report(
     let summary = build_summary(def, series, window_days, dates.len() as u32, &metrics);
     let correlation = build_correlation(series, &aligned);
     let overlaps = build_overlaps(ctx.session, ctx.offline, members, ctx.holdings_top).await;
-    let thresholds = load_portfolio_insights(Path::new(DEFAULT_INSIGHTS_PATH));
+    let thresholds = load_portfolio_insights(&resolve_insights_path());
     let interpretation = Some(crate::domain::interpret_portfolio(
         &summary,
         &correlation,
