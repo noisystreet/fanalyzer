@@ -40,7 +40,6 @@
             "type": "boolean"
           },
           "watchlist-file": {
-            "default": "config/watchlist.toml",
             "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
@@ -107,7 +106,6 @@
             "type": "boolean"
           },
           "watchlist-file": {
-            "default": "config/watchlist.toml",
             "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
@@ -176,7 +174,6 @@
             "type": "boolean"
           },
           "watchlist-file": {
-            "default": "config/watchlist.toml",
             "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
@@ -231,8 +228,7 @@
             "type": "string"
           },
           "portfolio-file": {
-            "default": "config/portfolio.toml",
-            "description": "组合权重 TOML 路径",
+            "description": "组合权重 TOML 路径（默认 XDG）",
             "type": "string"
           },
           "profile": {
@@ -245,7 +241,6 @@
             "type": "integer"
           },
           "watchlist-file": {
-            "default": "config/watchlist.toml",
             "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
@@ -307,7 +302,6 @@
             "type": "boolean"
           },
           "watchlist-file": {
-            "default": "config/watchlist.toml",
             "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
@@ -351,7 +345,6 @@
             "type": "boolean"
           },
           "watchlist-file": {
-            "default": "config/watchlist.toml",
             "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
@@ -395,7 +388,6 @@
             "type": "boolean"
           },
           "watchlist-file": {
-            "default": "config/watchlist.toml",
             "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
@@ -444,7 +436,6 @@
             "type": "boolean"
           },
           "watchlist-file": {
-            "default": "config/watchlist.toml",
             "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
@@ -493,7 +484,6 @@
             "type": "integer"
           },
           "watchlist-file": {
-            "default": "config/watchlist.toml",
             "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
@@ -563,7 +553,6 @@
             "type": "boolean"
           },
           "watchlist-file": {
-            "default": "config/watchlist.toml",
             "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
@@ -676,7 +665,6 @@
             "type": "string"
           },
           "watchlist-file": {
-            "default": "config/watchlist.toml",
             "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
@@ -715,7 +703,6 @@
             "type": "string"
           },
           "watchlist-file": {
-            "default": "config/watchlist.toml",
             "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
@@ -747,7 +734,7 @@
             "type": "boolean"
           },
           "portfolio-file": {
-            "default": "config/portfolio.toml",
+            "description": "组合权重 TOML 路径（默认 XDG）",
             "type": "string"
           },
           "profile": {
@@ -755,7 +742,6 @@
             "type": "string"
           },
           "watchlist-file": {
-            "default": "config/watchlist.toml",
             "description": "自选基金列表 TOML 文件",
             "type": "string"
           }
