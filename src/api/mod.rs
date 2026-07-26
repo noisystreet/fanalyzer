@@ -27,6 +27,10 @@ pub enum ApiError {
     EastMoney(#[from] eastmoney::EastMoneyError),
 }
 
+/// 备用 HTTP 客户端（预留 stub，当前未使用）。
+///
+/// 所有实际请求走 `EastMoneyClient`（`api/eastmoney.rs`）。
+/// 待后续引入通用基金源 trait 后可启用。
 #[allow(dead_code)]
 pub struct FundClient {
     client: reqwest::Client,

@@ -22,9 +22,6 @@ impl FundAnalyzer {
         sorted.sort_by_key(|n| n.date);
 
         let prices: Vec<f64> = sorted.iter().map(|n| price_at(n)).collect();
-        let use_acc = sorted
-            .iter()
-            .any(|n| n.acc_nav > 0.0 && (n.acc_nav - n.nav).abs() > 1e-6);
 
         let avg_nav = prices.iter().sum::<f64>() / prices.len() as f64;
         let max_nav = prices.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
@@ -87,8 +84,6 @@ impl FundAnalyzer {
             } else {
                 (String::new(), 0, 0.0, 0.0, 0.0)
             };
-
-        let _ = use_acc;
 
         Some(FundAnalysis {
             code,
