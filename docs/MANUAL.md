@@ -28,9 +28,9 @@ cargo run -- <子命令> --help
 
 ## 配置与自选文件
 
-### 应用配置 `config/default.toml`
+### 应用配置
 
-启动时若存在该路径则读取，否则使用内置默认值。
+默认查找顺序：`--config` 指定路径 → `./config/default.toml` → `~/.config/fanalyzer/default.toml`（XDG）→ 可执行文件相对路径。
 
 | 段落 | 字段 | 说明 |
 |------|------|------|
@@ -41,7 +41,7 @@ cargo run -- <子命令> --help
 
 `base_url` 为历史字段，当前 CLI 主要走东方财富固定接口，可保留默认。
 
-### 自选列表 `config/watchlist.toml`
+### 自选列表
 
 TOML 中 `funds` 为字符串数组，每项为 **6 位基金代码** 或 **基金名称/简称**（与单基金 `--code` 解析规则一致）：
 
@@ -50,14 +50,14 @@ funds = ["000001", "110011", "某基金简称"]
 ```
 
 - 与 `--watchlist` 联用时，从该文件批量拉取标的（见下表「自选」列）。
-- 默认路径为 `config/watchlist.toml`；可用全局参数 **`--watchlist-file <路径>`** 指定其他文件。
+- 默认路径为 `~/.config/fanalyzer/watchlist.toml`（XDG），文件不存在时自动创建；可用全局参数 **`--watchlist-file <路径>`** 指定其他文件。
 
 ## 全局参数
 
 | 参数 | 说明 |
 |------|------|
 | `--offline` | 仅使用本地已缓存的净值数据。**不可**与 `fetch`、`info`、`rank`、`brief`、`screen` 等需联网子命令共用；`analyze` / `compare` / `portfolio` / `export` 在已有缓存时可用。 |
-| `--watchlist-file <PATH>` | 自选文件路径，默认 `config/watchlist.toml`。 |
+| `--watchlist-file <PATH>` | 自选文件路径，默认 `~/.config/fanalyzer/watchlist.toml`（XDG 自动创建）。 |
 
 ## 结构化输出（Agent 集成）
 
@@ -231,13 +231,15 @@ cargo run -- compare --watchlist --period 3m --output ./cmp.json --format json
 按权重配置计算组合层风险收益、成分相关矩阵与重仓重叠度。
 
 ```bash
-cargo run -- portfolio --portfolio-file config/portfolio.toml --period 1y
+cargo run -- portfolio --period 1y
 cargo run -- portfolio --days 90 --holdings-top 10
 cargo run -- portfolio --period 6m --output ./portfolio.json
 cargo run -- portfolio --offline --days 90   # 跳过重仓重叠，仅用净值缓存
 ```
 
-### 组合配置文件 `config/portfolio.toml`
+### 组合配置文件
+
+默认路径（XDG）：`~/.config/fanalyzer/portfolio.toml`，也可通过 `--portfolio-file` 指定自定义路径。
 
 ```toml
 name = "demo-equal-weight"
@@ -257,7 +259,7 @@ weight = 0.5
 
 | 参数 | 说明 |
 |------|------|
-| `--portfolio-file` | 组合 TOML 路径，默认 `config/portfolio.toml` |
+| `--portfolio-file` | 组合 TOML 路径，默认 `~/.config/fanalyzer/portfolio.toml`（XDG） |
 | `-d` / `--days` | 分析窗口（日历天），默认 `90` |
 | `--period` | 同 `analyze` |
 | `--holdings-top` | 重仓重叠分析取前 N 大重仓，默认 `10`（需联网） |
