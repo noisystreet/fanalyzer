@@ -33,15 +33,14 @@ pub struct Cli {
     /// 仅从本地净值缓存读取数据（须曾在线抓取并写入缓存目录）
     #[arg(long, global = true)]
     pub offline: bool,
-    /// 自选列表文件路径
+    /// 自选列表文件路径（默认 XDG: ~/.config/fanalyzer/watchlist.toml）
     #[arg(
         long,
         global = true,
-        default_value = "config/watchlist.toml",
         value_name = "PATH",
         help = "自选基金列表 TOML 文件"
     )]
-    pub watchlist_file: PathBuf,
+    pub watchlist_file: Option<PathBuf>,
     #[command(subcommand)]
     pub command: Option<Commands>,
 }
@@ -139,11 +138,10 @@ pub enum Commands {
     Portfolio {
         #[arg(
             long = "portfolio-file",
-            default_value = "config/portfolio.toml",
             value_name = "PATH",
-            help = "组合权重 TOML 路径"
+            help = "组合权重 TOML 路径（默认 XDG）"
         )]
-        portfolio_file: PathBuf,
+        portfolio_file: Option<PathBuf>,
         #[arg(
             short,
             long,
@@ -325,10 +323,10 @@ pub enum Commands {
     PortfolioConfig {
         #[arg(
             long = "portfolio-file",
-            default_value = "config/portfolio.toml",
-            value_name = "PATH"
+            value_name = "PATH",
+            help = "组合权重 TOML 路径（默认 XDG）"
         )]
-        portfolio_file: PathBuf,
+        portfolio_file: Option<PathBuf>,
     },
     /// 生成 Shell 自动补全脚本（bash/zsh/fish）
     #[command(about = "生成 Shell 自动补全脚本")]
@@ -430,6 +428,11 @@ pub async fn run(mut cli: Cli, config: AppConfig) -> anyhow::Result<()> {
     let name_cache = Arc::new(Mutex::new(FundCache::with_root(cache_root.clone())));
     let nav_store = NavCache::with_root(cache_root);
 
+    let watchlist_path: PathBuf = cli
+        .watchlist_file
+        .clone()
+        .unwrap_or_else(crate::watchlist::default_watchlist_path);
+
     let Some(cmd) = cli.command.take() else {
         Cli::parse_from(["fanalyzer", "--help"]);
         return Ok(());
@@ -461,7 +464,7 @@ pub async fn run(mut cli: Cli, config: AppConfig) -> anyhow::Result<()> {
                 inner,
                 json_structured_output(compact, compact_series, profile)?,
                 cli.offline,
-                &cli.watchlist_file,
+                &watchlist_path,
                 &client,
                 &name_cache,
                 &nav_store,
@@ -473,7 +476,7 @@ pub async fn run(mut cli: Cli, config: AppConfig) -> anyhow::Result<()> {
                 cmd,
                 StructuredOutput::OFF,
                 cli.offline,
-                &cli.watchlist_file,
+                &watchlist_path,
                 &client,
                 &name_cache,
                 &nav_store,

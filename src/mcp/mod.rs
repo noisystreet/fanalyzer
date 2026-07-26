@@ -31,10 +31,10 @@ pub enum McpCommands {
         /// 仅从本地缓存读取
         #[arg(long)]
         offline: bool,
-        #[arg(long, default_value = "config/watchlist.toml", value_name = "PATH")]
-        watchlist_file: PathBuf,
-        #[arg(long, default_value = "config/portfolio.toml", value_name = "PATH")]
-        portfolio_file: PathBuf,
+        #[arg(long, value_name = "PATH", help = "自选基金列表 TOML 文件（默认 XDG）")]
+        watchlist_file: Option<PathBuf>,
+        #[arg(long, value_name = "PATH", help = "组合权重 TOML 路径（默认 XDG）")]
+        portfolio_file: Option<PathBuf>,
     },
 }
 
@@ -49,6 +49,10 @@ pub async fn run(cmd: McpCommands, config: AppConfig) -> anyhow::Result<()> {
         } => {
             let profile = OutputProfile::parse(&profile)?;
             let tool_tier = ToolTier::parse(&tools)?;
+            let watchlist_path =
+                watchlist_file.unwrap_or_else(crate::watchlist::default_watchlist_path);
+            let portfolio_path =
+                portfolio_file.unwrap_or_else(crate::portfolio::default_portfolio_path);
             let opts = EastMoneyClientOptions {
                 timeout_secs: config.api.timeout_secs.max(1),
                 user_agent: config.api.user_agent.clone(),
@@ -62,8 +66,8 @@ pub async fn run(cmd: McpCommands, config: AppConfig) -> anyhow::Result<()> {
                 profile,
                 offline,
                 tool_tier,
-                &watchlist_file,
-                portfolio_file,
+                &watchlist_path,
+                portfolio_path,
                 config,
                 &client,
                 &name_cache,

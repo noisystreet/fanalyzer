@@ -90,7 +90,7 @@ impl AppConfig {
         Ok(config)
     }
 
-    /// 按优先级解析配置文件路径：`--config` / `FANALYZER_CONFIG` → CWD → 可执行文件相对路径。
+    /// 按优先级解析配置文件路径：`--config` / `FANALYZER_CONFIG` → CWD → XDG → 可执行文件相对路径。
     pub fn discover_config_path(explicit: Option<&Path>) -> Option<PathBuf> {
         if let Some(path) = explicit {
             if path.exists() {
@@ -102,6 +102,13 @@ impl AppConfig {
         let cwd_config = PathBuf::from("config/default.toml");
         if cwd_config.exists() {
             return Some(cwd_config);
+        }
+
+        if let Some(config_dir) = dirs::config_dir() {
+            let xdg_config = config_dir.join("fanalyzer").join("default.toml");
+            if xdg_config.exists() {
+                return Some(xdg_config);
+            }
         }
 
         if let Ok(exe) = std::env::current_exe()

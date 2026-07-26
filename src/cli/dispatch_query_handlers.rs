@@ -5,6 +5,7 @@ use crate::application::{
     AnalyzeRequest, CommandContext, CompareRequest, ExportRequest, FetchRequest, PortfolioRequest,
     run_analyze, run_compare, run_export, run_fetch, run_portfolio,
 };
+use std::path::PathBuf;
 
 pub async fn dispatch(ctx: &CommandContext<'_>, cmd: Commands) -> anyhow::Result<()> {
     match cmd {
@@ -96,10 +97,13 @@ async fn dispatch_portfolio_export(ctx: &CommandContext<'_>, cmd: Commands) -> a
             format,
             rolling_window,
         } => {
+            let portfolio_path: PathBuf = portfolio_file
+                .clone()
+                .unwrap_or_else(crate::portfolio::default_portfolio_path);
             run_portfolio(
                 ctx,
                 PortfolioRequest {
-                    portfolio_path: portfolio_file,
+                    portfolio_path,
                     days,
                     period,
                     holdings_top,

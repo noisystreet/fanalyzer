@@ -5,6 +5,7 @@ use crate::application::{
     CommandContext, run_portfolio_config, run_watchlist_add, run_watchlist_list,
     run_watchlist_remove,
 };
+use std::path::PathBuf;
 
 pub async fn dispatch(ctx: &CommandContext<'_>, cmd: Commands) -> anyhow::Result<()> {
     match cmd {
@@ -12,7 +13,9 @@ pub async fn dispatch(ctx: &CommandContext<'_>, cmd: Commands) -> anyhow::Result
         Commands::WatchlistAdd { codes } => run_watchlist_add(ctx, codes).await,
         Commands::WatchlistRemove { codes } => run_watchlist_remove(ctx, codes).await,
         Commands::PortfolioConfig { portfolio_file } => {
-            run_portfolio_config(ctx, portfolio_file).await
+            let path: PathBuf =
+                portfolio_file.unwrap_or_else(crate::portfolio::default_portfolio_path);
+            run_portfolio_config(ctx, path).await
         }
         _ => unreachable!("agent dispatch called with wrong command"),
     }
