@@ -48,7 +48,14 @@ pub async fn execute_tool(env: &McpEnv<'_>, name: &str, args: Value) -> (String,
             run_and_classify(env, Commands::WatchlistRemove { codes }).await
         }
         "fanalyzer_portfolio_config" => {
-            let portfolio_file = arg_path(&args, "portfolio-file", "config/portfolio.toml");
+            let portfolio_file: Option<PathBuf> = {
+                let p = arg_path(&args, "portfolio-file", "");
+                if p.as_os_str().is_empty() {
+                    None
+                } else {
+                    Some(p)
+                }
+            };
             run_and_classify(env, Commands::PortfolioConfig { portfolio_file }).await
         }
         other if other.starts_with("fanalyzer_") => {
@@ -170,7 +177,7 @@ fn build_command(sub: &str, args: Value) -> anyhow::Result<Commands> {
             format: "json".into(),
         },
         "portfolio" => Commands::Portfolio {
-            portfolio_file: arg_path(&args, "portfolio-file", "config/portfolio.toml"),
+            portfolio_file: arg_str(&args, "portfolio-file").map(PathBuf::from),
             days: arg_u32(&args, "days", 90),
             period: arg_str(&args, "period"),
             holdings_top: arg_u32(&args, "holdings-top", 10),

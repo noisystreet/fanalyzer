@@ -2,6 +2,18 @@
 
 use serde::Deserialize;
 use std::path::Path;
+use std::path::PathBuf;
+
+/// 返回 XDG 规范下的默认组合文件路径。
+///
+/// - Linux: `~/.config/fanalyzer/portfolio.toml`
+/// - macOS: `~/Library/Application Support/fanalyzer/portfolio.toml`
+/// - 回退: `config/portfolio.toml`（当前目录）
+pub fn default_portfolio_path() -> PathBuf {
+    dirs::config_dir()
+        .map(|p| p.join("fanalyzer").join("portfolio.toml"))
+        .unwrap_or_else(|| PathBuf::from("config/portfolio.toml"))
+}
 
 #[derive(Debug, Clone)]
 pub struct PortfolioDefinition {

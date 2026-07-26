@@ -3,6 +3,18 @@
 use serde::Deserialize;
 use std::collections::BTreeSet;
 use std::path::Path;
+use std::path::PathBuf;
+
+/// 返回 XDG 规范下的默认自选文件路径。
+///
+/// - Linux: `~/.config/fanalyzer/watchlist.toml`
+/// - macOS: `~/Library/Application Support/fanalyzer/watchlist.toml`
+/// - 回退: `config/watchlist.toml`（当前目录）
+pub fn default_watchlist_path() -> PathBuf {
+    dirs::config_dir()
+        .map(|p| p.join("fanalyzer").join("watchlist.toml"))
+        .unwrap_or_else(|| PathBuf::from("config/watchlist.toml"))
+}
 
 #[derive(Debug, Deserialize)]
 struct WatchlistToml {
@@ -10,9 +22,11 @@ struct WatchlistToml {
 }
 
 /// 读取 `funds` 字符串列表，忽略空项。
+/// 若文件不存在，自动创建空文件并返回空列表。
 pub fn load_watchlist(path: &Path) -> anyhow::Result<Vec<String>> {
     if !path.exists() {
-        anyhow::bail!("自选文件不存在：{}", path.display());
+        save_watchlist(path, &[])?;
+        return Ok(Vec::new());
     }
     let raw = std::fs::read_to_string(path)?;
     parse_watchlist_toml(&raw)
@@ -51,11 +65,7 @@ pub fn save_watchlist(path: &Path, funds: &[String]) -> anyhow::Result<()> {
 
 /// 追加基金代码（去重，保持顺序）。
 pub fn add_to_watchlist(path: &Path, codes: &[String]) -> anyhow::Result<Vec<String>> {
-    let mut funds = if path.exists() {
-        load_watchlist(path)?
-    } else {
-        Vec::new()
-    };
+    let mut funds = load_watchlist(path)?;
     let mut seen: BTreeSet<String> = funds.iter().cloned().collect();
     for code in normalize_funds(codes.to_vec()) {
         if seen.insert(code.clone()) {

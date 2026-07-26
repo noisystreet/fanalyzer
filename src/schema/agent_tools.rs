@@ -219,8 +219,7 @@ fn agent_only_tools() -> Vec<ToolDefinition> {
                     "portfolio-file".into(),
                     serde_json::json!({
                         "type": "string",
-                        "default": "config/portfolio.toml",
-                        "description": "组合 TOML 路径"
+                        "description": "组合 TOML 路径（默认 XDG）"
                     }),
                 )]),
                 required: vec![],

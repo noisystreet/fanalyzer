@@ -29,7 +29,9 @@ pub fn list_resources() -> ResourcesListResult {
             McpResource {
                 uri: URI_PORTFOLIO.into(),
                 name: "Portfolio".into(),
-                description: Some("组合权重 TOML（默认 config/portfolio.toml）".into()),
+                description: Some(
+                    "组合权重 TOML（默认 XDG ~/.config/fanalyzer/portfolio.toml）".into(),
+                ),
                 mime_type: Some("text/plain".into()),
             },
             McpResource {

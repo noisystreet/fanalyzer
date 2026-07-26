@@ -76,11 +76,10 @@ pub enum JsonCommands {
     Portfolio {
         #[arg(
             long = "portfolio-file",
-            default_value = "config/portfolio.toml",
             value_name = "PATH",
-            help = "组合权重 TOML 路径"
+            help = "组合权重 TOML 路径（默认 XDG）"
         )]
-        portfolio_file: PathBuf,
+        portfolio_file: Option<PathBuf>,
         #[arg(
             short,
             long,
@@ -248,10 +247,10 @@ pub enum JsonCommands {
     PortfolioConfig {
         #[arg(
             long = "portfolio-file",
-            default_value = "config/portfolio.toml",
-            value_name = "PATH"
+            value_name = "PATH",
+            help = "组合权重 TOML 路径（默认 XDG）"
         )]
-        portfolio_file: PathBuf,
+        portfolio_file: Option<PathBuf>,
     },
 }
 
