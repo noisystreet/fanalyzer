@@ -61,7 +61,7 @@ jobs:
 
       - name: Rename .deb package
         run: |
-          cp "target/debian/fanalyzer_${GITHUB_REF_NAME#v}_amd64.deb" \
+          cp target/debian/fanalyzer_*.deb \
              "fanalyzer-${GITHUB_REF_NAME}-linux-amd64.deb"
 
       - name: Create GitHub Release
