@@ -52,7 +52,7 @@ jobs:
           ./target/release/fanalyzer man > completions/fanalyzer.1
 
       - name: Install cargo-deb
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.85.5
         with:
           tool: cargo-deb
 
